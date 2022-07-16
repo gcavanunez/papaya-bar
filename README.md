@@ -13,6 +13,11 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 
 # Todo's
 
+- [ ] Get dropdown to use Popper to display dropdown accordingly 
+- [ ] Close duplicate tabs
+- [ ] Change bg hooked to the bottom
+
+- [ ] Explore better dx via Vite -> Chrome 
 - [ ] Persist searches/as filters -> to chrome sync
 - [ ] Dark mode toggle -> to chrome sync
 - [ ] Check Responsive story
