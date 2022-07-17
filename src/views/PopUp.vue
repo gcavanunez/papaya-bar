@@ -14,7 +14,6 @@ onMounted(() => {
     }),
   ]).then(([tabs, currentWindowId]) => {
     loadedTabs.value = tabs
-    console.log({ currentWindowId })
   })
 })
 const openTabs = () => {
@@ -40,7 +39,7 @@ const openTabs = () => {
   <div class="w-48">
     <ul role="list" class="divide-y divide-gray-200">
       <li class="flex w-full">
-        <div class="py-2 px-1 w-full text-left text-slate-700">
+        <div class="w-full py-2 px-1 text-left text-slate-700">
           All Tabs - {{ loadedTabs.length }}
         </div>
       </li>
@@ -48,7 +47,7 @@ const openTabs = () => {
         <button
           @click="openTabs"
           type="button"
-          class="w-full flex items-center py-2 px-1 hover:bg-slate-200"
+          class="flex w-full items-center py-2 px-1 hover:bg-slate-200"
         >
           <CollectionIcon class="h-6 w-6 rounded-full"></CollectionIcon>
           <div class="ml-3">

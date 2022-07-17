@@ -3,20 +3,15 @@ import { computed, onMounted, ref } from 'vue'
 import { XIcon, ChevronDownIcon } from '@heroicons/vue/solid'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
-import { ChevronUpIcon } from '@heroicons/vue/solid'
 import { TabGroup, TabList, Tab as AppTab } from '@headlessui/vue'
+import { ChevronUpIcon } from '@heroicons/vue/solid'
 import { copyToClipboard } from '../utils'
-import { usePopper } from '@/hooks/usePopper'
+
 import AppBtn from '@/components/AppBtn.vue'
 import { Tab, ChromeTab, Group, Grouped } from '@/types'
 import { closeTab, moveTabTo } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
-
-// type ChromeTab = chrome.tabs.Tab
-// type Tab = chrome.tabs.Tab & { stableId: string }
-// type Group = chrome.tabGroups.TabGroup
-// type Grouped = Record<string, Tab[]>
-
+console.log('render?')
 const changeTab = (index: number) => {
   selectedTab.value = index
 }
@@ -179,11 +174,6 @@ onMounted(() => {
     init()
   })
 })
-let [trigger, container] = usePopper({
-  placement: 'top-start',
-  strategy: 'fixed',
-  modifiers: [{ name: 'offset', options: { offset: [0, 10] } }],
-})
 
 const closeTabs = (tabs: Tab[]) => {
   tabs.forEach((row) => {
@@ -223,6 +213,13 @@ const selectGroup = (tabs: Tab[]) => {
   tabs.forEach((tab) => {
     tabsSelected.value.add(tab.stableId)
   })
+}
+const closeDuplicates = () => {
+  const duplicates = loadedTabs.value.filter(
+    (item, index, allTabs) =>
+      allTabs.findIndex((withIn) => withIn.url === item.url) != index,
+  )
+  duplicates.forEach(closeTab)
 }
 </script>
 
@@ -288,6 +285,13 @@ const selectGroup = (tabs: Tab[]) => {
             role="list"
             class="space-y-6 pl-2 text-sm leading-6 text-slate-700 lg:sticky lg:top-0 lg:-mt-16 lg:h-screen lg:w-72 lg:overflow-y-auto lg:py-16 lg:pr-8 lg:[mask-image:linear-gradient(to_bottom,transparent,white_4rem,white)]"
           >
+            <li>
+              <div class="rounded-lg bg-white shadow-md">
+                <div class="px-4 py-4 md:px-6">
+                  <AppBtn @click="closeDuplicates"> Close duplicates </AppBtn>
+                </div>
+              </div>
+            </li>
             <li v-for="(group, index) in grouped" :key="`list-${index}`">
               <Disclosure v-slot="{ open }">
                 <DisclosureButton
@@ -341,32 +345,20 @@ const selectGroup = (tabs: Tab[]) => {
             <div class="px-4 py-4 md:px-6">
               <h2 class="sr-only">{{ index }}</h2>
               <div class="flex items-center space-x-2">
-                <button
-                  class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm"
-                >
+                <AppBtn>
                   {{ index }}
-                </button>
-                <button
-                  @click="selectGroup(group)"
-                  type="button"
-                  class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm"
-                >
+                </AppBtn>
+                <AppBtn @click="selectGroup(group)" type="button">
                   Select
-                </button>
-                <button
-                  @click="copyLinks(group)"
-                  type="button"
-                  class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm"
-                >
-                  Copy
-                </button>
-                <button
+                </AppBtn>
+                <AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
+                <AppBtn
                   @click="closeTabs(group)"
                   type="button"
-                  class="inline-flex items-center rounded-full bg-slate-100 px-1 py-1 text-xs font-medium text-slate-800 shadow-sm"
+                  color="round-primary"
                 >
                   <XIcon class="h-3 w-3" />
-                </button>
+                </AppBtn>
               </div>
             </div>
             <ul class="px-4 py-4 md:px-6">
@@ -378,119 +370,6 @@ const selectGroup = (tabs: Tab[]) => {
                 :windows-map="windowsMap"
                 @toggle-selection="toggleSelection"
               />
-              <!-- <li
-                v-for="tab in group"
-                class="group relative w-full py-2"
-                :key="`${tab.windowId}-${tab.index}`"
-              >
-                <div
-                  class="pointer-events-none invisible absolute inset-0 flex items-center justify-between px-2 focus-within:visible group-hover:visible"
-                >
-                  <div>
-                    <button
-                      class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow"
-                      @click="toggleSelection(tab)"
-                    >
-                      <PlusIcon
-                        class="h-4 w-4"
-                        v-if="!tabsSelected.has(tab.stableId)"
-                      />
-                      <MinusIcon class="h-4 w-4" v-else />
-                    </button>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <Menu
-                      as="div"
-                      class="pointer-events-auto relative inline-block text-left"
-                    >
-                      <div>
-                        <MenuButton
-                          class="pointer-events-auto inline-flex items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-slate-800"
-                        >
-                          Move to
-                          <ChevronDownIcon
-                            class="ml-2 -mr-1 h-3 w-3 text-slate-800"
-                            aria-hidden="true"
-                          />
-                        </MenuButton>
-                      </div>
-
-                      <transition
-                        enter-active-class="transition duration-100 ease-out"
-                        enter-from-class="transform scale-95 opacity-0"
-                        enter-to-class="transform scale-100 opacity-100"
-                        leave-active-class="transition duration-75 ease-in"
-                        leave-from-class="transform scale-100 opacity-100"
-                        leave-to-class="transform scale-95 opacity-0"
-                      >
-                        <MenuItems
-                          class="absolute right-0 z-10 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-                        >
-                          <div class="px-1 py-1">
-                            <MenuItem
-                              v-slot="{ active, disabled }"
-                              :disabled="windowId === tab.windowId"
-                              :key="`${windowId}-${tab.index}`"
-                              v-for="[windowId, value] in [...windowsMap]"
-                              @click="moveTabTo([tab], windowId)"
-                            >
-                              <button
-                                :class="[
-                                  active
-                                    ? 'bg-blue-500 text-white'
-                                    : 'text-slate-700',
-                                  'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-                                  disabled ? 'opacity-50' : 'opacity-100',
-                                ]"
-                              >
-                                {{ value }}
-                              </button>
-                            </MenuItem>
-                          </div>
-                        </MenuItems>
-                      </transition>
-                    </Menu>
-                    <button
-                      class="pointer-events-auto rounded-full bg-slate-100 px-2 py-0.5 text-slate-800"
-                      @click="copyLink(tab)"
-                    >
-                      Copy
-                    </button>
-                    <button
-                      class="pointer-events-auto rounded-full bg-slate-100 px-1 py-1 text-slate-800"
-                      @click="closeTab(tab)"
-                    >
-                      <XIcon class="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-                <button
-                  class="flex w-full items-center rounded-lg bg-white py-2 px-2 shadow-sm transition hover:bg-slate-200 hover:shadow"
-                  :class="
-                    !tabsSelected.has(tab.stableId)
-                      ? 'bg-white hover:bg-slate-200'
-                      : 'bg-blue-100 hover:bg-blue-200'
-                  "
-                  :title="tab.url"
-                  @click="goTo(tab)"
-                >
-                  <div class="shrink-0">
-                    <img
-                      class="h-8 w-8 rounded-full"
-                      :src="tab.favIconUrl ? tab.favIconUrl : 'bug'"
-                      alt=""
-                      @error="(e: Event) => onImageLoadError(tab)"
-                      v-if="!tabWithIconIssues.includes(`${tab.id}`)"
-                    />
-                    <div class="h-8 w-8 rounded-full bg-slate-700" v-else></div>
-                  </div>
-                  <div
-                    class="ml-2 truncate text-sm font-medium text-slate-900 group-hover:mr-40"
-                  >
-                    {{ tab.title }}
-                  </div>
-                </button>
-              </li> -->
             </ul>
           </div>
         </div>
@@ -508,13 +387,13 @@ const selectGroup = (tabs: Tab[]) => {
             {{ [...tabsSelected].length }} Tabs selected
           </div>
           <div class="flex items-center space-x-2">
-            <button
+            <AppBtn
               @click="tabsSelected.clear()"
               type="button"
-              class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 shadow-sm ring-0 hover:bg-slate-700"
+              color="primary-dark"
             >
               Deselect all
-            </button>
+            </AppBtn>
             <Menu
               as="div"
               class="pointer-events-auto relative inline-flex text-left"

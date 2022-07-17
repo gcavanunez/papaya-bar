@@ -13,9 +13,9 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 
 # Todo's
 
-- [ ] Get dropdown to use Popper to display dropdown accordingly 
-- [ ] Close duplicate tabs
-- [ ] Change bg hooked to the bottom
+- [x] (ish) Get dropdown to use Popper to display dropdown accordingly 
+- [x] Close duplicate tabs
+- [x] Change bg hooked to the bottom
 
 - [ ] Explore better dx via Vite -> Chrome 
 - [ ] Persist searches/as filters -> to chrome sync
