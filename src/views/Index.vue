@@ -140,6 +140,13 @@ const grouped = computed<Grouped>(() => {
       return obj
     }, {} as Grouped)
 })
+const totalTabs = computed(() => {
+  return Object.values(grouped.value)
+    .flatMap((row) => row.length)
+    .reduce((acc, curr) => {
+      return acc + curr
+    }, 0)
+})
 
 const closeTabs = (tabs: Tab[]) => {
   tabs.forEach((row) => {
@@ -209,13 +216,33 @@ const closeDuplicates = () => {
         >
           <div class="flex w-full max-w-md flex-shrink items-center px-4">
             <label for="search" class="sr-only">Search tabs</label>
-            <input
-              type="text"
-              id="search"
-              v-model="searchTerm"
-              class="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="Search"
-            />
+            <div class="relative w-full">
+              <input
+                type="text"
+                id="search"
+                v-model="searchTerm"
+                class="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="Search"
+              />
+              <div
+                v-if="totalTabs > 0 && searchTerm"
+                class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+              >
+                <div class="flex">
+                  <p
+                    class="inline-flex items-center rounded-l border border-r-0 border-gray-200 px-2 py-0.5 font-sans text-xs font-medium text-gray-400"
+                  >
+                    {{ totalTabs }}
+                  </p>
+                  <button
+                    @click="searchTerm = ''"
+                    class="pointer-events-auto rounded-r border border-gray-200 bg-slate-50 px-2 py-0.5 text-gray-400"
+                  >
+                    <XIcon class="h-3 w-3 fill-current" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="w-full max-w-md flex-grow px-4">
             <TabGroup @change="changeTab" :selectedIndex="selectedTab">
@@ -354,11 +381,11 @@ const closeDuplicates = () => {
           </div>
           <div class="flex items-center space-x-2">
             <AppBtn
-              @click="tabsSelected.clear()"
+              @click="closeTabs(selectedGroup)"
               type="button"
               color="primary-dark"
             >
-              Deselect all
+              Close all
             </AppBtn>
             <Menu
               as="div"
@@ -421,7 +448,7 @@ const closeDuplicates = () => {
               Copy
             </AppBtn>
             <AppBtn
-              @click="closeTabs(selectedGroup)"
+              @click="tabsSelected.clear()"
               color="round-dark-primary"
               type="button"
             >
