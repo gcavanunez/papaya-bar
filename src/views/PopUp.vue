@@ -1,36 +1,35 @@
 <script setup lang="ts">
-import { CollectionIcon } from '@heroicons/vue/solid'
-import { onMounted, ref } from 'vue'
-type Tab = chrome.tabs.Tab
-const loadedTabs = ref<Tab[]>([])
+import { copyLink } from '@/helpers'
+import { useChromeTabs } from '@/hooks/useChromeTabs'
+import { CollectionIcon, ClipboardCopyIcon } from '@heroicons/vue/solid'
 
-onMounted(() => {
-  Promise.all([
-    new Promise<Tab[]>((resolve) => {
-      chrome.tabs.query({}, (tabs) => resolve(tabs))
-    }),
-    new Promise<number | undefined>((resolve) => {
-      chrome.windows.getCurrent({}, ({ id }) => resolve(id))
-    }),
-  ]).then(([tabs, currentWindowId]) => {
-    loadedTabs.value = tabs
-  })
-})
+const { loadedTabs } = useChromeTabs()
+const copyOpenTab = async () => {
+  const current = await chrome.windows.getCurrent()
+  const tab = loadedTabs.value.find(
+    (row) => row.active && row.windowId == current.id,
+  )
+  if (tab) {
+    copyLink(tab)
+  }
+}
 const openTabs = () => {
   // chrome.extension.
   // const optionsUrl = chrome.extension.getURL('index.html')
-  chrome.tabs.create({
-    url: 'chrome-extension://' + chrome.runtime.id + '/index.html',
-  })
-  // chrome.tabs.query({ url: optionsUrl }, function (tabs) {
-  //   if (tabs.length) {
-  //     if (tabs[0].id) {
-  //       chrome.tabs.update(tabs[0].id, { active: true })
-  //     }
-  //   } else {
-  //     chrome.tabs.create({ url: optionsUrl })
-  //   }
+  // chrome.tabs.create({
+  //   url: 'chrome-extension://' + chrome.runtime.id + '/index.html',
   // })
+  let url = 'chrome-extension://' + chrome.runtime.id + '/index.html'
+  chrome.tabs.query({ url }, function (tabs) {
+    if (tabs.length) {
+      if (tabs[0].id) {
+        chrome.windows.update(tabs[0].windowId, { focused: true })
+        chrome.tabs.update(tabs[0].id, { active: true })
+      }
+    } else {
+      chrome.tabs.create({ url })
+    }
+  })
   // chrome.tabs.create({ url: optionsUrl })
   // console.log({ optionsUrl })
 }
@@ -52,6 +51,18 @@ const openTabs = () => {
           <CollectionIcon class="h-6 w-6 rounded-full"></CollectionIcon>
           <div class="ml-3">
             <p class="text-sm font-medium text-gray-900">Manage</p>
+          </div>
+        </button>
+      </li>
+      <li class="flex w-full">
+        <button
+          @click="copyOpenTab"
+          type="button"
+          class="flex w-full items-center py-2 px-1 hover:bg-slate-200"
+        >
+          <ClipboardCopyIcon class="h-6 w-6 rounded-full"></ClipboardCopyIcon>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-900">Copy</p>
           </div>
         </button>
       </li>

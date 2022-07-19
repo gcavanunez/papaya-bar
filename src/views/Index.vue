@@ -11,6 +11,7 @@ import AppBtn from '@/components/AppBtn.vue'
 import { Tab, ChromeTab, Group, Grouped } from '@/types'
 import { closeTab, moveTabTo } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
+import { useChromeTabs } from '@/hooks/useChromeTabs'
 console.log('render?')
 const changeTab = (index: number) => {
   selectedTab.value = index
@@ -25,10 +26,10 @@ const categories = ref({
 })
 // chrome.tabs
 const searchTerm = ref<string>('')
-const loadedTabs = ref<Tab[]>([])
-
+// const loadedTabs = ref<Tab[]>([])
+// const loadedGroups = ref<Group[]>([])
+const { loadedTabs, loadedGroups } = useChromeTabs()
 const tabsSelected = ref<Set<string>>(new Set())
-const loadedGroups = ref<Group[]>([])
 const groupMap = computed(() => {
   let computedMap = new Map()
   loadedGroups.value.forEach((row) => {
@@ -138,41 +139,6 @@ const grouped = computed<Grouped>(() => {
       obj[key] = actualGroup[key]
       return obj
     }, {} as Grouped)
-})
-
-const init = () => {
-  Promise.all([
-    new Promise<ChromeTab[]>((resolve) => {
-      chrome.tabs.query({}, (tabs) => resolve(tabs))
-    }),
-    new Promise<number | undefined>((resolve) => {
-      chrome.windows.getCurrent({}, ({ id }) => resolve(id))
-    }),
-    new Promise<Group[]>((resolve) => {
-      chrome.tabGroups.query({}, (group) => resolve(group))
-    }),
-  ]).then(([tabs, currentWindowId, groups]) => {
-    loadedTabs.value = tabs.map((row) => ({
-      ...row,
-      stableId: `stableId-${row.id}`,
-    }))
-    loadedGroups.value = groups
-  })
-}
-onMounted(() => {
-  init()
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    init()
-  })
-  chrome.tabs.onRemoved.addListener((tab, removeInfo) => {
-    init()
-  })
-  chrome.tabs.onMoved.addListener((tabId) => {
-    init()
-  })
-  chrome.tabs.onAttached.addListener((tabId) => {
-    init()
-  })
 })
 
 const closeTabs = (tabs: Tab[]) => {
