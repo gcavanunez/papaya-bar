@@ -26,8 +26,6 @@ const categories = ref({
 })
 // chrome.tabs
 const searchTerm = ref<string>('')
-// const loadedTabs = ref<Tab[]>([])
-// const loadedGroups = ref<Group[]>([])
 const { loadedTabs, loadedGroups } = useChromeTabs()
 const tabsSelected = ref<Set<string>>(new Set())
 const groupMap = computed(() => {
@@ -210,9 +208,6 @@ const closeDuplicates = () => {
               All Tabs - {{ loadedTabs.length }}
             </h1>
           </router-link>
-          <AppBtn type="button" color="primary-dark">
-            When clicked tabs focus within works, for some reason?
-          </AppBtn>
         </div>
         <div
           class="flex w-full max-w-3xl justify-end divide-x divide-slate-300"
