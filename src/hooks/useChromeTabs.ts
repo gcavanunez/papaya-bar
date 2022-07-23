@@ -24,19 +24,21 @@ export const useChromeTabs = () => {
     })
   }
   onMounted(() => {
-    init()
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (chrome.tabs) {
       init()
-    })
-    chrome.tabs.onRemoved.addListener((tab, removeInfo) => {
-      init()
-    })
-    chrome.tabs.onMoved.addListener((tabId) => {
-      init()
-    })
-    chrome.tabs.onAttached.addListener((tabId) => {
-      init()
-    })
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        init()
+      })
+      chrome.tabs.onRemoved.addListener((tab, removeInfo) => {
+        init()
+      })
+      chrome.tabs.onMoved.addListener((tabId) => {
+        init()
+      })
+      chrome.tabs.onAttached.addListener((tabId) => {
+        init()
+      })
+    }
   })
 
   return { loadedTabs, loadedGroups }

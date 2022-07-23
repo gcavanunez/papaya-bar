@@ -210,6 +210,9 @@ const closeDuplicates = () => {
               All Tabs - {{ loadedTabs.length }}
             </h1>
           </router-link>
+          <AppBtn type="button" color="primary-dark">
+            When clicked tabs focus within works, for some reason?
+          </AppBtn>
         </div>
         <div
           class="flex w-full max-w-3xl justify-end divide-x divide-slate-300"
@@ -221,7 +224,7 @@ const closeDuplicates = () => {
                 type="text"
                 id="search"
                 v-model="searchTerm"
-                class="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                class="block w-full rounded-md border-slate-300 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
                 placeholder="Search"
               />
               <div
@@ -256,7 +259,7 @@ const closeDuplicates = () => {
                   <button
                     :class="[
                       'w-full rounded-md py-2 px-3 text-sm font-medium leading-5 text-blue-700',
-                      'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2',
+                      'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
                       selected
                         ? 'bg-white shadow'
                         : 'text-blue-50 hover:bg-white/[0.12] hover:text-white',

@@ -22,7 +22,18 @@ export const usePopper = (options: Options) => {
       if (!(referenceEl instanceof HTMLElement)) return
       if (!(popperEl instanceof HTMLElement)) return
 
-      let { destroy } = createPopper(referenceEl, popperEl, options)
+      let { destroy, state } = createPopper(referenceEl, popperEl, {
+        ...options,
+
+        // onFirstUpdate(arg0) {
+        // console.log('when')
+        // update()s
+        // if (popperEl) {
+        //   popperEl.update()
+        // }
+        // },
+      })
+
       onInvalidate(destroy)
     })
   })

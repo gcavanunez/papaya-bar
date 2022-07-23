@@ -127,7 +127,7 @@ const onImageLoadError = () => {
         <div class="h-8 w-8 rounded-full bg-slate-700" v-else></div>
       </div>
       <div
-        class="ml-2 truncate text-sm font-medium text-slate-900 group-hover:mr-40"
+        class="ml-2 truncate text-sm font-medium text-slate-900 group-hover:mr-40 group-focus:truncate"
       >
         {{ tab.title }}
       </div>
