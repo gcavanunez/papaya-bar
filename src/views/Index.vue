@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 import { XIcon, ChevronDownIcon } from '@heroicons/vue/solid'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { TabGroup, TabList, Tab as AppTab } from '@headlessui/vue'
 import { ChevronUpIcon } from '@heroicons/vue/solid'
 import { copyToClipboard } from '../utils'
-
 import AppBtn from '@/components/AppBtn.vue'
 import { Tab, ChromeTab, Group, Grouped } from '@/types'
 import { closeTab, moveTabTo } from '@/helpers'
@@ -17,7 +16,38 @@ const changeTab = (index: number) => {
   selectedTab.value = index
 }
 const selectedTab = ref(0)
-
+const inputRef = ref<HTMLInputElement | null>(null)
+const focusOnInput = () => {
+  if (inputRef.value) {
+    inputRef.value.focus()
+  }
+}
+onMounted(() => {
+  watchEffect((onInvalidate) => {
+    const focusSearch = (e: KeyboardEvent) => {
+      // if (75 === e.which && (e.ctrlKey || e.metaKey)) {
+      //   e.preventDefault()
+      //   focusOnInput()
+      // }
+      if (e.key == '/' && document.activeElement !== inputRef.value) {
+        console.log('focusSearch hi')
+        e.preventDefault()
+        focusOnInput()
+      }
+      // var n = e.target || e.srcElement,
+      //   r = n.tagName
+      // n.isContentEditable ||
+      //   'INPUT' === r ||
+      //   'SELECT' === r ||
+      //   'TEXTAREA' === r ||
+      //   (191 === e.which && (e.preventDefault(), open()))
+    }
+    document.addEventListener('keydown', focusSearch)
+    onInvalidate(() => {
+      document.removeEventListener('keydown', focusSearch)
+    })
+  })
+})
 const categories = ref({
   All: [],
   Grouped: [],
@@ -217,11 +247,21 @@ const closeDuplicates = () => {
             <div class="relative w-full">
               <input
                 type="text"
+                ref="inputRef"
                 id="search"
                 v-model="searchTerm"
-                class="block w-full rounded-md border-slate-300 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+                class="peer block w-full rounded-md border-slate-300 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
                 placeholder="Search"
               />
+              <div
+                class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 peer-focus:hidden"
+              >
+                <p
+                  class="inline-flex items-center rounded border border-gray-200 px-2 py-0.5 font-sans text-xs font-medium text-gray-400"
+                >
+                  /
+                </p>
+              </div>
               <div
                 v-if="totalTabs > 0 && searchTerm"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
