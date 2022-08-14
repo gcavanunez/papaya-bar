@@ -11,7 +11,18 @@ import { Tab, ChromeTab, Group, Grouped } from '@/types'
 import { closeTab, moveTabTo } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
 import { useChromeTabs } from '@/hooks/useChromeTabs'
-console.log('render?')
+import autoAnimate from '@formkit/auto-animate'
+
+const groupContainer = ref<HTMLElement | null>(null)
+const groupHeaders = ref<HTMLElement | null>(null)
+onMounted(() => {
+  if (groupContainer.value) {
+    autoAnimate(groupContainer.value, { duration: 150 }) // thats it!
+  }
+  if (groupHeaders.value) {
+    autoAnimate(groupHeaders.value, { duration: 150 }) // thats it!
+  }
+})
 const changeTab = (index: number) => {
   selectedTab.value = index
 }
@@ -52,11 +63,11 @@ const categories = ref({
   All: [],
   Grouped: [],
   Windows: [],
-  Filters: [],
+  Current: [],
 })
 // chrome.tabs
 const searchTerm = ref<string>('')
-const { loadedTabs, loadedGroups } = useChromeTabs()
+const { loadedTabs, loadedGroups, loadedTabHistory } = useChromeTabs()
 const tabsSelected = ref<Set<string>>(new Set())
 const groupMap = computed(() => {
   let computedMap = new Map()
@@ -313,6 +324,7 @@ const closeDuplicates = () => {
       <div class="grid grid-cols-3 gap-6">
         <div>
           <ul
+            ref="groupHeaders"
             role="list"
             class="space-y-6 pl-2 text-sm leading-6 text-slate-700 lg:sticky lg:top-0 lg:-mt-16 lg:h-screen lg:w-72 lg:overflow-y-auto lg:py-16 lg:pr-8 lg:[mask-image:linear-gradient(to_bottom,transparent,white_4rem,white)]"
           >
@@ -366,30 +378,34 @@ const closeDuplicates = () => {
             </li>
           </ul>
         </div>
-        <div class="col-span-2 space-y-6">
+        <div class="col-span-2 space-y-6" ref="groupContainer">
           <div
             class="divide-y divide-slate-100 rounded-lg bg-white shadow-md"
             v-for="(group, index) in grouped"
-            :key="index"
+            :key="`section-${index}`"
             :id="`section-${index}`"
           >
             <div class="px-4 py-4 md:px-6">
               <h2 class="sr-only">{{ index }}</h2>
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center justify-between">
                 <AppBtn>
                   {{ index }}
                 </AppBtn>
-                <AppBtn @click="selectGroup(group)" type="button">
-                  Select
-                </AppBtn>
-                <AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
-                <AppBtn
-                  @click="closeTabs(group)"
-                  type="button"
-                  color="round-primary"
-                >
-                  <XIcon class="h-3 w-3" />
-                </AppBtn>
+                <div class="flex items-center space-x-2">
+                  <AppBtn @click="selectGroup(group)" type="button">
+                    Select
+                  </AppBtn>
+                  <AppBtn @click="copyLinks(group)" type="button">
+                    Copy
+                  </AppBtn>
+                  <AppBtn
+                    @click="closeTabs(group)"
+                    type="button"
+                    color="round-primary"
+                  >
+                    <XIcon class="h-3 w-3" />
+                  </AppBtn>
+                </div>
               </div>
             </div>
             <ul class="px-4 py-4 md:px-6">
@@ -399,6 +415,7 @@ const closeDuplicates = () => {
                 :tab="tab"
                 :tabs-selected="tabsSelected"
                 :windows-map="windowsMap"
+                :history="loadedTabHistory"
                 @toggle-selection="toggleSelection"
               />
             </ul>
@@ -429,14 +446,14 @@ const closeDuplicates = () => {
               as="div"
               class="pointer-events-auto relative inline-flex text-left"
             >
-              <MenuButton
-                class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 shadow-sm ring-0 highlight-white/5 hover:bg-slate-700"
-              >
-                Move to
-                <ChevronDownIcon
-                  class="ml-2 -mr-1 h-3 w-3 text-slate-200"
-                  aria-hidden="true"
-                />
+              <MenuButton as="template">
+                <AppBtn color="primary-dark">
+                  Move to
+                  <ChevronDownIcon
+                    class="ml-2 -mr-1 h-3 w-3 text-slate-200"
+                    aria-hidden="true"
+                  />
+                </AppBtn>
               </MenuButton>
 
               <transition

@@ -1,11 +1,12 @@
-import { ChromeTab, Group, Tab } from '@/types'
+import { ChromeTab, Group, HistoryMap, Tab } from '@/types'
 import { onMounted, ref } from 'vue'
 
 export const useChromeTabs = () => {
   const loadedTabs = ref<Tab[]>([])
+  const loadedTabHistory = ref<HistoryMap>(new Map())
   const loadedGroups = ref<Group[]>([])
-  const init = () => {
-    Promise.all([
+  const init = async () => {
+    const [tabs, currentWindowId, groups] = await Promise.all([
       new Promise<ChromeTab[]>((resolve) => {
         chrome.tabs.query({}, (tabs) => resolve(tabs))
       }),
@@ -15,15 +16,31 @@ export const useChromeTabs = () => {
       new Promise<Group[]>((resolve) => {
         chrome.tabGroups.query({}, (group) => resolve(group))
       }),
-    ]).then(([tabs, currentWindowId, groups]) => {
-      loadedTabs.value = tabs.map((row) => ({
-        ...row,
-        stableId: `stableId-${row.id}`,
-      }))
-      loadedGroups.value = groups
+    ])
+    // const tabHistoryPromises: Promise<chrome.history.VisitItem[]>[] = []
+
+    loadedTabs.value = tabs.map((row) => ({
+      ...row,
+      stableId: `stableId-${row.id}`,
+    }))
+    tabs.forEach((row) => {
+      if (row.url) {
+        chrome.history.getVisits({ url: row.url }).then((tabHistory) => {
+          loadedTabHistory.value.set(row.url!, tabHistory)
+        })
+        // tabHistoryPromises.push()
+        // loadedTabHistory.value.set(row.url, [])
+      }
     })
+
+    // const tabHistoryResults = await Promise.all(tabHistoryPromises)
+    // tabHistoryResults.forEach((tabHistory) => {
+    //   tabHistory
+    // })
+    loadedGroups.value = groups
   }
   onMounted(() => {
+    // To be able to load in dev environment
     if (chrome.tabs) {
       init()
       chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -41,5 +58,5 @@ export const useChromeTabs = () => {
     }
   })
 
-  return { loadedTabs, loadedGroups }
+  return { loadedTabs, loadedGroups, loadedTabHistory }
 }

@@ -6,6 +6,8 @@
   "description": "Chrome Extension manage tabs",
   "author": "Guillermo Cava",
   "permissions": [
+    "storage",
+    "history",
     "bookmarks",
     "storage",
     "tabs",
