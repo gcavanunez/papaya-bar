@@ -17,8 +17,10 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 - [x] Close duplicate tabs
 - [x] Change bg hooked to the bottom
 
+- [ ] Change UI, search right tabs left
 - [ ] Explore better dx via Vite -> Chrome 
 - [ ] Persist searches/as filters -> to chrome sync
+  - [ ] custom filters (keywords: react)
 - [ ] Dark mode toggle -> to chrome sync
 - [ ] Check Responsive story
 - [ ] animations when closing tabs
@@ -26,3 +28,6 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 - [ ] Selected tabs persisting even though no longer exist
 - [ ] Optimize events rather than re-init
 - [ ] validate instances where stableId just does not make sense (undefined state)
+- [ ] Save all tabs -> to chrome sync 
+- [ ] date filters sum 
+- [ ] screenshot hot screen just area on screen

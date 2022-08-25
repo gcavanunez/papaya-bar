@@ -1,49 +1,66 @@
 {
-  "manifest_version": 3,
-  "name": "Choncho",
-  "version": "0.1.0",
-  "version_name": "0.1.0",
-  "description": "Chrome Extension manage tabs",
-  "author": "Guillermo Cava",
-  "permissions": [
-    "storage",
-    "history",
-    "bookmarks",
-    "storage",
-    "tabs",
-    "tabGroups",
-    "contextMenus",
-    "clipboardWrite"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ],
-  "commands": {
-    "open-page": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
-      },
-      "description": "Open Chonching tabs",
-      "global": true
-    },
-    "copy-link": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+1",
-        "mac": "Command+Shift+1"
-      },
-      "description": "Open Chonching tabs",
-      "global": true
-    }
-  },
-  "action": {
-    "default_popup": "index.html#/about",
-    "default_title": "Choncho"
-  }
+	"manifest_version": 3,
+	"name": "Choncho",
+	"version": "0.1.0",
+	"version_name": "0.1.0",
+	"description": "Chrome Extension manage tabs",
+	"author": "Guillermo Cava",
+	"permissions": [
+		"storage",
+		"tabCapture",
+		"history",
+		"bookmarks",
+		"storage",
+		"tabs",
+		"downloads",
+		"tabGroups",
+		"desktopCapture",
+		"contextMenus",
+		"clipboardWrite"
+	],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"icons": {
+		"16": "/assets/icon-16.png",
+		"32": "/assets/icon-32.png",
+		"48": "/assets/icon-48.png",
+		"128": "/assets/icon-128.png"
+	},
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>"],
+			"js": ["content.js"]
+		}
+	],
+	"commands": {
+		"open-page": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+K",
+				"mac": "Command+Shift+K"
+			},
+			"description": "Open Chonching tabs",
+			"global": true
+		},
+		"copy-link": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+1",
+				"mac": "Command+Shift+1"
+			},
+			"description": "Open Chonching tabs",
+			"global": true
+		},
+		"screenshot-area": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+2",
+				"mac": "Command+Shift+2"
+			},
+			"description": "Screenshot area",
+			"global": true
+		}
+	},
+	"action": {
+		"default_popup": "index.html#/about",
+		"default_title": "Choncho"
+	}
 }
