@@ -114,7 +114,9 @@ const removeSavedSession = (key: string) => {
 <template>
 	<div class="relative bg-slate-100">
 		<div class="container mx-auto max-w-5xl py-6 px-4 sm:px-2">
-			<AppBtn @click="storeSession">Save session</AppBtn>
+			<div class="flex w-full justify-end">
+				<AppBtn color="white" @click="storeSession">Save session</AppBtn>
+			</div>
 			<ul class="mt-6 rounded-lg bg-white shadow-md">
 				<li v-for="[key, value] in state.entries()" :key="key">
 					<div class="flex justify-between px-4 py-4 md:px-6">
