@@ -9,12 +9,19 @@ import {
 	DisclosureButton,
 	DisclosurePanel,
 } from '@headlessui/vue'
-import { PlusIcon, XIcon, MinusIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/solid'
+import {
+	PlusIcon,
+	XMarkIcon,
+	MinusIcon,
+	ChevronUpIcon,
+	ChevronDownIcon,
+} from '@heroicons/vue/20/solid'
 import { closeTab, copyLink, moveTabTo, goTo } from '@/helpers'
-import { Tab, HistoryMap } from '@/types'
+import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
 import { usePopper } from '@/hooks/usePopper'
 import AppBtn from './AppBtn.vue'
+import { useChromeTabs } from '@/hooks/useChromeTabs'
 let [trigger, container] = usePopper({
 	placement: 'auto',
 	strategy: 'fixed',
@@ -25,10 +32,13 @@ interface Props {
 	tab: Tab
 	tabsSelected: Set<string>
 	windowsMap: Map<number, string>
+	loadedGroups: Group[]
 	history: HistoryMap
 	// history: chrome.history.VisitItem[]
 }
-const { tab, tabsSelected, windowsMap, history } = defineProps<Props>()
+// const { loadedGroups, windowsMap } = useChromeTabs()
+// console.log({ loadedGroups, windowsMap })
+const { tab, tabsSelected, windowsMap, history, loadedGroups } = defineProps<Props>()
 const emit = defineEmits<{
 	(e: 'toggleSelection', tab: Tab): void
 }>()
@@ -55,9 +65,19 @@ const tabHistory = computed(() => {
 </script>
 
 <template>
-	<li class="group w-full py-2" :key="`${tab.windowId}-${tab.index}`">
+	<li class="group w-full py-2" :key="`${tab.windowId}-${tab.stableId}`">
 		<Disclosure v-slot="{ open }">
-			<div class="relative">
+			<div
+				class="relative rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5"
+				:style="{
+					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color || 'transparent',
+				}"
+				:class="
+					loadedGroups.find((row) => row.id === tab.groupId)?.color
+						? ''
+						: 'hover:border-l-slate-200'
+				"
+			>
 				<div
 					class="pointer-events-none invisible absolute inset-0 flex items-center justify-between px-2 focus-within:visible group-hover:visible"
 				>
@@ -99,9 +119,11 @@ const tabHistory = computed(() => {
 											<MenuItem
 												v-slot="{ active, disabled }"
 												:disabled="windowId === tab.windowId"
-												:key="`${windowId}-${tab.index}`"
+												:key="`${windowId}-${tab.stableId}`"
 												v-for="[windowId, value] in [...windowsMap]"
-												@click="moveTabTo([tab], windowId)"
+												@click="
+													moveTabTo([tab], { containerId: windowId, type: 'window_container' })
+												"
 											>
 												<button
 													:class="[
@@ -111,6 +133,29 @@ const tabHistory = computed(() => {
 													]"
 												>
 													{{ value }}
+												</button>
+											</MenuItem>
+										</div>
+										<div class="px-1 py-1">
+											<MenuItem
+												v-slot="{ active, disabled }"
+												:key="`${loadedGroup.id}-custom-selected`"
+												v-for="loadedGroup in loadedGroups"
+												@click="
+													moveTabTo([tab], {
+														containerId: loadedGroup.id,
+														type: 'group_container',
+													})
+												"
+											>
+												<button
+													:class="[
+														active ? 'bg-blue-500 text-white' : 'text-slate-700',
+														'group flex w-full items-center rounded-md px-2 py-2 text-sm',
+														disabled ? 'opacity-50' : 'opacity-100',
+													]"
+												>
+													{{ loadedGroup.title }}
 												</button>
 											</MenuItem>
 										</div>
@@ -130,16 +175,22 @@ const tabHistory = computed(() => {
 						</DisclosureButton>
 						<AppBtn @click="copyLink(tab)"> Copy </AppBtn>
 						<AppBtn @click="closeTab(tab)" color="round-primary">
-							<XIcon class="h-3 w-3" />
+							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>
 					</div>
 				</div>
+				<!-- 
+          ring-2 ring-inset
+          :style="{
+						'--tw-ring-color':
+							loadedGroups.find((row) => row.id === tab.groupId)?.color || 'transparent',
+					}" -->
 				<button
-					class="flex w-full items-center rounded-lg bg-white py-2 px-2 shadow-sm transition hover:bg-slate-200 hover:shadow"
+					class="flex w-full items-center rounded-lg bg-white py-2 px-2 transition hover:shadow"
 					:class="
 						!tabsSelected.has(tab.stableId)
 							? 'bg-white hover:bg-slate-200'
-							: 'bg-blue-100 hover:bg-blue-200'
+							: 'bg-papaya-500 hover:bg-papaya-500/80'
 					"
 					:title="tab.url"
 					@click="goTo(tab)"

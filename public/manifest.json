@@ -1,6 +1,6 @@
 {
 	"manifest_version": 3,
-	"name": "Choncho",
+	"name": "Papaya Bar",
 	"version": "0.1.0",
 	"version_name": "0.1.0",
 	"description": "Chrome Extension manage tabs",
@@ -10,22 +10,32 @@
 		"tabCapture",
 		"history",
 		"bookmarks",
-		"storage",
+		"activeTab",
+		"unlimitedStorage",
 		"tabs",
+		"scripting",
 		"downloads",
 		"tabGroups",
 		"desktopCapture",
 		"contextMenus",
-		"clipboardWrite"
+		"clipboardWrite",
+		"system.display"
 	],
 	"background": {
 		"service_worker": "background.js"
 	},
+	"web_accessible_resources": [
+		{
+			"resources": ["favicon.ico", "/static/media/*"],
+			"matches": ["<all_urls>"]
+		}
+	],
+	"host_permissions": ["<all_urls>"],
 	"icons": {
-		"16": "/assets/icon-16.png",
-		"32": "/assets/icon-32.png",
-		"48": "/assets/icon-48.png",
-		"128": "/assets/icon-128.png"
+		"16": "/assets/papaya-icon.png",
+		"32": "/assets/papaya-icon.png",
+		"48": "/assets/papaya-icon.png",
+		"128": "/assets/papaya-icon.png"
 	},
 	"content_scripts": [
 		{

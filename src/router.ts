@@ -4,12 +4,50 @@ import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
 // Each route should map to a component.
 // We'll talk about nested routes later.
 const routes: RouteRecordRaw[] = [
-	{ path: '/', component: () => import('@/views/Index.vue'), name: 'index' },
-	{ path: '/sessions', component: () => import('@/views/Sessions.vue'), name: 'sessions' },
+	{
+		path: '/',
+		component: () => import('@/components/AppLayout.vue'),
+		children: [
+			{ path: '', component: () => import('@/views/NextView.vue'), name: 'index' },
+			{
+				path: 'sessions',
+				component: () => import('@/components/SimpleContainer.vue'),
+				props: true,
+				children: [
+					{
+						path: '',
+						component: () => import('@/views/Sessions.vue'),
+						name: 'sessions',
+					},
+					{
+						path: ':uid',
+						component: () => import('@/views/SessionsShow.vue'),
+						name: 'sessions.show',
+					},
+				],
+			},
+			{ path: 'utilities', component: () => import('@/views/Utilities.vue'), name: 'utilities' },
+		],
+	},
+
+	{ path: '/oldie', component: () => import('@/views/Index.vue'), name: 'oldie' },
+	// { path: '/sessions', component: () => import('@/views/Sessions.vue'), name: 'sessions' },
+	// { path: '/utilities', component: () => import('@/views/Utilities.vue'), name: 'utilities' },
 	{
 		path: '/about',
 		component: () => import('@/views/PopUp.vue'),
 		name: 'popup',
+	},
+	{
+		path: '/next',
+		component: () => import('@/components/AppLayout.vue'),
+		children: [
+			{
+				path: '',
+				component: () => import('@/views/NextView.vue'),
+				name: 'next-view',
+			},
+		],
 	},
 ]
 
@@ -25,7 +63,7 @@ export const router = createRouter({
 			return {
 				el: to.hash,
 				behavior: 'smooth',
-				top: 74,
+				// top: 74,
 			}
 		}
 	},

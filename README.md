@@ -13,21 +13,23 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 
 # Todo's
 
-- [x] (ish) Get dropdown to use Popper to display dropdown accordingly 
-- [x] Close duplicate tabs
-- [x] Change bg hooked to the bottom
-
 - [ ] Change UI, search right tabs left
 - [ ] Explore better dx via Vite -> Chrome 
 - [ ] Persist searches/as filters -> to chrome sync
-  - [ ] custom filters (keywords: react)
-- [ ] Dark mode toggle -> to chrome sync
+  - [ ] custom filters (keywords: react, elixir, etc)
 - [ ] Check Responsive story
-- [ ] animations when closing tabs
-- [ ] Check error removing a row focus passing to new item
+
+
+# Bugs
 - [ ] Selected tabs persisting even though no longer exist
-- [ ] Optimize events rather than re-init
-- [ ] validate instances where stableId just does not make sense (undefined state)
-- [ ] Save all tabs -> to chrome sync 
-- [ ] date filters sum 
-- [ ] screenshot hot screen just area on screen
+- [ ] (?) Optimize events rather than re-init
+- [ ] Check error removing a row focus passing to new item
+- [ ] Fix when display bounds don't match
+  - Review: https://natto.dev/@gcavanunez/5aa5381e56794a08bc86e79efce1f357
+
+--- 
+
+- [ ] pass rest of props to Show route
+  - [ ] re map methods
+- [ ] import from json
+- [ ] Dark mode toggle -> to chrome sync

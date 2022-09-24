@@ -1,12 +1,30 @@
-import { ChromeTab, Group, HistoryMap, Tab } from '@/types'
-import { onMounted, ref } from 'vue'
+import { ChromeTab, Group, HistoryMap, LookUpTab, Tab, WindowsMap } from '@/types'
+
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+
+const loadedTabs = ref<Tab[]>([])
+const loadedTabHistory = ref<HistoryMap>(new Map())
+const lookUpTab = ref<LookUpTab>({})
+const loadedGroups = ref<Group[]>([])
+const loadedCurrentWindowId = ref<number>()
 
 export const useChromeTabs = () => {
-	const loadedTabs = ref<Tab[]>([])
-	const loadedTabHistory = ref<HistoryMap>(new Map())
-	const lookUpTab = ref<Record<string, chrome.history.VisitItem[]>>({})
-	const loadedGroups = ref<Group[]>([])
-	const loadedCurrentWindowId = ref<number>()
+	const windowsMap = computed<WindowsMap>(() => {
+		const computedSet = new Set<number>()
+		const windowsSet = new Map<number, string>()
+
+		loadedTabs.value.forEach((row) => {
+			computedSet.add(row.windowId)
+		})
+
+		const arr = [...computedSet]
+		arr.forEach((item, index) => {
+			const current = loadedCurrentWindowId.value == item ? ' (Current)' : ''
+			windowsSet.set(item, `Window ${index + 1}${current}`)
+		})
+
+		return windowsSet
+	})
 
 	const init = async () => {
 		const [tabs, currentWindowId, groups] = await Promise.all([
@@ -42,11 +60,10 @@ export const useChromeTabs = () => {
 		})
 		loadedTabHistory.value = new Map(Object.entries(lilRecord))
 		lookUpTab.value = lilRecord
-		let count = Object.values(Object.fromEntries(loadedTabHistory.value.entries())).reduce(
-			(acc, curr) => acc + curr.length,
-			0
-		)
-		console.log(count)
+		// let count = Object.values(Object.fromEntries(loadedTabHistory.value.entries())).reduce(
+		// 	(acc, curr) => acc + curr.length,
+		// 	0
+		// )
 
 		// tabs.forEach((row) => {
 		// 	if (row.url) {
@@ -79,29 +96,55 @@ export const useChromeTabs = () => {
 		// })
 		loadedGroups.value = groups
 	}
-	onMounted(() => {
-		// To be able to load in dev environment
+	// onMounted(() => {
+	// To be able to load in dev environment
+	const fire = () => {
+		init()
+	}
+	// this whole portion needs to be refactored to also removeListener
+	const initlisteners = () => {
 		if (chrome.tabs) {
 			console.log('---initing---')
-			init()
-			chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-				console.log('---onUpdated---')
-				// init()
-			})
-			chrome.tabs.onRemoved.addListener((tab, removeInfo) => {
-				console.log('---onRemoved---')
-				init()
-			})
-			chrome.tabs.onMoved.addListener((tabId) => {
-				console.log('---onMoved---')
-				init()
-			})
-			chrome.tabs.onAttached.addListener((tabId) => {
-				console.log('---onAttached---')
-				init()
-			})
+			fire()
+			chrome.tabs.onUpdated.addListener(fire)
+			chrome.tabs.onRemoved.addListener(fire)
+			chrome.tabs.onMoved.addListener(fire)
+			chrome.tabs.onAttached.addListener(fire)
 		}
-	})
+		onUnmounted(() => {
+			if (chrome.tabs) {
+				console.log('---killing---')
+				chrome.tabs.onUpdated.removeListener(fire)
+				chrome.tabs.onRemoved.removeListener(fire)
+				chrome.tabs.onMoved.removeListener(fire)
+				chrome.tabs.onAttached.removeListener(fire)
+			}
+		})
+	}
 
-	return { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab }
+	// implicit approach
+	// const fire = () => {
+	// 	init()
+	// }
+	// onMounted(() => {
+	// 	if (chrome.tabs) {
+	// 		console.log('---initing---')
+	// 		chrome.tabs.onUpdated.addListener(fire)
+	// 		chrome.tabs.onRemoved.addListener(fire)
+	// 		chrome.tabs.onMoved.addListener(fire)
+	// 		chrome.tabs.onAttached.addListener(fire)
+	// 	}
+	// })
+	// onUnmounted(() => {
+	// 	if (chrome.tabs) {
+	// 		console.log('---killing---')
+	// 		chrome.tabs.onUpdated.removeListener(fire)
+	// 		chrome.tabs.onRemoved.removeListener(fire)
+	// 		chrome.tabs.onMoved.removeListener(fire)
+	// 		chrome.tabs.onAttached.removeListener(fire)
+	// 	}
+	// })
+	// })
+
+	return { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab, windowsMap, initlisteners }
 }

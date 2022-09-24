@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
-import { XIcon, FilterIcon, ChevronDownIcon } from '@heroicons/vue/solid'
+import { XMarkIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/vue/20/solid'
 
 import { Switch } from '@headlessui/vue'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
@@ -9,16 +9,18 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { TabGroup, TabList, Tab as AppTab } from '@headlessui/vue'
 import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
 
-import { ChevronUpIcon } from '@heroicons/vue/solid'
+import { ChevronUpIcon } from '@heroicons/vue/20/solid'
 import { copyToClipboard } from '../utils'
 import AppBtn from '@/components/AppBtn.vue'
 import { Tab, Grouped } from '@/types'
-import { closeTab, moveTabTo } from '@/helpers'
+import { closeTab, moveTabTo, moveTabs } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
 import { useChromeTabs } from '@/hooks/useChromeTabs'
 import autoAnimate from '@formkit/auto-animate'
-import { format, isAfter, isBefore, isFuture, isPast, isWithinInterval, sub } from 'date-fns'
+import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
+import { useSessionsData } from '@/hooks/useSessionsData'
 
+const { storeSession } = useSessionsData()
 const groupContainer = ref<HTMLElement | null>(null)
 const groupHeaders = ref<HTMLElement | null>(null)
 const ranges: Record<string, { value: string; label: string; is_range: boolean }> = {
@@ -113,7 +115,11 @@ const categories = ref({
 })
 // chrome.tabs
 const searchTerm = ref<string>('')
-const { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab } = useChromeTabs()
+const { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab, windowsMap, initlisteners } =
+	useChromeTabs()
+
+initlisteners()
+
 const tabsSelected = ref<Set<string>>(new Set())
 const groupMap = computed(() => {
 	let computedMap = new Map()
@@ -123,21 +129,6 @@ const groupMap = computed(() => {
 	return computedMap
 })
 
-const windowsMap = computed(() => {
-	let computedSet = new Set<number>()
-
-	loadedTabs.value.forEach((row) => {
-		computedSet.add(row.windowId)
-	})
-
-	const windowsSet = new Map<number, string>()
-	const arr = [...computedSet]
-	arr.forEach((item, index) => {
-		windowsSet.set(item, `Window ${index + 1}`)
-	})
-
-	return windowsSet
-})
 const selectedGroup = computed(() => {
 	return loadedTabs.value.filter((row) => tabsSelected.value.has(row.stableId))
 })
@@ -306,17 +297,7 @@ const closeTabs = (tabs: Tab[]) => {
 		closeTab(row)
 	})
 }
-const moveTabs = async (tabs: Tab[]) => {
-	const newWindow = await chrome.windows.create()
-	tabs.forEach((row) => {
-		if (row.id) {
-			chrome.tabs.move(row.id, {
-				index: -1,
-				windowId: newWindow.id,
-			})
-		}
-	})
-}
+
 const copyLinks = (tabs: Tab[]) => {
 	const urls = tabs
 		.map((row) => [row.url, row.title])
@@ -356,9 +337,12 @@ const closeDuplicates = () => {
 			<div class="container mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-2">
 				<div class="">
 					<router-link :to="{ name: 'index', hash: `#head` }">
-						<h1 class="text-2xl text-slate-700">All Tabs - {{ loadedTabs.length }}</h1>
+						<h1 class="text-2xl text-slate-700">Swift Bar - {{ loadedTabs.length }}</h1>
 					</router-link>
-					<router-link :to="{ name: 'sessions' }"> to go sessions </router-link>
+					<div class="inline-flex space-x-4">
+						<router-link :to="{ name: 'sessions' }"> sessions </router-link>
+						<router-link :to="{ name: 'utilities' }"> utils </router-link>
+					</div>
 				</div>
 				<div class="flex w-full max-w-3xl justify-end divide-x divide-slate-300">
 					<div class="flex w-full max-w-md flex-shrink items-center gap-2 px-4">
@@ -397,7 +381,7 @@ const closeDuplicates = () => {
 											@click="searchTerm = ''"
 											class="pointer-events-auto rounded-r border border-gray-200 bg-slate-50 px-2 py-0.5 text-gray-400"
 										>
-											<XIcon class="h-3 w-3 fill-current" />
+											<XMarkIcon class="h-3 w-3 fill-current" />
 										</button>
 									</div>
 								</div>
@@ -406,10 +390,10 @@ const closeDuplicates = () => {
 						<Popover class="relative">
 							<PopoverButton as="template">
 								<AppBtn color="round-white">
-									<FilterIcon
+									<FunnelIcon
 										title="Add a Filter"
 										class="h-3 w-3 fill-current text-slate-500"
-									></FilterIcon>
+									></FunnelIcon>
 								</AppBtn>
 							</PopoverButton>
 
@@ -810,9 +794,10 @@ const closeDuplicates = () => {
 								</AppBtn>
 								<div class="flex items-center space-x-2">
 									<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
+									<AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn>
 									<AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
 									<AppBtn @click="closeTabs(group)" type="button" color="round-primary">
-										<XIcon class="h-3 w-3" />
+										<XMarkIcon class="h-3 w-3" />
 									</AppBtn>
 								</div>
 							</div>
@@ -820,10 +805,11 @@ const closeDuplicates = () => {
 						<ul class="px-4 py-4 md:px-6">
 							<TabRow
 								v-for="tab in group"
-								:key="`${tab.windowId}-${tab.index}`"
+								:key="`${tab.windowId}-${tab.stableId}`"
 								:tab="tab"
-								:tabs-selected="tabsSelected"
 								:windows-map="windowsMap"
+								:loaded-groups="loadedGroups"
+								:tabs-selected="tabsSelected"
 								:history="loadedTabHistory"
 								@toggle-selection="toggleSelection"
 							/>
@@ -867,7 +853,12 @@ const closeDuplicates = () => {
 											v-slot="{ active, disabled }"
 											:key="`${windowId}-custom-selected`"
 											v-for="[windowId, value] in [...windowsMap]"
-											@click="moveTabTo(selectedGroup, windowId)"
+											@click="
+												moveTabTo(selectedGroup, {
+													containerId: windowId,
+													type: 'window_container',
+												})
+											"
 										>
 											<button
 												:class="[
@@ -880,17 +871,43 @@ const closeDuplicates = () => {
 											</button>
 										</MenuItem>
 									</div>
+									<div class="px-1 py-1">
+										<MenuItem
+											v-slot="{ active, disabled }"
+											:key="`${loadedGroup.id}-custom-selected`"
+											v-for="loadedGroup in loadedGroups"
+											@click="
+												moveTabTo(selectedGroup, {
+													containerId: loadedGroup.id,
+													type: 'group_container',
+												})
+											"
+										>
+											<button
+												:class="[
+													active ? 'bg-blue-500 text-white' : 'text-slate-700',
+													'group flex w-full items-center rounded-md px-2 py-2 text-sm',
+													disabled ? 'opacity-50' : 'opacity-100',
+												]"
+											>
+												{{ loadedGroup.title }}
+											</button>
+										</MenuItem>
+									</div>
 								</MenuItems>
 							</transition>
 						</Menu>
 						<AppBtn @click="moveTabs(selectedGroup)" color="primary-dark" type="button">
 							Move
 						</AppBtn>
+						<AppBtn @click="storeSession(selectedGroup)" color="primary-dark" type="button">
+							Save as session
+						</AppBtn>
 						<AppBtn @click="copyLinks(selectedGroup)" color="primary-dark" type="button">
 							Copy
 						</AppBtn>
 						<AppBtn @click="tabsSelected.clear()" color="round-dark-primary" type="button">
-							<XIcon class="h-3 w-3" />
+							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>
 					</div>
 				</div>
