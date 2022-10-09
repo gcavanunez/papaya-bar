@@ -26,7 +26,7 @@ import { computed } from 'vue'
 
 import { ref } from 'vue'
 import { Switch } from '@headlessui/vue'
-import { useLink } from 'vue-router'
+import { useTitle } from '@vueuse/core'
 
 const enabled = ref(false)
 const user = {
@@ -59,6 +59,10 @@ const tabs = computed(() =>
 
 const { loadedTabs, initlisteners } = useChromeTabs()
 initlisteners()
+const title = computed(() => {
+	return `${loadedTabs.value.length}`
+})
+useTitle(title)
 </script>
 
 <template>

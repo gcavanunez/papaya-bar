@@ -1,7 +1,29 @@
-import { Tab } from './types'
+import { Tab, LookUpTab, SaveableTab } from './types'
 import { copyToClipboard } from './utils'
 
 type moveToTypes = 'window_container' | 'group_container'
+
+export const getTabHistory = async (tabs: SaveableTab[]) => {
+	const tabHistoryPromises: Promise<chrome.history.VisitItem[]>[] = []
+	const tabIndexes: string[] = []
+	const lilRecord: LookUpTab = {}
+	tabs.forEach((row) => {
+		if (row.url) {
+			tabIndexes.push(row.url)
+			tabHistoryPromises.push(chrome.history.getVisits({ url: row.url }))
+		}
+	})
+	const results = await Promise.all(tabHistoryPromises)
+	results.forEach((row, index) => {
+		lilRecord[tabIndexes[index]] = row
+	})
+	const loadedTabHistory = new Map(Object.entries(lilRecord))
+	const lookUpTab = lilRecord
+	return {
+		loadedTabHistory,
+		lookUpTab,
+	}
+}
 
 export const moveTabTo = (
 	tabs: Tab[],

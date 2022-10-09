@@ -335,9 +335,9 @@ const closeDuplicates = () => {
 <template>
 	<div class="mx-auto max-w-3xl py-8 sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-12 lg:gap-8 lg:px-8">
 		<div class="hidden lg:col-span-2 lg:block">
-			<nav aria-label="Sidebar" class="sticky top-4 divide-y divide-slate-300">
-				<TabGroup @change="changeTab" :selectedIndex="selectedTab" vertical class="pb-8">
-					<TabList class="flex flex-col space-y-1 rounded-lg pb-1">
+			<nav aria-label="Tab viewing styles" class="sticky top-4 divide-y divide-slate-300">
+				<TabGroup @change="changeTab" :selectedIndex="selectedTab" vertical>
+					<TabList class="flex flex-col space-y-1 rounded-lg pb-8">
 						<AppTab
 							v-for="[category, values] in Object.entries(categories)"
 							as="template"

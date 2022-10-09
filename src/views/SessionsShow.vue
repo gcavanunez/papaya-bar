@@ -6,7 +6,9 @@ import { useSessionsData } from '@/hooks/useSessionsData'
 import { computed, onMounted, ref } from 'vue'
 import TabManager from '@/components/TabManager.vue'
 import { Group, HistoryMap, LookUpTab, SaveableTab, Tab, WindowsMap } from '@/types'
-const { loadedTabs } = useChromeTabs()
+import { getTabHistory } from '@/helpers'
+import { useChromeWindowsMap } from '@/hooks/useChromeWindowsMap'
+
 const { findByUid } = useSessionsData()
 type Props = {
 	uid: string
@@ -18,13 +20,13 @@ const loadedTabsState = ref(parsedState.tabs)
 const loadedGroups = ref(parsedState.groups)
 const loadedTabHistory = ref<HistoryMap>(new Map())
 const lookUpTab = ref<LookUpTab>({})
-const windowsMap = computed<WindowsMap>(() => {
-	const windowsSet = new Map<number, string>()
-	return windowsSet
-})
+const windowsMap = useChromeWindowsMap({ loadedTabs: loadedTabsState })
 
-onMounted(() => {
-	// 	const loadedTabsState = parsedState.tabs
+onMounted(async () => {
+	const { loadedTabHistory: loadedTabHistoryValues, lookUpTab: lookUpTabValues } =
+		await getTabHistory(parsedState.tabs)
+	loadedTabHistory.value = loadedTabHistoryValues
+	lookUpTab.value = lookUpTabValues
 })
 </script>
 <template>

@@ -1,6 +1,8 @@
+import { getTabHistory } from '@/helpers'
 import { ChromeTab, Group, HistoryMap, LookUpTab, Tab, WindowsMap } from '@/types'
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useChromeWindowsMap } from './useChromeWindowsMap'
 
 const loadedTabs = ref<Tab[]>([])
 const loadedTabHistory = ref<HistoryMap>(new Map())
@@ -9,21 +11,9 @@ const loadedGroups = ref<Group[]>([])
 const loadedCurrentWindowId = ref<number>()
 
 export const useChromeTabs = () => {
-	const windowsMap = computed<WindowsMap>(() => {
-		const computedSet = new Set<number>()
-		const windowsSet = new Map<number, string>()
-
-		loadedTabs.value.forEach((row) => {
-			computedSet.add(row.windowId)
-		})
-
-		const arr = [...computedSet]
-		arr.forEach((item, index) => {
-			const current = loadedCurrentWindowId.value == item ? ' (Current)' : ''
-			windowsSet.set(item, `Window ${index + 1}${current}`)
-		})
-
-		return windowsSet
+	const windowsMap = useChromeWindowsMap({
+		loadedTabs,
+		loadedCurrentWindowId: loadedCurrentWindowId.value,
 	})
 
 	const init = async () => {
@@ -45,21 +35,12 @@ export const useChromeTabs = () => {
 			...row,
 			stableId: `stableId-${row.id}`,
 		}))
-		let tabHistoryPromises: Promise<chrome.history.VisitItem[]>[] = []
-		let tabIndexes: string[] = []
-		let lilRecord: Record<string, chrome.history.VisitItem[]> = {}
-		tabs.forEach((row) => {
-			if (row.url) {
-				tabIndexes.push(row.url)
-				tabHistoryPromises.push(chrome.history.getVisits({ url: row.url }))
-			}
-		})
-		const results = await Promise.all(tabHistoryPromises)
-		results.forEach((row, index) => {
-			lilRecord[tabIndexes[index]] = row
-		})
-		loadedTabHistory.value = new Map(Object.entries(lilRecord))
-		lookUpTab.value = lilRecord
+
+		const { loadedTabHistory: loadedTabHistoryValues, lookUpTab: lookUpTabValues } =
+			await getTabHistory(loadedTabs.value)
+		loadedTabHistory.value = loadedTabHistoryValues
+		lookUpTab.value = lookUpTabValues
+
 		// let count = Object.values(Object.fromEntries(loadedTabHistory.value.entries())).reduce(
 		// 	(acc, curr) => acc + curr.length,
 		// 	0

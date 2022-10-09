@@ -18,13 +18,15 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 - [ ] Persist searches/as filters -> to chrome sync
   - [ ] custom filters (keywords: react, elixir, etc)
 - [ ] Check Responsive story
+- [ ] Get CI working for release to github
+- [ ] Publish to chrome store
 
 
 # Bugs
 - [ ] Selected tabs persisting even though no longer exist
 - [ ] (?) Optimize events rather than re-init
 - [ ] Check error removing a row focus passing to new item
-- [ ] Fix when display bounds don't match
+- [ ] Fix when display bounds don't matchs
   - Review: https://natto.dev/@gcavanunez/5aa5381e56794a08bc86e79efce1f357
 
 --- 
