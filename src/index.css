@@ -2,10 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-html{
+/* html{
   @apply bg-slate-100;
-}
-
+} */
+/* .dark\:bg-vercel-accents-1 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(17 17 17 / var(--tw-bg-opacity));
+} */
 html, body{
   @apply h-full;
 }

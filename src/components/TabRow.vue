@@ -21,7 +21,7 @@ import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
 import { usePopper } from '@/hooks/usePopper'
 import AppBtn from './AppBtn.vue'
-import { useChromeTabs } from '@/hooks/useChromeTabs'
+
 let [trigger, container] = usePopper({
 	placement: 'auto',
 	strategy: 'fixed',
@@ -34,10 +34,7 @@ interface Props {
 	windowsMap: Map<number, string>
 	loadedGroups: Group[]
 	history: HistoryMap
-	// history: chrome.history.VisitItem[]
 }
-// const { loadedGroups, windowsMap } = useChromeTabs()
-// console.log({ loadedGroups, windowsMap })
 const { tab, tabsSelected, windowsMap, history, loadedGroups } = defineProps<Props>()
 const emit = defineEmits<{
 	(e: 'toggleSelection', tab: Tab): void
@@ -68,22 +65,25 @@ const tabHistory = computed(() => {
 	<li class="group w-full py-2" :key="`${tab.windowId}-${tab.stableId}`">
 		<Disclosure v-slot="{ open }">
 			<div
-				class="relative rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5"
+				class="relative overflow-hidden rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5 transition dark:ring-vercel-accents-2"
 				:style="{
-					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color || 'transparent',
+					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color,
 				}"
-				:class="
-					loadedGroups.find((row) => row.id === tab.groupId)?.color
-						? ''
-						: 'hover:border-l-slate-200'
-				"
+				:class="{
+					'group-hover:border-l-slate-200  dark:border-black dark:group-hover:border-vercel-accents-1':
+						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
+						!tabsSelected.has(tab.stableId),
+					'group-hover:border-papaya-500/85 border-papaya-500':
+						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
+						tabsSelected.has(tab.stableId),
+				}"
 			>
 				<div
-					class="pointer-events-none invisible absolute inset-0 flex items-center justify-between px-2 focus-within:visible group-hover:visible"
+					class="pointer-events-none absolute inset-0 flex items-center justify-between px-2 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100"
 				>
 					<div>
 						<button
-							class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow-md"
+							class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow-md transition dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white dark:active:bg-vercel-accents-2 dark:active:text-white"
 							@click="emit('toggleSelection', tab)"
 						>
 							<PlusIcon class="h-4 w-4" v-if="!tabsSelected.has(tab.stableId)" />
@@ -91,14 +91,17 @@ const tabHistory = computed(() => {
 						</button>
 					</div>
 					<div class="pointer-events-auto flex items-center space-x-2">
-						<Menu as="div" class="pointer-events-auto relative inline-block text-left">
+						<Menu as="div" class="pointer-events-auto relative inline-flex text-left">
 							<div>
 								<MenuButton
 									ref="trigger"
-									class="pointer-events-auto inline-flex items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-slate-800"
+									class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5"
 								>
 									Move to
-									<ChevronDownIcon class="ml-2 -mr-1 h-3 w-3 text-slate-800" aria-hidden="true" />
+									<ChevronDownIcon
+										class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
+										aria-hidden="true"
+									/>
 								</MenuButton>
 							</div>
 							<div ref="container" class="z-20 w-56">
@@ -168,7 +171,7 @@ const tabHistory = computed(() => {
 								History
 								<ChevronUpIcon
 									:class="open ? 'rotate-180 transform' : ''"
-									class="ml-2 -mr-1 h-3 w-3 text-slate-800 transition"
+									class="ml-2 -mr-1 h-3 w-3 text-slate-800 transition dark:text-white"
 									aria-hidden="true"
 								/>
 							</AppBtn>
@@ -186,11 +189,11 @@ const tabHistory = computed(() => {
 							loadedGroups.find((row) => row.id === tab.groupId)?.color || 'transparent',
 					}" -->
 				<button
-					class="flex w-full items-center rounded-lg bg-white py-2 px-2 transition hover:shadow"
+					class="flex w-full items-center rounded py-2 px-2"
 					:class="
 						!tabsSelected.has(tab.stableId)
-							? 'bg-white hover:bg-slate-200'
-							: 'bg-papaya-500 hover:bg-papaya-500/80'
+							? 'bg-white group-hover:bg-slate-200 dark:bg-black dark:group-hover:bg-vercel-accents-1'
+							: 'group-hover:bg-papaya-500/85 bg-papaya-500'
 					"
 					:title="tab.url"
 					@click="goTo(tab)"
@@ -206,7 +209,12 @@ const tabHistory = computed(() => {
 						<div class="h-8 w-8 rounded-full bg-slate-700" v-else></div>
 					</div>
 					<div
-						class="ml-2 truncate text-sm font-medium text-slate-900 group-hover:mr-40 group-focus:truncate"
+						class="ml-2 truncate text-sm font-medium group-hover:mr-40 group-focus:truncate"
+						:class="
+							!tabsSelected.has(tab.stableId)
+								? 'text-slate-900 dark:text-vercel-accents-5 dark:group-hover:text-white'
+								: 'text-slate-900 dark:text-vercel-accents-1 '
+						"
 					>
 						{{ tab.title }}
 					</div>
@@ -221,7 +229,7 @@ const tabHistory = computed(() => {
 								class="false relative col-span-12 flex flex-col gap-8 border-slate-200 pb-1 lg:pl-8"
 							>
 								<div
-									class="launch-week-timeline-border absolute left-0 top-[4px] h-full"
+									class="absolute left-0 top-[4px] h-full"
 									:class="{
 										' border-l border-slate-200': index !== tabHistory.length - 1,
 									}"
@@ -231,8 +239,12 @@ const tabHistory = computed(() => {
 										class="absolute mt-[4px] -ml-[21px] h-3 w-3 rounded-full border border-slate-100 bg-slate-300 lg:-ml-[37.5px]"
 									></div>
 									<div class="flex items-end justify-between">
-										<div>{{ historyEvent.humanDistance }} ago</div>
-										<div class="text-sm ordinal slashed-zero tabular-nums text-slate-400">
+										<div class="dark:text-vercel-accents-4">
+											{{ historyEvent.humanDistance }} ago
+										</div>
+										<div
+											class="text-sm ordinal slashed-zero tabular-nums text-slate-400 dark:text-vercel-accents-5"
+										>
 											{{ historyEvent.dateTime }}
 										</div>
 										<!-- <span

@@ -22,13 +22,11 @@ import {
 	SunIcon,
 	MoonIcon,
 } from '@heroicons/vue/24/outline'
-import { computed } from 'vue'
 
-import { ref } from 'vue'
-import { Switch } from '@headlessui/vue'
 import { useTitle } from '@vueuse/core'
+import { computed } from 'vue'
+import DarkModeSwitch from './DarkModeSwitch.vue'
 
-const enabled = ref(false)
 const user = {
 	name: 'Chelsea Hagon',
 	email: 'chelsea.hagon@example.com',
@@ -72,7 +70,7 @@ useTitle(title)
 			<header
 				:class="[
 					open ? 'fixed inset-0 z-40 overflow-y-auto' : '',
-					'bg-white shadow-sm lg:static lg:overflow-y-visible',
+					'bg-white shadow-sm dark:bg-black lg:static lg:overflow-y-visible',
 				]"
 			>
 				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -109,7 +107,7 @@ useTitle(title)
 						<div class="hidden lg:flex lg:items-center lg:justify-end xl:col-span-4">
 							<a
 								href="https://github.com/gcavanunez/unknown-tab"
-								class="text-sm font-medium text-gray-900 hover:underline"
+								class="text-sm font-medium text-gray-900 hover:underline dark:text-white"
 							>
 								Github
 							</a>
@@ -120,32 +118,13 @@ useTitle(title)
 								<span class="sr-only">View notifications</span>
 								<BellIcon class="h-6 w-6" aria-hidden="true" />
 							</a> -->
-
-							<Switch
-								v-model="enabled"
-								:class="enabled ? 'bg-slate-700' : 'bg-slate-200'"
-								class="relative ml-5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 focus-visible:ring-opacity-75"
-							>
-								<span class="sr-only">Use setting</span>
-								<span
-									aria-hidden="true"
-									:class="
-										enabled
-											? 'translate-x-5 bg-black text-gray-200'
-											: 'translate-x-0 bg-white text-gray-700'
-									"
-									class="pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full shadow-2xl ring-0 transition duration-200 ease-in-out"
-								>
-									<MoonIcon class="h-4 w-4" v-if="enabled"></MoonIcon>
-									<SunIcon class="h-4 w-4" v-else></SunIcon>
-								</span>
-							</Switch>
+							<DarkModeSwitch />
 
 							<!-- Profile dropdown -->
 							<Menu as="div" class="relative ml-5 flex-shrink-0">
 								<div>
 									<MenuButton
-										class="flex items-center rounded-full bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+										class="flex items-center rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-papaya-900 focus:ring-offset-2 dark:text-vercel-accents-5 dark:hover:text-white dark:focus:ring-offset-black"
 									>
 										<span class="sr-only">Open user menu</span>
 										<!-- <img class="h-8 w-8 rounded-full" :src="user.imageUrl" alt="" /> -->
@@ -171,8 +150,9 @@ useTitle(title)
 													active ? 'bg-gray-100' : '',
 													'block py-2 px-4 text-sm text-gray-700',
 												]"
-												>{{ item.name }}</a
 											>
+												{{ item.name }}
+											</a>
 										</MenuItem>
 									</MenuItems>
 								</transition>
@@ -189,15 +169,18 @@ useTitle(title)
 							:to="{ name: tab.href }"
 							:aria-current="tab.current ? 'page' : undefined"
 							:class="[
-								tab.current ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
+								tab.current
+									? 'text-gray-900 dark:text-white'
+									: 'text-gray-500 hover:text-gray-700 dark:text-vercel-accents-5 dark:hover:text-white',
 
 								'group relative px-1 pb-2 focus:z-10',
 							]"
 						>
 							<span
-								class="flex overflow-hidden rounded-lg bg-white py-2 px-3 text-center text-sm font-medium group-hover:bg-gray-50"
-								>{{ tab.name }}</span
+								class="flex overflow-hidden rounded-lg bg-white py-2 px-3 text-center text-sm font-medium transition group-hover:bg-gray-50 dark:bg-transparent dark:group-hover:bg-vercel-accents-2"
 							>
+								{{ tab.name }}
+							</span>
 							<span
 								aria-hidden="true"
 								:class="[
@@ -262,7 +245,7 @@ useTitle(title)
 						<div class="mt-6 flex justify-center">
 							<a
 								href="https://github.com/gcavanunez/unknown-tab"
-								class="text-base font-medium text-gray-900 hover:underline"
+								class="text-base font-medium text-gray-900 hover:underline dark:text-white"
 							>
 								Github
 							</a>
@@ -272,7 +255,7 @@ useTitle(title)
 			</header>
 		</Popover>
 
-		<div class="">
+		<div>
 			<router-view />
 		</div>
 	</div>

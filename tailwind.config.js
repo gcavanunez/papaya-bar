@@ -8,6 +8,16 @@ module.exports = {
 	theme: {
 		extend: {
 			colors: {
+				vercel: {
+					'accents-8': '#fafafa',
+					'--accents-7': '#eaeaea',
+					// --accents-6: #999;
+					'accents-5': '#888',
+					'accents-4': '#666',
+					'accents-3': '#444',
+					'accents-2': '#333',
+					'accents-1': '#111',
+				},
 				papaya: {
 					500: '#FFD96E',
 					900: '#FF5D26',

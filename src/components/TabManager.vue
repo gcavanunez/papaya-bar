@@ -335,7 +335,10 @@ const closeDuplicates = () => {
 <template>
 	<div class="mx-auto max-w-3xl py-8 sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-12 lg:gap-8 lg:px-8">
 		<div class="hidden lg:col-span-2 lg:block">
-			<nav aria-label="Tab viewing styles" class="sticky top-4 divide-y divide-slate-300">
+			<nav
+				aria-label="Tab viewing styles"
+				class="sticky top-4 divide-y divide-slate-300 dark:divide-vercel-accents-2"
+			>
 				<TabGroup @change="changeTab" :selectedIndex="selectedTab" vertical>
 					<TabList class="flex flex-col space-y-1 rounded-lg pb-8">
 						<AppTab
@@ -347,14 +350,18 @@ const closeDuplicates = () => {
 							<button
 								:class="[
 									'flex w-full items-center rounded-md py-2 px-3 text-sm font-medium leading-5 ',
-									'ring-papaya-900  focus:outline-none focus-visible:ring-2',
-									selected ? 'bg-white text-slate-900 shadow' : 'text-slate-700 hover:bg-slate-50 ',
+									'group  ring-papaya-900 focus:outline-none focus-visible:ring-2',
+									selected
+										? 'bg-white text-slate-900 shadow dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5'
+										: 'text-slate-700 hover:bg-slate-50 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white',
 								]"
 							>
 								<component
 									:is="values.icon"
 									:class="[
-										selected ? 'text-slate-500' : 'text-slate-400 group-hover:text-slate-500',
+										selected
+											? 'text-slate-500  dark:text-white'
+											: 'text-slate-400 group-hover:text-slate-500 dark:text-vercel-accents-5 dark:group-hover:text-white',
 										'-ml-1 mr-3 h-6 w-6 flex-shrink-0',
 									]"
 									aria-hidden="true"
@@ -368,18 +375,21 @@ const closeDuplicates = () => {
 					</TabList>
 				</TabGroup>
 				<div class="pt-10">
-					<p class="px-3 text-sm font-medium text-slate-500" id="quick-actions-headline">
+					<p
+						class="px-3 text-sm font-medium text-slate-500 dark:text-white"
+						id="quick-actions-headline"
+					>
 						Quick Actions
 					</p>
 					<div class="mt-3 space-y-2" aria-labelledby="quick-actions-headline">
 						<button
-							class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900"
+							class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
 							@click="storeSession(loadedTabs)"
 						>
 							<span class="truncate"> Save session </span>
 						</button>
 						<button
-							class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900"
+							class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
 							@click="closeDuplicates"
 						>
 							<span class="truncate"> Close duplicates </span>
@@ -410,7 +420,9 @@ const closeDuplicates = () => {
 										<div
 											class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
 										>
-											<MagnifyingGlassIcon class="h-5 w-5 text-slate-400" />
+											<MagnifyingGlassIcon
+												class="h-5 w-5 text-slate-400 dark:text-vercel-accents-4"
+											/>
 										</div>
 										<input
 											type="text"
@@ -418,14 +430,14 @@ const closeDuplicates = () => {
 											autofocus
 											id="search"
 											v-model="searchTerm"
-											class="peer block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm focus-visible:border-papaya-900 focus-visible:ring-papaya-900 sm:text-sm"
+											class="peer block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm focus-visible:border-papaya-900 focus-visible:ring-papaya-900 dark:border-vercel-accents-2 dark:bg-black dark:placeholder-vercel-accents-4 sm:text-sm"
 											placeholder="Search"
 										/>
 										<div
 											class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 peer-focus:hidden"
 										>
 											<p
-												class="inline-flex items-center rounded border border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400"
+												class="inline-flex items-center rounded border border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400 dark:border-vercel-accents-2 dark:text-vercel-accents-4"
 											>
 												/
 											</p>
@@ -436,13 +448,13 @@ const closeDuplicates = () => {
 										>
 											<div class="flex">
 												<p
-													class="inline-flex items-center rounded-l border border-r-0 border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400"
+													class="inline-flex items-center rounded-l border border-r-0 border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400 dark:border-vercel-accents-2 dark:text-white"
 												>
 													{{ totalTabs }}
 												</p>
 												<button
 													@click="searchTerm = ''"
-													class="pointer-events-auto rounded-r border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-400"
+													class="pointer-events-auto rounded-r border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-400 dark:border-vercel-accents-2 dark:bg-vercel-accents-2 dark:text-white"
 												>
 													<XMarkIcon class="h-3 w-3 fill-current" />
 												</button>
@@ -454,11 +466,11 @@ const closeDuplicates = () => {
 										<PopoverButton as="template">
 											<button
 												type="button"
-												class="relative -ml-px inline-flex items-center space-x-2 rounded-none rounded-r-md border border-transparent bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100 focus:outline-none focus-visible:border-papaya-900 focus-visible:ring-1 focus-visible:ring-papaya-900"
+												class="group relative -ml-px inline-flex items-center space-x-2 rounded-none rounded-r-md border border-transparent bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus-visible:border-papaya-900 focus-visible:ring-1 focus-visible:ring-papaya-900 dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white"
 											>
 												<FunnelIcon
 													title="Add a Filter"
-													class="h-5 w-5 text-slate-400"
+													class="h-5 w-5 text-slate-400 dark:group-hover:text-white"
 												></FunnelIcon>
 												<span>Sort</span>
 											</button>
@@ -802,7 +814,7 @@ const closeDuplicates = () => {
 						<h1 class="sr-only">Recent questions</h1>
 						<ul role="list" class="space-y-4" ref="groupContainer">
 							<li
-								class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5"
+								class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5 dark:divide-vercel-accents-2 dark:bg-black"
 								v-for="(group, index) in grouped"
 								:key="`section-${index}`"
 								:id="`section-${index}`"
@@ -860,13 +872,16 @@ const closeDuplicates = () => {
 						<div class="">
 							<!-- <div class="rounded-lg bg-white shadow lg:h-screen lg:overflow-y-auto">
               <div class="p-6"> -->
-							<h2 id="who-to-follow-heading" class="text-base font-medium text-slate-900">
+							<h2
+								id="who-to-follow-heading"
+								class="text-base font-medium text-slate-900 dark:text-white"
+							>
 								Groups
 							</h2>
 							<ul
 								ref="groupHeaders"
 								role="list"
-								class="mt-4 space-y-4 py-1 text-sm leading-6 text-slate-700"
+								class="mt-4 space-y-4 py-1 text-sm leading-6 text-slate-700 dark:text-vercel-accents-5 dark:hover:text-white"
 							>
 								<li v-for="(group, index) in grouped" :key="`list-${index}`" class="relative">
 									<!-- <div
@@ -878,8 +893,8 @@ const closeDuplicates = () => {
 											class="group relative flex w-full items-center justify-between space-x-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 focus:outline-none focus-visible:ring focus-visible:ring-papaya-900 focus-visible:ring-opacity-75"
 											:class="
 												open
-													? 'bg-white text-slate-900 shadow'
-													: 'hover:bg-slate-50 hover:text-slate-900'
+													? 'bg-white text-slate-900 shadow dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5'
+													: 'hover:bg-slate-50 hover:text-slate-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white'
 											"
 										>
 											<!-- <div
@@ -892,13 +907,16 @@ const closeDuplicates = () => {
 												<span class="truncate"> {{ index }} </span>
 											</router-link>
 											<div
-												class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-800"
+												class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-800 dark:bg-vercel-accents-4 dark:text-white"
 											>
 												{{ group.length }}
 											</div>
 										</DisclosureButton>
-										<DisclosurePanel class="px-4 text-sm text-slate-500">
-											<ul role="list" class="mt-2 space-y-4 border-l border-slate-200 pl-6">
+										<DisclosurePanel class="px-4 text-sm text-slate-500 dark:text-vercel-accents-5">
+											<ul
+												role="list"
+												class="mt-2 space-y-4 border-l border-slate-200 pl-6 dark:border-vercel-accents-2"
+											>
 												<li>
 													<button @click="moveTabs(group)">New window</button>
 												</li>
