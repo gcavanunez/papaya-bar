@@ -7,10 +7,10 @@ export {}
 // https://github.com/johnsoncodehk/volar/issues/807
 
 declare module '@vue/runtime-core' {
-  interface ComponentCustomProperties {
-    $screens: VCalendar
-    $translate: any
-  }
+	interface ComponentCustomProperties {
+		$screens: VCalendar
+		$translate: any
+	}
 }
 
 // declare module 'vue' {

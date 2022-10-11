@@ -5,7 +5,7 @@ const colorClasses = {
 	'primary-dark':
 		'inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 shadow-sm ring-0 highlight-white/5 hover:bg-slate-700',
 	primary:
-		'inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5 dark:active:bg-vercel-accents-3 dark:active:text-white transition',
+		'inline-flex items-center rounded-full bg-slate-100 active:bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5 dark:active:bg-vercel-accents-3 dark:active:text-white transition',
 	white:
 		'inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm',
 	'round-primary':

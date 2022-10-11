@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { SunIcon, MoonIcon } from '@heroicons/vue/24/outline'
 import { Switch } from '@headlessui/vue'
 
 import { useDark } from '@vueuse/core'
@@ -40,12 +41,21 @@ const enabled = computed({
 		<span
 			aria-hidden="true"
 			:class="
-				enabled ? 'translate-x-5 bg-black text-gray-200' : 'translate-x-0 bg-white text-gray-700'
+				enabled ? 'translate-x-5 bg-black text-white' : 'translate-x-0 bg-white text-gray-700'
 			"
 			class="pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full shadow-2xl ring-0 transition duration-200 ease-in-out"
 		>
-			<MoonIcon class="h-4 w-4" v-if="enabled"></MoonIcon>
-			<SunIcon class="h-4 w-4" v-else></SunIcon>
+			<transition
+				enter-active-class="transition ease-out duration-100"
+				enter-from-class="transform opacity-0 scale-95"
+				enter-to-class="transform opacity-100 scale-100"
+				leave-active-class="transition ease-in duration-75"
+				leave-from-class="transform opacity-100 scale-100"
+				leave-to-class="transform opacity-0 scale-95"
+			>
+				<MoonIcon class="h-4 w-4" v-if="enabled"></MoonIcon>
+				<SunIcon class="h-4 w-4" v-else></SunIcon>
+			</transition>
 		</span>
 	</Switch>
 </template>

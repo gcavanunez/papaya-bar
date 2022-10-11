@@ -19,13 +19,13 @@ import {
 	HomeIcon,
 	UserGroupIcon,
 	XMarkIcon,
-	SunIcon,
-	MoonIcon,
 } from '@heroicons/vue/24/outline'
 
 import { useTitle } from '@vueuse/core'
 import { computed } from 'vue'
 import DarkModeSwitch from './DarkModeSwitch.vue'
+
+const commit_hash = __COMMIT_HASH__
 
 const user = {
 	name: 'Chelsea Hagon',
@@ -109,7 +109,7 @@ useTitle(title)
 								href="https://github.com/gcavanunez/unknown-tab"
 								class="text-sm font-medium text-gray-900 hover:underline dark:text-white"
 							>
-								Github
+								Github - {{ commit_hash }}
 							</a>
 							<!-- <a
 								href="#"
@@ -127,7 +127,6 @@ useTitle(title)
 										class="flex items-center rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-papaya-900 focus:ring-offset-2 dark:text-vercel-accents-5 dark:hover:text-white dark:focus:ring-offset-black"
 									>
 										<span class="sr-only">Open user menu</span>
-										<!-- <img class="h-8 w-8 rounded-full" :src="user.imageUrl" alt="" /> -->
 										<BellIcon class="h-6 w-6" aria-hidden="true" />
 										<span class="ml-1">{{ loadedTabs.length }}</span>
 									</MenuButton>

@@ -813,18 +813,23 @@ const closeDuplicates = () => {
 					<div class="">
 						<h1 class="sr-only">Recent questions</h1>
 						<ul role="list" class="space-y-4" ref="groupContainer">
-							<li
+							<Disclosure
+								as="li"
 								class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5 dark:divide-vercel-accents-2 dark:bg-black"
 								v-for="(group, index) in grouped"
 								:key="`section-${index}`"
 								:id="`section-${index}`"
+								:default-open="true"
 							>
 								<div class="px-4 py-4 md:px-6">
 									<h2 class="sr-only">{{ index }}</h2>
 									<div class="flex items-center justify-between">
-										<AppBtn>
-											{{ index }}
-										</AppBtn>
+										<DisclosureButton as="template">
+											<AppBtn>
+												{{ index }}
+											</AppBtn>
+										</DisclosureButton>
+
 										<div class="flex items-center space-x-2">
 											<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
 											<AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn>
@@ -835,29 +840,40 @@ const closeDuplicates = () => {
 										</div>
 									</div>
 								</div>
-								<ul class="px-4 py-4 md:px-6">
-									<TabRow
-										v-for="tab in group"
-										:key="`${tab.windowId}-${tab.stableId}`"
-										:tab="tab"
-										:windows-map="windowsMap"
-										:loaded-groups="loadedGroups"
-										:tabs-selected="tabsSelected"
-										:history="loadedTabHistory"
-										@toggle-selection="toggleSelection"
-									/>
-								</ul>
-							</li>
+								<transition
+									enter-active-class="transition duration-100 ease-out"
+									enter-from-class="transform scale-95 opacity-0"
+									enter-to-class="transform scale-100 opacity-100"
+									leave-active-class="transition duration-75 ease-out"
+									leave-from-class="transform scale-100 opacity-100"
+									leave-to-class="transform scale-95 opacity-0"
+								>
+									<DisclosurePanel as="ul" class="px-4 py-4 md:px-6">
+										<TabRow
+											v-for="tab in group"
+											:key="`${tab.windowId}-${tab.stableId}`"
+											:tab="tab"
+											:windows-map="windowsMap"
+											:loaded-groups="loadedGroups"
+											:tabs-selected="tabsSelected"
+											:history="loadedTabHistory"
+											@toggle-selection="toggleSelection"
+										/>
+									</DisclosurePanel>
+								</transition>
+							</Disclosure>
 						</ul>
 					</div>
 				</div>
 			</div>
 			<div v-else-if="searchTerm" class="mt-6">
-				<div class="flex flex-col items-center py-20 text-sm leading-6 text-slate-600 md:py-32">
+				<div
+					class="flex flex-col items-center py-20 text-sm leading-6 text-slate-600 dark:text-vercel-accents-5 md:py-32"
+				>
 					<XMarkIcon class="h-8 w-8" />
 					<p class="mt-6">
 						No matches for
-						<span class="font-semibold text-slate-900">“{{ searchTerm }}”</span>.
+						<span class="font-semibold text-slate-900 dark:text-white">“{{ searchTerm }}”</span>.
 					</p>
 				</div>
 			</div>
