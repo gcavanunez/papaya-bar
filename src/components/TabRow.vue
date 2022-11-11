@@ -23,7 +23,7 @@ import { usePopper } from '@/hooks/usePopper'
 import AppBtn from './AppBtn.vue'
 
 let [trigger, container] = usePopper({
-	placement: 'auto',
+	placement: 'bottom-end',
 	strategy: 'fixed',
 	modifiers: [{ name: 'offset', options: { offset: [0, 10] } }],
 })
@@ -79,7 +79,7 @@ const tabHistory = computed(() => {
 				}"
 			>
 				<div
-					class="pointer-events-none absolute inset-0 flex items-center justify-between px-2 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100"
+					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 opacity-0 transition delay-200 focus-within:z-20 focus-within:opacity-100 hover:delay-[0ms] hover:duration-150 group-hover:opacity-100"
 				>
 					<div>
 						<button
@@ -91,81 +91,83 @@ const tabHistory = computed(() => {
 						</button>
 					</div>
 					<div class="pointer-events-auto flex items-center space-x-2">
-						<Menu as="div" class="pointer-events-auto relative inline-flex text-left">
-							<div>
-								<MenuButton
-									ref="trigger"
-									class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5"
-								>
-									Move to
-									<ChevronDownIcon
-										class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
-										aria-hidden="true"
-									/>
-								</MenuButton>
-							</div>
-							<div ref="container" class="z-20 w-56">
-								<transition
-									enter-active-class="transition duration-100 ease-out"
-									enter-from-class="transform scale-95 opacity-0"
-									enter-to-class="transform scale-100 opacity-100"
-									leave-active-class="transition duration-75 ease-in"
-									leave-from-class="transform scale-100 opacity-100"
-									leave-to-class="transform scale-95 opacity-0"
-								>
-									<!-- origin-top-right -->
-									<!-- class="absolute right-0 mt-2 divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" -->
-									<MenuItems
-										class="w-full divide-y divide-gray-100 rounded-md border border-gray-200 bg-white shadow-lg outline-none"
+						<div class="relative inline-flex flex-col text-left">
+							<Menu v-slot="{ open }">
+								<span class="pointer-events-auto relative inline-flex text-left">
+									<MenuButton
+										ref="trigger"
+										class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5"
 									>
-										<div class="px-1 py-1">
-											<MenuItem
-												v-slot="{ active, disabled }"
-												:disabled="windowId === tab.windowId"
-												:key="`${windowId}-${tab.stableId}`"
-												v-for="[windowId, value] in [...windowsMap]"
-												@click="
-													moveTabTo([tab], { containerId: windowId, type: 'window_container' })
-												"
-											>
-												<button
-													:class="[
-														active ? 'bg-blue-500 text-white' : 'text-slate-700',
-														'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-														disabled ? 'opacity-50' : 'opacity-100',
-													]"
+										Move to
+										<ChevronDownIcon
+											class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
+											aria-hidden="true"
+										/>
+									</MenuButton>
+								</span>
+								<div ref="container" class="z-30 w-56">
+									<transition
+										enter-active-class="transition duration-100 ease-out"
+										enter-from-class="transform scale-95 opacity-0"
+										enter-to-class="transform scale-100 opacity-100"
+										leave-active-class="transition duration-75 ease-in"
+										leave-from-class="transform scale-100 opacity-100"
+										leave-to-class="transform z-30 scale-95 opacity-0"
+									>
+										<!-- origin-top-right -->
+										<!-- class="absolute right-0 mt-2 divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" -->
+										<MenuItems
+											class="z-40 w-full divide-y divide-gray-100 rounded-md border border-gray-200 bg-white shadow-lg outline-none"
+										>
+											<div class="px-1 py-1">
+												<MenuItem
+													v-slot="{ active, disabled }"
+													:disabled="windowId === tab.windowId"
+													:key="`${windowId}-${tab.stableId}`"
+													v-for="[windowId, value] in [...windowsMap]"
+													@click="
+														moveTabTo([tab], { containerId: windowId, type: 'window_container' })
+													"
 												>
-													{{ value }}
-												</button>
-											</MenuItem>
-										</div>
-										<div class="px-1 py-1">
-											<MenuItem
-												v-slot="{ active, disabled }"
-												:key="`${loadedGroup.id}-custom-selected`"
-												v-for="loadedGroup in loadedGroups"
-												@click="
-													moveTabTo([tab], {
-														containerId: loadedGroup.id,
-														type: 'group_container',
-													})
-												"
-											>
-												<button
-													:class="[
-														active ? 'bg-blue-500 text-white' : 'text-slate-700',
-														'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-														disabled ? 'opacity-50' : 'opacity-100',
-													]"
+													<button
+														:class="[
+															active ? 'bg-blue-500 text-white' : 'text-slate-700',
+															'group flex w-full items-center rounded-md px-2 py-2 text-sm',
+															disabled ? 'opacity-50' : 'opacity-100',
+														]"
+													>
+														{{ value }}
+													</button>
+												</MenuItem>
+											</div>
+											<div class="px-1 py-1">
+												<MenuItem
+													v-slot="{ active, disabled }"
+													:key="`${loadedGroup.id}-custom-selected`"
+													v-for="loadedGroup in loadedGroups"
+													@click="
+														moveTabTo([tab], {
+															containerId: loadedGroup.id,
+															type: 'group_container',
+														})
+													"
 												>
-													{{ loadedGroup.title }}
-												</button>
-											</MenuItem>
-										</div>
-									</MenuItems>
-								</transition>
-							</div>
-						</Menu>
+													<button
+														:class="[
+															active ? 'bg-blue-500 text-white' : 'text-slate-700',
+															'group flex w-full items-center rounded-md px-2 py-2 text-sm',
+															disabled ? 'opacity-50' : 'opacity-100',
+														]"
+													>
+														{{ loadedGroup.title }}
+													</button>
+												</MenuItem>
+											</div>
+										</MenuItems>
+									</transition>
+								</div>
+							</Menu>
+						</div>
 						<DisclosureButton as="template">
 							<AppBtn :class="{ 'opacity-75': open }">
 								History

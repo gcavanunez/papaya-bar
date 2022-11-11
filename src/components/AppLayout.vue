@@ -14,7 +14,7 @@ import {
 import {
 	ArrowTrendingUpIcon,
 	Bars3Icon,
-	BellIcon,
+	RectangleStackIcon,
 	FireIcon,
 	HomeIcon,
 	UserGroupIcon,
@@ -40,9 +40,9 @@ const navigation = [
 	{ name: 'Trending', href: '#', icon: ArrowTrendingUpIcon, current: false },
 ]
 const userNavigation = [
-	{ name: 'Your Profile', href: '#' },
+	{ name: 'Other Devices', href: '#' },
 	{ name: 'Settings', href: '#' },
-	{ name: 'Sign out', href: '#' },
+	// { name: 'Sign out', href: '#' },
 ]
 const tabs = computed(() =>
 	[
@@ -64,18 +64,19 @@ useTitle(title)
 </script>
 
 <template>
-	<div class="min-h-full">
+	<div class="flex min-h-full flex-1 flex-col">
 		<!-- When the mobile menu is open, add `overflow-hidden` to the `body` element to prevent double scrollbars -->
+		<!-- v-slot="{ href, route, navigate, isActive, isExactActive }" -->
 		<Popover as="template" v-slot="{ open }">
 			<header
 				:class="[
 					open ? 'fixed inset-0 z-40 overflow-y-auto' : '',
-					'bg-white shadow-sm dark:bg-black lg:static lg:overflow-y-visible',
+					'firefox:bg-opacity-90 sticky top-0 z-50  min-h-[72px] bg-white bg-opacity-50 shadow-sm  backdrop-blur backdrop-filter dark:bg-black  dark:bg-opacity-20 lg:overflow-y-visible',
 				]"
 			>
-				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div class="relative flex justify-between lg:gap-8 xl:grid xl:grid-cols-12">
-						<div class="flex py-3 md:absolute md:inset-y-0 md:left-0 lg:static xl:col-span-2">
+				<div class="mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8">
+					<div class="relative flex h-full justify-between lg:gap-8 xl:grid xl:grid-cols-12">
+						<div class="flex md:absolute md:inset-y-0 md:left-0 lg:static xl:col-span-2">
 							<div class="flex flex-shrink-0 items-center">
 								<a href="#">
 									<!-- src="https://tailwindui.com/img/logos/workflow-mark.svg?color=rose&shade=500" -->
@@ -87,11 +88,40 @@ useTitle(title)
 								</a>
 							</div>
 						</div>
-						<div class="min-w-0 flex-1 md:px-8 lg:px-0 xl:col-span-6">
+						<div class="h-full min-w-0 flex-1 md:px-8 lg:px-0 xl:col-span-6">
 							<div
-								class="flex items-center px-6 py-4 md:mx-auto md:max-w-3xl lg:mx-0 lg:max-w-none xl:px-0"
+								class="flex h-full items-center px-6 md:mx-auto md:max-w-3xl lg:mx-0 lg:max-w-none xl:px-0"
 							>
-								<div class="w-full"></div>
+								<div class="h-full w-full">
+									<nav class="relative z-0 flex h-full w-full items-end" aria-label="Tabs">
+										<router-link
+											v-for="(tab, tabIdx) in tabs"
+											:key="tab.name"
+											:to="{ name: tab.href }"
+											:aria-current="tab.current ? 'page' : undefined"
+											:class="[
+												tab.current
+													? 'text-gray-900 dark:text-white'
+													: 'text-gray-500 hover:text-gray-700 dark:text-vercel-accents-5 dark:hover:text-white',
+
+												'group relative px-1 py-4 focus:z-10',
+											]"
+										>
+											<span
+												class="flex overflow-hidden rounded-lg bg-white py-2 px-3 text-center text-sm font-medium transition group-hover:bg-gray-50 dark:bg-transparent dark:group-hover:bg-vercel-accents-2"
+											>
+												{{ tab.name }}
+											</span>
+											<span
+												aria-hidden="true"
+												:class="[
+													tab.current ? 'bg-papaya-900' : 'bg-transparent',
+													'absolute inset-x-0 bottom-0 h-0.5 ',
+												]"
+											/>
+										</router-link>
+									</nav>
+								</div>
 							</div>
 						</div>
 						<div class="flex items-center md:absolute md:inset-y-0 md:right-0 lg:hidden">
@@ -116,7 +146,7 @@ useTitle(title)
 								class="ml-5 flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
 							>
 								<span class="sr-only">View notifications</span>
-								<BellIcon class="h-6 w-6" aria-hidden="true" />
+								<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />
 							</a> -->
 							<DarkModeSwitch />
 
@@ -127,7 +157,7 @@ useTitle(title)
 										class="flex items-center rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-papaya-900 focus:ring-offset-2 dark:text-vercel-accents-5 dark:hover:text-white dark:focus:ring-offset-black"
 									>
 										<span class="sr-only">Open user menu</span>
-										<BellIcon class="h-6 w-6" aria-hidden="true" />
+										<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />
 										<span class="ml-1">{{ loadedTabs.length }}</span>
 									</MenuButton>
 								</div>
@@ -159,9 +189,8 @@ useTitle(title)
 						</div>
 					</div>
 				</div>
-				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+				<!-- <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<nav class="relative z-0 flex" aria-label="Tabs">
-						<!-- v-slot="{ href, route, navigate, isActive, isExactActive }" -->
 						<router-link
 							v-for="(tab, tabIdx) in tabs"
 							:key="tab.name"
@@ -189,7 +218,7 @@ useTitle(title)
 							/>
 						</router-link>
 					</nav>
-				</div>
+				</div> -->
 
 				<PopoverPanel as="nav" class="lg:hidden" aria-label="Global">
 					<div class="mx-auto max-w-3xl space-y-1 px-2 pt-2 pb-3 sm:px-4">
@@ -219,7 +248,7 @@ useTitle(title)
 								class="ml-auto flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
 							>
 								<span class="sr-only">View notifications</span>
-								<BellIcon class="h-6 w-6" aria-hidden="true" />
+								<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />
 							</button>
 						</div>
 						<div class="mx-auto mt-3 max-w-3xl space-y-1 px-2 sm:px-4">
@@ -254,8 +283,8 @@ useTitle(title)
 			</header>
 		</Popover>
 
-		<div>
+		<main class="flex flex-1 flex-col">
 			<router-view />
-		</div>
+		</main>
 	</div>
 </template>

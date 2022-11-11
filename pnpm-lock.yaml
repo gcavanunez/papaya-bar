@@ -12,6 +12,7 @@ specifiers:
   '@vue/runtime-core': ^3.2.40
   '@vueuse/core': ^9.3.0
   autoprefixer: ^10.4.12
+  clsx: ^1.2.1
   date-fns: ^2.29.3
   eslint: ^8.24.0
   eslint-plugin-vue: ^9.5.1
@@ -37,6 +38,7 @@ dependencies:
   '@popperjs/core': 2.11.6
   '@vue/runtime-core': 3.2.40
   '@vueuse/core': 9.3.0_vue@3.2.40
+  clsx: 1.2.1
   date-fns: 2.29.3
   focus-visible: 5.2.0
   mini-svg-data-uri: 1.4.4
@@ -644,6 +646,11 @@ packages:
     optionalDependencies:
       fsevents: 2.3.2
     dev: true
+
+  /clsx/1.2.1:
+    resolution: {integrity: sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg==}
+    engines: {node: '>=6'}
+    dev: false
 
   /color-convert/2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}

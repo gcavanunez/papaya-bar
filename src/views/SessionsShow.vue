@@ -30,21 +30,27 @@ onMounted(async () => {
 })
 </script>
 <template>
-	<div class="">
+	<div class="flex flex-1 flex-col">
 		<div class="container mx-auto py-6 px-4 sm:px-2 lg:max-w-7xl">
 			<!-- This example requires Tailwind CSS v2.0+ -->
 			<div class="px-4 sm:px-6 lg:px-8" v-if="parsedState">
 				<div class="sm:flex sm:items-center">
 					<div class="flex flex-col">
-						<h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">
+						<h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
 							Tabs {{ parsedState.tabs.length }}
 						</h1>
 						<nav aria-label="Breadcrumbs" class="order-first flex space-x-2 text-sm font-semibold">
-							<router-link class="text-slate-500 hover:text-slate-600" :to="{ name: 'sessions' }">
+							<router-link
+								class="text-slate-500 hover:text-slate-600 dark:text-vercel-accents-5 dark:hover:text-white"
+								:to="{ name: 'sessions' }"
+							>
 								Sessions
 							</router-link>
 							<div aria-hidden="true" class="select-none text-slate-400">/</div>
-							<a class="text-slate-500 hover:text-slate-600" href="#">
+							<a
+								class="text-slate-500 hover:text-slate-600 dark:text-vercel-accents-5 dark:hover:text-white"
+								href="#"
+							>
 								{{ uid }}
 							</a>
 						</nav>

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid'
 import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
-
-import { computed, ComputedRef, onMounted, reactive, Ref, ref, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
 import { XMarkIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/vue/20/solid'
-
 import { Switch } from '@headlessui/vue'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
@@ -17,7 +15,7 @@ import AppBtn from '@/components/AppBtn.vue'
 import { Tab, Grouped, WindowsMap, Group, HistoryMap, LookUpTab } from '@/types'
 import { closeTab, moveTabTo, moveTabs } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
-import { useChromeTabs } from '@/hooks/useChromeTabs'
+
 import autoAnimate from '@formkit/auto-animate'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
@@ -112,8 +110,6 @@ const selectedTabName = computed(() => {
 	const tabCategory = Object.keys(categories).find((row, index) => selectedTab.value === index)
 	return tabCategory ? tabCategory : 'All'
 })
-// chrome.tabs
-// const { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab, windowsMap } = useChromeTabs()
 
 type Props = {
 	loadedTabs: Tab[]
@@ -333,11 +329,13 @@ const closeDuplicates = () => {
 </script>
 
 <template>
-	<div class="mx-auto max-w-3xl py-8 sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-12 lg:gap-8 lg:px-8">
+	<div
+		class="max-w-3x mx-auto w-full flex-1 py-8 sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-12 lg:gap-8 lg:px-8"
+	>
 		<div class="hidden lg:col-span-2 lg:block">
 			<nav
 				aria-label="Tab viewing styles"
-				class="sticky top-4 divide-y divide-slate-300 dark:divide-vercel-accents-2"
+				class="sticky top-[88px] divide-y divide-slate-300 dark:divide-vercel-accents-2"
 			>
 				<TabGroup @change="changeTab" :selectedIndex="selectedTab" vertical>
 					<TabList class="flex flex-col space-y-1 rounded-lg pb-8">
@@ -408,7 +406,7 @@ const closeDuplicates = () => {
 				</div>
 			</nav>
 		</div>
-		<main class="lg:col-span-8">
+		<section class="lg:col-span-8">
 			<div class="">
 				<div class="">
 					<section>
@@ -812,56 +810,67 @@ const closeDuplicates = () => {
 					</div>
 					<div class="">
 						<h1 class="sr-only">Recent questions</h1>
-						<ul role="list" class="space-y-4" ref="groupContainer">
-							<Disclosure
-								as="li"
-								class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5 dark:divide-vercel-accents-2 dark:bg-black"
-								v-for="(group, index) in grouped"
-								:key="`section-${index}`"
-								:id="`section-${index}`"
-								:default-open="true"
+						<ul role="list" class="space-y-4">
+							<transition-group
+								mode="out-in"
+								appear
+								enter-active-class="transition duration-100 ease-out"
+								enter-from-class="transform scale-95 opacity-0"
+								enter-to-class="transform scale-100 opacity-100"
+								leave-active-class="transition duration-75 ease-out"
+								leave-from-class="transform scale-100 opacity-100"
+								leave-to-class="transform scale-95 opacity-0"
 							>
-								<div class="px-4 py-4 md:px-6">
-									<h2 class="sr-only">{{ index }}</h2>
-									<div class="flex items-center justify-between">
-										<DisclosureButton as="template">
-											<AppBtn>
-												{{ index }}
-											</AppBtn>
-										</DisclosureButton>
+								<Disclosure
+									as="li"
+									class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5 dark:divide-vercel-accents-2 dark:bg-black"
+									v-for="(group, index) in grouped"
+									:key="`section-${index}`"
+									:id="`section-${index}`"
+									:default-open="true"
+								>
+									<div class="px-4 py-4 md:px-6">
+										<h2 class="sr-only">{{ index }}</h2>
+										<div class="flex items-center justify-between">
+											<DisclosureButton as="template">
+												<AppBtn>
+													{{ index }}
+												</AppBtn>
+											</DisclosureButton>
 
-										<div class="flex items-center space-x-2">
-											<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
-											<AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn>
-											<AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
-											<AppBtn @click="closeTabs(group)" type="button" color="round-primary">
-												<XMarkIcon class="h-3 w-3" />
-											</AppBtn>
+											<div class="flex items-center space-x-2">
+												<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
+												<AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn>
+												<AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
+												<AppBtn @click="closeTabs(group)" type="button" color="round-primary">
+													<XMarkIcon class="h-3 w-3" />
+												</AppBtn>
+											</div>
 										</div>
 									</div>
-								</div>
-								<transition
-									enter-active-class="transition duration-100 ease-out"
-									enter-from-class="transform scale-95 opacity-0"
-									enter-to-class="transform scale-100 opacity-100"
-									leave-active-class="transition duration-75 ease-out"
-									leave-from-class="transform scale-100 opacity-100"
-									leave-to-class="transform scale-95 opacity-0"
-								>
-									<DisclosurePanel as="ul" class="px-4 py-4 md:px-6">
-										<TabRow
-											v-for="tab in group"
-											:key="`${tab.windowId}-${tab.stableId}`"
-											:tab="tab"
-											:windows-map="windowsMap"
-											:loaded-groups="loadedGroups"
-											:tabs-selected="tabsSelected"
-											:history="loadedTabHistory"
-											@toggle-selection="toggleSelection"
-										/>
-									</DisclosurePanel>
-								</transition>
-							</Disclosure>
+									<transition
+										enter-active-class="transition duration-100 ease-out"
+										enter-from-class="transform scale-95 opacity-0"
+										enter-to-class="transform scale-100 opacity-100"
+										leave-active-class="transition duration-75 ease-out"
+										leave-from-class="transform scale-100 opacity-100"
+										leave-to-class="transform scale-95 opacity-0"
+									>
+										<DisclosurePanel as="ul" class="px-4 py-4 md:px-6">
+											<TabRow
+												v-for="tab in group"
+												:key="`${tab.windowId}-${tab.stableId}`"
+												:tab="tab"
+												:windows-map="windowsMap"
+												:loaded-groups="loadedGroups"
+												:tabs-selected="tabsSelected"
+												:history="loadedTabHistory"
+												@toggle-selection="toggleSelection"
+											/>
+										</DisclosurePanel>
+									</transition>
+								</Disclosure>
+							</transition-group>
 						</ul>
 					</div>
 				</div>
@@ -877,12 +886,12 @@ const closeDuplicates = () => {
 					</p>
 				</div>
 			</div>
-		</main>
-		<aside
-			class="hidden lg:col-span-2 lg:block"
-			v-if="Object.values(grouped).some((row) => row.length)"
-		>
-			<div class="sticky top-4 space-y-4">
+		</section>
+		<aside class="hidden lg:col-span-2 lg:block">
+			<div
+				class="sticky top-[88px] space-y-4"
+				v-if="Object.values(grouped).some((row) => row.length)"
+			>
 				<section aria-labelledby="who-to-follow-heading">
 					<div class="lg:h-screen lg:overflow-y-auto">
 						<div class="">
@@ -955,11 +964,13 @@ const closeDuplicates = () => {
 	</div>
 	<footer
 		v-if="[...tabsSelected].length > 0"
-		class="sticky bottom-0 left-0 right-0 z-10 w-full bg-slate-900 shadow-lg"
+		class="sticky bottom-0 left-0 right-0 z-50 w-full bg-slate-900 shadow-lg dark:bg-papaya-500"
 	>
 		<div class="mx-auto w-full max-w-7xl px-4 sm:px-2">
 			<div class="flex w-full items-center justify-between rounded-lg px-4 py-4 text-lg md:px-6">
-				<div class="text-slate-300">{{ [...tabsSelected].length }} Tabs selected</div>
+				<div class="text-slate-300 dark:text-black">
+					{{ [...tabsSelected].length }} Tabs selected
+				</div>
 				<div class="flex items-center space-x-2">
 					<AppBtn @click="closeTabs(selectedGroup)" type="button" color="primary-dark">
 						Close all

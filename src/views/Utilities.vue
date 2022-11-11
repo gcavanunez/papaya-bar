@@ -25,7 +25,7 @@ const openLinks = async () => {
 }
 </script>
 <template>
-	<div class="relative bg-slate-100">
+	<div class="relative">
 		<div class="container mx-auto max-w-5xl py-6 px-4 sm:px-2">
 			<div class="flex w-full justify-end">
 				<AppBtn color="white" @click="openLinks">Open all links</AppBtn>

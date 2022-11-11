@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-
+import clsx from 'clsx'
+// const cva = clsx
 const colorClasses = {
-	'primary-dark':
-		'inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 shadow-sm ring-0 highlight-white/5 hover:bg-slate-700',
+	'primary-dark': clsx(
+		'inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 shadow-sm ring-0 highlight-white/5 hover:bg-slate-700 '
+	),
 	primary:
 		'inline-flex items-center rounded-full bg-slate-100 active:bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5 dark:active:bg-vercel-accents-3 dark:active:text-white transition',
 	white:
-		'inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm',
+		'inline-flex items-center rounded-full bg-white dark:bg-vercel-accents-2 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:text-white',
 	'round-primary':
 		'inline-flex items-center rounded-full bg-slate-100 px-1 py-1 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5',
 	'round-white':
