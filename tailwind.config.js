@@ -7,6 +7,9 @@ module.exports = {
 	darkMode: 'class',
 	theme: {
 		extend: {
+			lineHeight: {
+				0: '0',
+			},
 			colors: {
 				// https://vercel.com/design/color#highlight
 				vercel: {

@@ -16,6 +16,20 @@ const colorClasses = {
 		'inline-flex items-center rounded-full bg-white px-1 py-1 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5',
 	'round-dark-primary':
 		'inline-flex items-center rounded-full bg-slate-800 px-1 py-1 text-xs font-medium text-slate-300 shadow-sm ring-0 highlight-white/5 hover:bg-slate-700',
+	'vc-secondary': clsx(
+		// all
+		'transition rounded-full min-w-[70px] border',
+		// size vriant - rounded-md
+		'h-8 text-sm leading-0 py-1.5 px-3',
+		// colors | secondary
+		'dark:bg-black bg-white dark:border-vercel-accents-2 dark:text-vercel-accents-5 ',
+		// colors | secondary | hover
+		'dark:hover:border-white dark:hover:text-white',
+		// colors | secondary | focus
+		'dark:focus-visible:border-white dark:focus-visible:text-white',
+		// colors | secondary | active
+		'dark:active:bg-vercel-accents-2'
+	),
 }
 type ColorType = keyof typeof colorClasses
 

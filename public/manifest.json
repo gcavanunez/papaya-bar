@@ -50,14 +50,14 @@
 				"mac": "Command+Shift+K"
 			},
 			"description": "Open Chonching tabs",
-			"global": true
+			"global": false
 		},
 		"copy-link": {
 			"suggested_key": {
 				"default": "Ctrl+Shift+1",
 				"mac": "Command+Shift+1"
 			},
-			"description": "Open Chonching tabs",
+			"description": "Copy link name",
 			"global": true
 		},
 		"screenshot-area": {
@@ -66,7 +66,7 @@
 				"mac": "Command+Shift+2"
 			},
 			"description": "Screenshot area",
-			"global": true
+			"global": false
 		}
 	},
 	"action": {

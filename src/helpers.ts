@@ -54,20 +54,30 @@ export const copyLink = (tab: Tab) => {
 	copyToClipboard(text)
 }
 
-export const closeTab = (tab: Tab) => {
-	if (tab.id) {
-		chrome.tabs.remove(tab.id)
+export const closeTab = (tabs: Tab[]) => {
+	const ids: number[] = []
+	for (const tab of tabs) {
+		if (tab.id) {
+			ids.push(tab.id)
+		}
 	}
+	chrome.tabs.remove(ids)
 }
 
 export const goTo = (tab: Tab) => {
-	if (tab.id) {
-		chrome.windows.update(tab.windowId, { focused: true })
-		chrome.tabs.update(tab.id, { active: true })
-		// chrome.tabs.get(tab.id, function (onTab) {
-		//   chrome.tabs.highlight({ tabs: onTab.index }, function () {})
-		// })
-	}
+	// chrome.tabs.get(tab.id, function (onTab) {
+	//   chrome.tabs.highlight({ tabs: onTab.index }, function () {})
+	// })
+	chrome.tabs.query({}, function (tabs) {
+		if (tabs.length) {
+			if (tab.id && tabs.find((row) => row.id == tab.id)) {
+				chrome.windows.update(tab.windowId, { focused: true })
+				chrome.tabs.update(tab.id, { active: true })
+				return
+			}
+		}
+		chrome.tabs.create({ url: tab.url })
+	})
 }
 export const moveTabs = async (tabs: Tab[]) => {
 	const newWindow = await chrome.windows.create({
@@ -75,6 +85,8 @@ export const moveTabs = async (tabs: Tab[]) => {
 	})
 	tabs.forEach((row, index) => {
 		if (index === 0) {
+			// close the tab since, we are already openning it
+			// as a index to the new window
 			return
 		}
 		if (row.id) {
@@ -84,4 +96,10 @@ export const moveTabs = async (tabs: Tab[]) => {
 			})
 		}
 	})
+}
+export const closeDuplicates = (loadedTabs: Tab[]) => {
+	const duplicates = loadedTabs.filter(
+		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index
+	)
+	closeTab(duplicates)
 }

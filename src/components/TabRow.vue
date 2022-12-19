@@ -179,7 +179,7 @@ const tabHistory = computed(() => {
 							</AppBtn>
 						</DisclosureButton>
 						<AppBtn @click="copyLink(tab)"> Copy </AppBtn>
-						<AppBtn @click="closeTab(tab)" color="round-primary">
+						<AppBtn @click="closeTab([tab])" color="round-primary">
 							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>
 					</div>

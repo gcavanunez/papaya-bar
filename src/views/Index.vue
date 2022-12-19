@@ -293,9 +293,7 @@ const totalTabs = computed(() => {
 })
 
 const closeTabs = (tabs: Tab[]) => {
-	tabs.forEach((row) => {
-		closeTab(row)
-	})
+	closeTab(tabs)
 }
 
 const copyLinks = (tabs: Tab[]) => {
@@ -325,7 +323,8 @@ const closeDuplicates = () => {
 	const duplicates = loadedTabs.value.filter(
 		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index
 	)
-	duplicates.forEach(closeTab)
+
+	closeTab(duplicates)
 }
 </script>
 

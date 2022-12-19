@@ -100,8 +100,10 @@ const parsedState = computed(() => {
 											<td
 												class="whitespace-nowrap px-3 py-4 text-sm text-slate-500 dark:text-vercel-accents-4"
 											>
-												<span v-if="value.title">{{ value.title }}</span>
-												<span class="italic">without description</span>
+												<span v-if="value.title" class="font-medium text-slate-900 dark:text-white">
+													{{ value.title }}
+												</span>
+												<span class="italic" v-else>without description</span>
 											</td>
 											<td
 												class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"

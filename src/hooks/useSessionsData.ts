@@ -376,9 +376,16 @@ export const useSessionsData = () => {
 	const findByUid = (uid: string) => {
 		return state.value.get(uid)
 	}
+	const saveByUid = (uid: string, newData: Partial<SavedData>) => {
+		const session = state.value.get(uid)
+		if (session) {
+			state.value.set(uid, { ...session, ...newData })
+		}
+	}
 	return {
 		state,
 		findByUid,
+		saveByUid,
 		storeSession,
 		openAll,
 		removeSavedSession,

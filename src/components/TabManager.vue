@@ -13,12 +13,13 @@ import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
 import { copyToClipboard } from '../utils'
 import AppBtn from '@/components/AppBtn.vue'
 import { Tab, Grouped, WindowsMap, Group, HistoryMap, LookUpTab } from '@/types'
-import { closeTab, moveTabTo, moveTabs } from '@/helpers'
+import { closeDuplicates, closeTab, moveTabTo, moveTabs } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
 
 import autoAnimate from '@formkit/auto-animate'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
+import AppButton from './AppButton.vue'
 
 const { storeSession } = useSessionsData()
 const groupContainer = ref<HTMLElement | null>(null)
@@ -279,7 +280,9 @@ const grouped = computed<Grouped>(() => {
 	return Object.keys(actualGroup)
 		.sort()
 		.reduce((obj, key) => {
-			obj[key] = actualGroup[key]
+			if (actualGroup[key].length) {
+				obj[key] = actualGroup[key]
+			}
 			return obj
 		}, {} as Grouped)
 })
@@ -292,9 +295,12 @@ const totalTabs = computed(() => {
 })
 
 const closeTabs = (tabs: Tab[]) => {
-	tabs.forEach((row) => {
-		closeTab(row)
-	})
+	closeTab(tabs)
+}
+
+const closeSelectedTabs = (tabs: Tab[]) => {
+	closeTab(tabs)
+	tabsSelected.value.clear()
 }
 
 const copyLinks = (tabs: Tab[]) => {
@@ -319,12 +325,6 @@ const selectGroup = (tabs: Tab[]) => {
 	tabs.forEach((tab) => {
 		tabsSelected.value.add(tab.stableId)
 	})
-}
-const closeDuplicates = () => {
-	const duplicates = loadedTabs.filter(
-		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index
-	)
-	duplicates.forEach(closeTab)
 }
 </script>
 
@@ -372,38 +372,30 @@ const closeDuplicates = () => {
 						</AppTab>
 					</TabList>
 				</TabGroup>
-				<div class="pt-10">
-					<p
-						class="px-3 text-sm font-medium text-slate-500 dark:text-white"
-						id="quick-actions-headline"
-					>
-						Quick Actions
-					</p>
-					<div class="mt-3 space-y-2" aria-labelledby="quick-actions-headline">
-						<button
-							class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
-							@click="storeSession(loadedTabs)"
+				<slot name="left-section">
+					<!-- <div class="pt-10">
+						<p
+							class="px-3 text-sm font-medium text-slate-500 dark:text-white"
+							id="quick-actions-headline"
 						>
-							<span class="truncate"> Save session </span>
-						</button>
-						<button
-							class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
-							@click="closeDuplicates"
-						>
-							<span class="truncate"> Close duplicates </span>
-						</button>
-						<!-- <a
-                v-for="community in communities"
-                :key="community.name"
-                :href="community.href"
-                class="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-              >
-                <span class="truncate">
-                  {{ community.name }}
-                </span>
-              </a> -->
-					</div>
-				</div>
+							Quick Actions
+						</p>
+						<div class="mt-3 space-y-2" aria-labelledby="quick-actions-headline">
+							<button
+								class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
+								@click="storeSession(loadedTabs)"
+							>
+								<span class="truncate"> Save session </span>
+							</button>
+							<button
+								class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
+								@click="closeDuplicates(loadedTabs)"
+							>
+								<span class="truncate"> Close duplicates </span>
+							</button>
+						</div>
+					</div> -->
+				</slot>
 			</nav>
 		</div>
 		<section class="lg:col-span-8">
@@ -925,10 +917,7 @@ const closeDuplicates = () => {
 											<!-- <div
                           class="absolute top-[50%] h-3 w-3 rounded-full border border-slate-900 bg-slate-200"
                         ></div> -->
-											<router-link
-												:to="{ name: 'index', hash: `#section-${index}` }"
-												class="flex min-w-0"
-											>
+											<router-link :to="{ hash: `#section-${index}` }" class="flex min-w-0">
 												<span class="truncate"> {{ index }} </span>
 											</router-link>
 											<div
@@ -972,15 +961,22 @@ const closeDuplicates = () => {
 					{{ [...tabsSelected].length }} Tabs selected
 				</div>
 				<div class="flex items-center space-x-2">
-					<AppBtn @click="closeTabs(selectedGroup)" type="button" color="primary-dark">
+					<AppButton
+						@click="closeSelectedTabs(selectedGroup)"
+						type="button"
+						intent="secondary-ghost"
+						size="small"
+					>
 						Close all
-					</AppBtn>
+					</AppButton>
 					<Menu as="div" class="pointer-events-auto relative inline-flex text-left">
 						<MenuButton as="template">
-							<AppBtn color="primary-dark">
-								Move to
-								<ChevronDownIcon class="ml-2 -mr-1 h-3 w-3 text-slate-200" aria-hidden="true" />
-							</AppBtn>
+							<AppButton intent="primary" size="small">
+								<span class="inline-flex items-center">
+									Move to
+									<ChevronDownIcon class="ml-2 -mr-1 h-3 w-3 text-slate-200" aria-hidden="true" />
+								</span>
+							</AppButton>
 						</MenuButton>
 
 						<transition
@@ -1043,15 +1039,20 @@ const closeDuplicates = () => {
 							</MenuItems>
 						</transition>
 					</Menu>
-					<AppBtn @click="moveTabs(selectedGroup)" color="primary-dark" type="button">
-						Move
-					</AppBtn>
-					<AppBtn @click="storeSession(selectedGroup)" color="primary-dark" type="button">
+					<AppButton @click="moveTabs(selectedGroup)" intent="primary" size="small" type="button">
+						New Window
+					</AppButton>
+					<AppButton
+						@click="storeSession(selectedGroup)"
+						intent="primary"
+						size="small"
+						type="button"
+					>
 						Save as session
-					</AppBtn>
-					<AppBtn @click="copyLinks(selectedGroup)" color="primary-dark" type="button">
+					</AppButton>
+					<AppButton @click="copyLinks(selectedGroup)" intent="primary" size="small" type="button">
 						Copy
-					</AppBtn>
+					</AppButton>
 					<AppBtn @click="tabsSelected.clear()" color="round-dark-primary" type="button">
 						<XMarkIcon class="h-3 w-3" />
 					</AppBtn>
