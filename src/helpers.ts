@@ -85,6 +85,7 @@ export const moveTabs = async (tabs: Tab[]) => {
 	})
 	tabs.forEach((row, index) => {
 		if (index === 0) {
+			closeTab([row])
 			// close the tab since, we are already openning it
 			// as a index to the new window
 			return
