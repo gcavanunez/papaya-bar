@@ -80,16 +80,9 @@ export const goTo = (tab: Tab) => {
 	})
 }
 export const moveTabs = async (tabs: Tab[]) => {
-	const newWindow = await chrome.windows.create({
-		url: tabs[0].url,
-	})
+	const newWindow = await chrome.windows.create({})
+	const newTab = newWindow.tabs
 	tabs.forEach((row, index) => {
-		if (index === 0) {
-			closeTab([row])
-			// close the tab since, we are already openning it
-			// as a index to the new window
-			return
-		}
 		if (row.id) {
 			chrome.tabs.move(row.id, {
 				index: -1,
@@ -97,6 +90,9 @@ export const moveTabs = async (tabs: Tab[]) => {
 			})
 		}
 	})
+	if (newTab?.length) {
+		closeTab(newTab.map((row) => ({ ...row, stableId: 'new-tab' })))
+	}
 }
 export const closeDuplicates = (loadedTabs: Tab[]) => {
 	const duplicates = loadedTabs.filter(
