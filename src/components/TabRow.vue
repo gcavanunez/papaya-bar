@@ -1,32 +1,13 @@
 <script setup lang="ts">
 import { format, formatDistance } from 'date-fns'
-import {
-	Menu,
-	MenuButton,
-	MenuItems,
-	MenuItem,
-	Disclosure,
-	DisclosureButton,
-	DisclosurePanel,
-} from '@headlessui/vue'
-import {
-	PlusIcon,
-	XMarkIcon,
-	MinusIcon,
-	ChevronUpIcon,
-	ChevronDownIcon,
-} from '@heroicons/vue/20/solid'
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
+import { PlusIcon, XMarkIcon, MinusIcon, ChevronUpIcon } from '@heroicons/vue/20/solid'
 import { closeTab, copyLink, moveTabTo, goTo } from '@/helpers'
 import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
-import { usePopper } from '@/hooks/usePopper'
-import AppBtn from './AppBtn.vue'
 
-let [trigger, container] = usePopper({
-	placement: 'bottom-end',
-	strategy: 'fixed',
-	modifiers: [{ name: 'offset', options: { offset: [0, 10] } }],
-})
+import AppBtn from './AppBtn.vue'
+import TabMoveToMenu from './TabMoveToMenu.vue'
 
 interface Props {
 	tab: Tab
@@ -92,7 +73,13 @@ const tabHistory = computed(() => {
 					</div>
 					<div class="pointer-events-auto flex items-center space-x-2">
 						<div class="relative inline-flex flex-col text-left">
-							<Menu v-slot="{ open }">
+							<TabMoveToMenu
+								:tabs="[tab]"
+								:loadedGroups="loadedGroups"
+								:windowsMap="windowsMap"
+								:canCreateGroup="false"
+							/>
+							<!-- <Menu v-slot="{ open }">
 								<span class="pointer-events-auto relative inline-flex text-left">
 									<MenuButton
 										ref="trigger"
@@ -114,8 +101,6 @@ const tabHistory = computed(() => {
 										leave-from-class="transform scale-100 opacity-100"
 										leave-to-class="transform z-30 scale-95 opacity-0"
 									>
-										<!-- origin-top-right -->
-										<!-- class="absolute right-0 mt-2 divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" -->
 										<MenuItems
 											class="z-40 w-full divide-y divide-gray-100 rounded-md border border-gray-200 bg-white shadow-lg outline-none"
 										>
@@ -166,7 +151,7 @@ const tabHistory = computed(() => {
 										</MenuItems>
 									</transition>
 								</div>
-							</Menu>
+							</Menu> -->
 						</div>
 						<DisclosureButton as="template">
 							<AppBtn :class="{ 'opacity-75': open }">

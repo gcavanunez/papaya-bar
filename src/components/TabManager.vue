@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid'
-import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon, RssIcon } from '@heroicons/vue/20/solid'
+import {
+	HomeIcon,
+	TagIcon,
+	RectangleGroupIcon,
+	CalendarDaysIcon,
+	PlusIcon,
+} from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
 import { XMarkIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/vue/20/solid'
 import { Switch } from '@headlessui/vue'
@@ -20,6 +26,89 @@ import autoAnimate from '@formkit/auto-animate'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import AppButton from './AppButton.vue'
+import AppInput from './forms/AppInput.vue'
+import AppModal from './AppModal.vue'
+import TabMoveToMenu from './TabMoveToMenu.vue'
+// composable start - grouping
+
+const groupColors: {
+	value: chrome.tabGroups.ColorEnum
+	hex: string
+	selectedColor: string
+	bgColor: string
+}[] = [
+	{ bgColor: 'bg-[#DADCE0]', selectedColor: 'ring-[#DADCE0]', hex: '#DADCE0', value: 'grey' },
+	{ bgColor: 'bg-[#93B3F2]', selectedColor: 'ring-[#93B3F2]', hex: '#93B3F2', value: 'blue' },
+	{ bgColor: 'bg-[#E49086]', selectedColor: 'ring-[#E49086]', hex: '#E49086', value: 'red' },
+	{ bgColor: 'bg-[#F7D775]', selectedColor: 'ring-[#F7D775]', hex: '#F7D775', value: 'yellow' },
+	{ bgColor: 'bg-[#91C799]', selectedColor: 'ring-[#91C799]', hex: '#91C799', value: 'green' },
+	{ bgColor: 'bg-[#F091C8]', selectedColor: 'ring-[#F091C8]', hex: '#F091C8', value: 'pink' },
+	{ bgColor: 'bg-[#BC8CF2]', selectedColor: 'ring-[#BC8CF2]', hex: '#BC8CF2', value: 'purple' },
+	{ bgColor: 'bg-[#90D7E9]', selectedColor: 'ring-[#90D7E9]', hex: '#90D7E9', value: 'cyan' },
+	{ bgColor: 'bg-[#F0B07A]', selectedColor: 'ring-[#F0B07A]', hex: '#F0B07A', value: 'orange' },
+]
+const createGroup = async ({
+	tabs,
+	form,
+}: {
+	tabs: Tab[]
+	form: chrome.tabGroups.UpdateProperties
+}) => {
+	let ids: number[] = []
+	for (const tab of tabs) {
+		if (tab.id) {
+			ids.push(tab.id)
+		}
+	}
+	const groupId = await chrome.tabs.group({ tabIds: ids })
+	return chrome.tabGroups.update(groupId, { ...form, collapsed: true })
+}
+const groupModalToggle = ref(false)
+const groupModalForm = ref<{
+	/**
+	 * @see chrome.tabGroups.UpdateProperties
+	 */
+	collapsed?: boolean
+
+	color: chrome.tabGroups.ColorEnum
+
+	title: string
+}>({ color: 'blue', title: '' })
+type GroupFormMode = 'create' | 'edit'
+const mode = ref<GroupFormMode>('create')
+const editingGroupId = ref<number>(0)
+const groupSelection = ref<Tab[]>([])
+const onGroupFormSummit = async () => {
+	if (mode.value === 'create') {
+		await createGroup({ tabs: groupSelection.value, form: groupModalForm.value })
+	} else {
+		chrome.tabGroups.update(editingGroupId.value, { ...groupModalForm.value, collapsed: true })
+		editingGroupId.value = 0
+	}
+	groupModalToggle.value = false
+}
+const onEditGroup = async ({ tabs }: { tabs: Tab[] }) => {
+	const groupId = tabs[0].groupId
+	if (groupId) {
+		editingGroupId.value = groupId
+		const groupData = await chrome.tabGroups.get(groupId)
+		const editState = { color: groupData.color, title: '' }
+		if (groupData.title) {
+			editState['title'] = groupData.title
+		}
+		groupModalForm.value = editState
+		mode.value = 'edit'
+		groupModalToggle.value = true
+	}
+}
+const onCreateNewGroup = ({ tabs }: { tabs: Tab[] }) => {
+	editingGroupId.value = 0
+	mode.value = 'create'
+	groupModalToggle.value = true
+	groupSelection.value = tabs
+}
+
+// composable end
 
 const { storeSession } = useSessionsData()
 const groupContainer = ref<HTMLElement | null>(null)
@@ -83,7 +172,7 @@ onMounted(() => {
 	watchEffect((onInvalidate) => {
 		const focusSearch = (e: KeyboardEvent) => {
 			if (e.key == '/' && document.activeElement !== inputRef.value) {
-				console.log('focusSearch hi')
+				// console.log('focusSearch hi')
 				e.preventDefault()
 				focusOnInput()
 			}
@@ -824,19 +913,43 @@ const selectGroup = (tabs: Tab[]) => {
 									<div class="px-4 py-4 md:px-6">
 										<h2 class="sr-only">{{ index }}</h2>
 										<div class="flex items-center justify-between">
-											<DisclosureButton as="template">
-												<AppBtn>
-													{{ index }}
+											<div class="flex items-center space-x-2">
+												<DisclosureButton as="template">
+													<AppBtn>
+														{{ index }}
+													</AppBtn>
+												</DisclosureButton>
+												<AppBtn
+													v-if="selectedTabName === 'Grouped' && index !== 'other'"
+													@click="() => onEditGroup({ tabs: group })"
+													type="button"
+												>
+													Edit
 												</AppBtn>
-											</DisclosureButton>
+											</div>
 
 											<div class="flex items-center space-x-2">
 												<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
-												<AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn>
+												<AppBtn @click="closeTabs(group)" type="button"> Close all </AppBtn>
+												<!-- <AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn> -->
+												<TabMoveToMenu
+													:tabs="group"
+													:windowsMap="windowsMap"
+													:loadedGroups="loadedGroups"
+													@on-create-group="
+														({ tabs: emitedTabs }) => {
+															onCreateNewGroup({ tabs: emitedTabs })
+														}
+													"
+												>
+													<template #menu-trigger-label>Move </template></TabMoveToMenu
+												>
 												<AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
-												<AppBtn @click="closeTabs(group)" type="button" color="round-primary">
-													<XMarkIcon class="h-3 w-3" />
-												</AppBtn>
+												<DisclosureButton as="template">
+													<AppBtn type="button" color="round-primary">
+														<XMarkIcon class="h-3 w-3" />
+													</AppBtn>
+												</DisclosureButton>
 											</div>
 										</div>
 									</div>
@@ -951,6 +1064,60 @@ const selectGroup = (tabs: Tab[]) => {
 			</div>
 		</aside>
 	</div>
+	<AppModal v-model="groupModalToggle" title="Group Settings">
+		<form @submit.prevent="onGroupFormSummit">
+			<div class="mt-8 grid grid-cols-1 gap-6">
+				<div>
+					<AppInput
+						v-model="groupModalForm.title"
+						type="text"
+						class="dark:bg-black"
+						label="Group label"
+					/>
+				</div>
+				<div>
+					<!-- <input v-model="groupModalForm.color" class="dark:bg-black" /> -->
+					<div>
+						<h2 class="text-sm font-medium text-gray-900 dark:text-white">Color</h2>
+
+						<RadioGroup v-model="groupModalForm.color" class="mt-2">
+							<RadioGroupLabel class="sr-only"> Choose a color </RadioGroupLabel>
+							<div class="flex flex-wrap items-center gap-3">
+								<RadioGroupOption
+									as="template"
+									v-for="color in groupColors"
+									:key="color.hex"
+									:value="color.value"
+									v-slot="{ active, checked }"
+								>
+									<div
+										:class="[
+											color.selectedColor,
+											active && checked ? 'ring ring-offset-1' : '',
+											!active && checked ? 'ring-2' : '',
+											'relative -m-0.5 flex cursor-pointer items-center justify-center rounded-full p-0.5 focus:outline-none',
+										]"
+									>
+										<RadioGroupLabel as="span" class="sr-only"> {{ color.value }} </RadioGroupLabel>
+										<span
+											aria-hidden="true"
+											:class="[
+												color.bgColor,
+												'h-8 w-8 rounded-full border border-black border-opacity-10',
+											]"
+										/>
+									</div>
+								</RadioGroupOption>
+							</div>
+						</RadioGroup>
+					</div>
+				</div>
+				<div class="flex justify-end">
+					<AppButton intent="primary" size="medium" type="submit">Save</AppButton>
+				</div>
+			</div>
+		</form>
+	</AppModal>
 	<footer
 		v-if="[...tabsSelected].length > 0"
 		class="sticky bottom-0 left-0 right-0 z-50 w-full bg-slate-900 shadow-lg dark:bg-papaya-500"
@@ -1013,7 +1180,7 @@ const selectGroup = (tabs: Tab[]) => {
 										</button>
 									</MenuItem>
 								</div>
-								<div class="px-1 py-1">
+								<div class="px-1 py-1" v-if="loadedGroups.length">
 									<MenuItem
 										v-slot="{ active, disabled }"
 										:key="`${loadedGroup.id}-custom-selected`"
@@ -1033,6 +1200,31 @@ const selectGroup = (tabs: Tab[]) => {
 											]"
 										>
 											{{ loadedGroup.title }}
+										</button>
+									</MenuItem>
+								</div>
+								<div class="px-1 py-1">
+									<MenuItem
+										v-slot="{ active, disabled }"
+										@click="onCreateNewGroup({ tabs: selectedGroup })"
+									>
+										<button
+											:class="[
+												active ? 'bg-blue-500 text-white' : 'text-slate-700',
+												'group flex w-full items-center rounded-md px-2 py-2 text-sm',
+												disabled ? 'opacity-50' : 'opacity-100',
+											]"
+										>
+											<PlusIcon
+												:class="[
+													active
+														? 'text-slate-500  dark:text-white'
+														: 'text-slate-400 group-hover:text-slate-500 dark:text-vercel-accents-5 dark:group-hover:text-white',
+													'-ml-1 mr-1.5 h-4 w-4 flex-shrink-0',
+												]"
+												aria-hidden="true"
+											/>
+											Group tabs
 										</button>
 									</MenuItem>
 								</div>

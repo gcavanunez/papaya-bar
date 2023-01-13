@@ -37,7 +37,7 @@ const button = cva('transition  min-w-[70px] border focus:outline-none ', {
 			),
 			'secondary-ghost': cx(
 				// colors | secondary
-				'dark:bg-transparent bg-black dark:border-transparent dark:text-vercel-accents-5 ',
+				'dark:bg-transparent bg-black dark:border-transparent dark:text-white ',
 				// colors | secondary | hover
 				'dark:hover:bg-vercel-accents-1',
 				// colors | secondary | focus

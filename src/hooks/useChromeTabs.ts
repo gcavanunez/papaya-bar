@@ -91,6 +91,10 @@ export const useChromeTabs = () => {
 			chrome.tabs.onRemoved.addListener(fire)
 			chrome.tabs.onMoved.addListener(fire)
 			chrome.tabs.onAttached.addListener(fire)
+			chrome.tabGroups.onCreated.addListener(fire)
+			chrome.tabGroups.onMoved.addListener(fire)
+			chrome.tabGroups.onRemoved.addListener(fire)
+			chrome.tabGroups.onUpdated.addListener(fire)
 		}
 		onUnmounted(() => {
 			if (chrome.tabs) {
@@ -99,6 +103,10 @@ export const useChromeTabs = () => {
 				chrome.tabs.onRemoved.removeListener(fire)
 				chrome.tabs.onMoved.removeListener(fire)
 				chrome.tabs.onAttached.removeListener(fire)
+				chrome.tabGroups.onCreated.removeListener(fire)
+				chrome.tabGroups.onMoved.removeListener(fire)
+				chrome.tabGroups.onRemoved.removeListener(fire)
+				chrome.tabGroups.onUpdated.removeListener(fire)
 			}
 		})
 	}

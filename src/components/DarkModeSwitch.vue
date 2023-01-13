@@ -19,7 +19,7 @@ const enabled = computed({
 		return isDark.value
 	},
 	set(val) {
-		console.log({ val })
+		// console.log({ val })
 		const d = document.documentElement
 		if (val) {
 			d.style.colorScheme = 'dark'

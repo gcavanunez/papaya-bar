@@ -10,6 +10,8 @@ import { getTabHistory } from '@/helpers'
 import { useChromeWindowsMap } from '@/hooks/useChromeWindowsMap'
 import AppButton from '@/components/AppButton.vue'
 import AppModal from '@/components/AppModal.vue'
+import AppInput from '@/components/forms/AppInput.vue'
+import AppTextarea from '@/components/forms/AppTextarea.vue'
 
 const { findByUid, saveByUid } = useSessionsData()
 type Props = {
@@ -76,10 +78,27 @@ const updateSession = () => {
 						<AppButton intent="primary" size="medium" @click="toggleEdit">Edit</AppButton>
 						<AppModal v-model="openEdit" title="Edit Session">
 							<form @submit.prevent="updateSession">
-								<div>
-									<div><input v-model="data.title" type="text" class="dark:bg-black" /></div>
-									<div><textarea v-model="data.description" class="dark:bg-black" /></div>
+								<div class="mt-8 grid grid-cols-1 gap-6">
 									<div>
+										<AppInput
+											v-model="data.title"
+											type="text"
+											id="sesh-title"
+											class="dark:bg-black"
+											label="Group label"
+										/>
+									</div>
+									<div>
+										<!-- <input v-model="groupModalForm.color" class="dark:bg-black" /> -->
+
+										<AppTextarea
+											v-model="data.description"
+											label="Description"
+											id="sesh-description"
+											name="sup"
+										/>
+									</div>
+									<div class="flex justify-end">
 										<AppButton intent="primary" size="medium" type="submit">Save</AppButton>
 									</div>
 								</div>
