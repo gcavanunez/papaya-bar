@@ -3,19 +3,34 @@ import AppBtn from '@/components/AppBtn.vue'
 import { formatDistance } from 'date-fns'
 import { useChromeTabs } from '@/hooks/useChromeTabs'
 import { useSessionsData } from '@/hooks/useSessionsData'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import AppButton from '@/components/AppButton.vue'
+import AppInput from '@/components/forms/AppInput.vue'
 const { loadedTabs } = useChromeTabs()
 const { state, storeSession, openAll, removeSavedSession, downloadSavedSession } = useSessionsData()
 
+const search = ref('')
 const parsedState = computed(() => {
 	return [...state.value.entries()].map(([key, value]) => {
+		const matches = value.tabs.filter((row) => {
+			if (!row.title || !row.url) {
+				return false
+			}
+
+			return (
+				row.title.toLocaleLowerCase().indexOf(search.value.toLocaleLowerCase()) > -1 ||
+				row.url.toLocaleLowerCase().indexOf(search.value.toLocaleLowerCase()) > -1
+			)
+		})
 		return {
 			key,
+			matches,
 			humanDistance: formatDistance(new Date(key), new Date()),
 			...value,
 		}
 	})
 })
+// const matchse
 </script>
 <template>
 	<div class="relative">
@@ -30,8 +45,17 @@ const parsedState = computed(() => {
 						</p>
 					</div>
 					<div class="mt-4 space-x-2 sm:mt-0 sm:ml-16 sm:flex-none">
-						<AppBtn color="white" @click="storeSession(loadedTabs)">Restore from file</AppBtn>
-						<AppBtn color="white" @click="storeSession(loadedTabs)">Save session</AppBtn>
+						<AppButton intent="common" size="x-small" @click="storeSession(loadedTabs)"
+							>Restore from file</AppButton
+						>
+						<AppButton intent="common" size="x-small" @click="storeSession(loadedTabs)"
+							>Save session</AppButton
+						>
+					</div>
+				</div>
+				<div class="mt-6 flex">
+					<div class="lg:w-96">
+						<AppInput label="Search" v-model="search" />
 					</div>
 				</div>
 				<div class="mt-8 flex flex-col">
@@ -69,7 +93,11 @@ const parsedState = computed(() => {
 									<tbody
 										class="divide-y divide-slate-200 bg-white dark:divide-vercel-accents-2 dark:bg-black"
 									>
-										<tr v-for="value in parsedState" :key="value.key">
+										<tr
+											v-for="value in parsedState"
+											:key="value.key"
+											:class="{ 'bg-vercel-accents-2': value.matches.length && search }"
+										>
 											<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
 												<div class="flex items-center">
 													<div class="">

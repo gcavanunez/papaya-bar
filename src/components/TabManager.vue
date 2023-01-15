@@ -30,7 +30,7 @@ import AppInput from './forms/AppInput.vue'
 import AppModal from './AppModal.vue'
 import TabMoveToMenu from './TabMoveToMenu.vue'
 // composable start - grouping
-
+const loggy = (val: any) => console.log(val)
 const groupColors: {
 	value: chrome.tabGroups.ColorEnum
 	hex: string
@@ -915,9 +915,9 @@ const selectGroup = (tabs: Tab[]) => {
 										<div class="flex items-center justify-between">
 											<div class="flex items-center space-x-2">
 												<DisclosureButton as="template">
-													<AppBtn>
+													<AppButton intent="common" size="x-small">
 														{{ index }}
-													</AppBtn>
+													</AppButton>
 												</DisclosureButton>
 												<AppBtn
 													v-if="selectedTabName === 'Grouped' && index !== 'other'"
@@ -929,8 +929,22 @@ const selectGroup = (tabs: Tab[]) => {
 											</div>
 
 											<div class="flex items-center space-x-2">
-												<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
-												<AppBtn @click="closeTabs(group)" type="button"> Close all </AppBtn>
+												<AppButton
+													intent="common"
+													size="x-small"
+													@click="selectGroup(group)"
+													type="button"
+												>
+													Select
+												</AppButton>
+												<AppButton
+													intent="common"
+													size="x-small"
+													@click="closeTabs(group)"
+													type="button"
+												>
+													Close all
+												</AppButton>
 												<!-- <AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn> -->
 												<TabMoveToMenu
 													:tabs="group"
@@ -1131,109 +1145,22 @@ const selectGroup = (tabs: Tab[]) => {
 					<AppButton
 						@click="closeSelectedTabs(selectedGroup)"
 						type="button"
-						intent="secondary-ghost"
+						intent="plain"
 						size="small"
 					>
 						Close all
 					</AppButton>
-					<Menu as="div" class="pointer-events-auto relative inline-flex text-left">
-						<MenuButton as="template">
-							<AppButton intent="primary" size="small">
-								<span class="inline-flex items-center">
-									Move to
-									<ChevronDownIcon class="ml-2 -mr-1 h-3 w-3 text-slate-200" aria-hidden="true" />
-								</span>
+					<TabMoveToMenu
+						:tabs="selectedGroup"
+						:loadedGroups="loadedGroups"
+						:windowsMap="windowsMap"
+					>
+						<template #button-trigger="{ trigger }">
+							<AppButton intent="primary" :ref="(el) => trigger(el)" size="small" type="button">
+								Move to
 							</AppButton>
-						</MenuButton>
-
-						<transition
-							enter-active-class="transition duration-100 ease-out"
-							enter-from-class="transform scale-95 opacity-0"
-							enter-to-class="transform scale-100 opacity-100"
-							leave-active-class="transition duration-75 ease-in"
-							leave-from-class="transform scale-100 opacity-100"
-							leave-to-class="transform scale-95 opacity-0"
-						>
-							<MenuItems
-								class="absolute right-0 bottom-0 z-10 mt-2 w-56 origin-bottom-right divide-y divide-slate-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-							>
-								<div class="px-1 py-1">
-									<MenuItem
-										v-slot="{ active, disabled }"
-										:key="`${windowId}-custom-selected`"
-										v-for="[windowId, value] in [...windowsMap]"
-										@click="
-											moveTabTo(selectedGroup, {
-												containerId: windowId,
-												type: 'window_container',
-											})
-										"
-									>
-										<button
-											:class="[
-												active ? 'bg-blue-500 text-white' : 'text-slate-700',
-												'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-												disabled ? 'opacity-50' : 'opacity-100',
-											]"
-										>
-											{{ value }}
-										</button>
-									</MenuItem>
-								</div>
-								<div class="px-1 py-1" v-if="loadedGroups.length">
-									<MenuItem
-										v-slot="{ active, disabled }"
-										:key="`${loadedGroup.id}-custom-selected`"
-										v-for="loadedGroup in loadedGroups"
-										@click="
-											moveTabTo(selectedGroup, {
-												containerId: loadedGroup.id,
-												type: 'group_container',
-											})
-										"
-									>
-										<button
-											:class="[
-												active ? 'bg-blue-500 text-white' : 'text-slate-700',
-												'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-												disabled ? 'opacity-50' : 'opacity-100',
-											]"
-										>
-											{{ loadedGroup.title }}
-										</button>
-									</MenuItem>
-								</div>
-								<div class="px-1 py-1">
-									<MenuItem
-										v-slot="{ active, disabled }"
-										@click="onCreateNewGroup({ tabs: selectedGroup })"
-									>
-										<button
-											:class="[
-												active ? 'bg-blue-500 text-white' : 'text-slate-700',
-												'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-												disabled ? 'opacity-50' : 'opacity-100',
-											]"
-										>
-											<PlusIcon
-												:class="[
-													active
-														? 'text-slate-500  dark:text-white'
-														: 'text-slate-400 group-hover:text-slate-500 dark:text-vercel-accents-5 dark:group-hover:text-white',
-													'-ml-1 mr-1.5 h-4 w-4 flex-shrink-0',
-												]"
-												aria-hidden="true"
-											/>
-											Group tabs
-										</button>
-									</MenuItem>
-								</div>
-							</MenuItems>
-						</transition>
-					</Menu>
-					<AppButton @click="moveTabs(selectedGroup)" intent="primary" size="small" type="button">
-						New Window
-					</AppButton>
+						</template>
+					</TabMoveToMenu>
 					<AppButton
 						@click="storeSession(selectedGroup)"
 						intent="primary"

@@ -32,15 +32,15 @@
 	],
 	"host_permissions": ["<all_urls>"],
 	"icons": {
-		"16": "/assets/papaya-icon.png",
-		"32": "/assets/papaya-icon.png",
-		"48": "/assets/papaya-icon.png",
-		"128": "/assets/papaya-icon.png"
+		"16": "public/assets/papaya-icon.png",
+		"32": "public/assets/papaya-icon.png",
+		"48": "public/assets/papaya-icon.png",
+		"128": "public/assets/papaya-icon.png"
 	},
 	"content_scripts": [
 		{
 			"matches": ["<all_urls>"],
-			"js": ["content.js"]
+			"js": ["public/content.js"]
 		}
 	],
 	"commands": {

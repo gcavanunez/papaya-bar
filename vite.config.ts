@@ -1,11 +1,16 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
+import { crx } from '@crxjs/vite-plugin'
 
-const childProcess = require('child_process')
+//@ts-ignore
+import manifest from './manifest.json' // Node 14 & 16
+
+import { execSync } from 'child_process'
+// const childProcess = require('child_process')
 let lastCommitHash = ''
 try {
-	lastCommitHash = childProcess.execSync('git rev-parse --short HEAD').toString().trim()
+	lastCommitHash = execSync('git rev-parse --short HEAD').toString().trim()
 } catch (e) {
 	console.error(e)
 }
@@ -20,6 +25,7 @@ export default defineConfig({
 		vue({
 			reactivityTransform: true,
 		}),
+		crx({ manifest }),
 	],
 
 	resolve: {

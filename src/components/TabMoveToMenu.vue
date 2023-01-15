@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { moveTabTo } from '@/helpers'
+import { moveTabs, moveTabTo } from '@/helpers'
 import { Group, Tab, WindowsMap } from '@/types'
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
 import { ChevronDownIcon } from '@heroicons/vue/20/solid'
-import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
-import { PlusIcon } from '@heroicons/vue/24/outline'
-import { ref } from 'vue'
+import { autoUpdate, autoPlacement, offset, shift, useFloating } from '@floating-ui/vue'
+import { PlusIcon, ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/outline'
+import { ref, onMounted, nextTick } from 'vue'
+import AppButton from './AppButton.vue'
 
 type Props = {
 	tabs: Tab[]
@@ -13,13 +14,22 @@ type Props = {
 	windowsMap: WindowsMap
 	canCreateGroup?: boolean
 }
-const trigger = ref(null)
+const trigger = ref<Element | null>(null)
 const container = ref(null)
 const { x, y, strategy } = useFloating(trigger, container, {
 	strategy: 'fixed',
-	middleware: [offset(10), flip(), shift()],
+	middleware: [
+		offset(10),
+		autoPlacement({ allowedPlacements: ['bottom-end', 'top-end'] }),
+		shift(),
+	],
+
 	whileElementsMounted: autoUpdate,
 })
+//https://stackoverflow.com/questions/71425980/how-get-ref-from-slot-in-vue-3
+const setSlotRef = (el: any) => {
+	trigger.value = el
+}
 
 const { tabs, windowsMap, loadedGroups, canCreateGroup = true } = defineProps<Props>()
 
@@ -31,20 +41,25 @@ const onGroupTrigger = () => {
 	emits('on-create-group', { tabs })
 }
 </script>
-
 <template>
 	<div class="relative">
 		<Menu v-slot="{ open }">
 			<span class="pointer-events-auto relative inline-flex text-left">
-				<MenuButton
-					ref="trigger"
-					class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5"
-				>
-					<slot name="menu-trigger-label">Move to</slot>
-					<ChevronDownIcon
-						class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
-						aria-hidden="true"
-					/>
+				<!-- class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5" -->
+				<!-- <MenuButton ref="trigger"> -->
+				<MenuButton as="div">
+					<slot name="button-trigger" :trigger="setSlotRef">
+						<AppButton type="button" ref="trigger" size="x-small" intent="common">
+							<slot name="menu-trigger-label">
+								<span class="inline-flex items-center">
+									Move to
+									<ChevronDownIcon
+										class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
+										aria-hidden="true"
+									/> </span
+							></slot>
+						</AppButton>
+					</slot>
 				</MenuButton>
 			</span>
 			<!-- <div
@@ -142,6 +157,26 @@ const onGroupTrigger = () => {
 										aria-hidden="true"
 									/>
 									Group tabs
+								</button>
+							</MenuItem>
+							<MenuItem v-slot="{ active, disabled }" @click="moveTabs(tabs)">
+								<button
+									:class="[
+										active ? 'bg-blue-500 text-white' : 'text-slate-700',
+										'group flex w-full items-center rounded-md px-2 py-2 text-sm',
+										disabled ? 'opacity-50' : 'opacity-100',
+									]"
+								>
+									<ArrowTopRightOnSquareIcon
+										:class="[
+											active
+												? 'text-white'
+												: 'text-slate-400  group-hover:text-white dark:text-vercel-accents-5',
+											'-ml-1 mr-1.5 h-4 w-4 flex-shrink-0',
+										]"
+										aria-hidden="true"
+									/>
+									New window
 								</button>
 							</MenuItem>
 						</div>

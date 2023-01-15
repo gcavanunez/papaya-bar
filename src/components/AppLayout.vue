@@ -71,7 +71,7 @@ useTitle(title)
 			<header
 				:class="[
 					open ? 'fixed inset-0 z-40 overflow-y-auto' : '',
-					'firefox:bg-opacity-90 sticky top-0 z-50  min-h-[72px] bg-white bg-opacity-50 shadow-sm  backdrop-blur backdrop-filter dark:bg-black  dark:bg-opacity-20 lg:overflow-y-visible',
+					'firefox:bg-opacity-90 sticky top-0 z-50  h-[72px] bg-white bg-opacity-50 shadow-sm  backdrop-blur backdrop-filter dark:bg-black  dark:bg-opacity-20 lg:overflow-y-visible',
 				]"
 			>
 				<div class="mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -104,11 +104,11 @@ useTitle(title)
 													? 'text-gray-900 dark:text-white'
 													: 'text-gray-500 hover:text-gray-700 dark:text-vercel-accents-5 dark:hover:text-white',
 
-												'group relative px-1 py-4 focus:z-10',
+												'group relative h-full px-1 py-4 focus:z-10',
 											]"
 										>
 											<span
-												class="flex overflow-hidden rounded-lg bg-white py-2 px-3 text-center text-sm font-medium transition group-hover:bg-gray-50 dark:bg-transparent dark:group-hover:bg-vercel-accents-2"
+												class="flex h-full overflow-hidden rounded-lg py-2 px-3 text-center text-sm font-medium transition group-hover:bg-gray-50 dark:bg-transparent dark:group-hover:bg-vercel-accents-2"
 											>
 												{{ tab.name }}
 											</span>
