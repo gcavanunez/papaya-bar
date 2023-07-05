@@ -1,5 +1,12 @@
 <script setup lang="ts">
+import AppInput from './forms/AppInput.vue'
+import AppModal from './AppModal.vue'
+import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
+import AppButton from './AppButton.vue'
+
 import { useChromeTabs } from '@/hooks/useChromeTabs'
+import { useGlobalModals } from '@/hooks/useGlobalModals'
+import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { router } from '@/router'
 import {
 	Menu,
@@ -24,6 +31,9 @@ import {
 import { useTitle } from '@vueuse/core'
 import { computed } from 'vue'
 import DarkModeSwitch from './DarkModeSwitch.vue'
+const { confirmModalToggle, confirmAction, cancelAction } = useGlobalConfirm()
+
+const { groupColors, groupModalToggle, groupModalForm, onGroupFormSummit } = useGlobalModals()
 
 const commit_hash = __COMMIT_HASH__
 
@@ -108,7 +118,7 @@ useTitle(title)
 											]"
 										>
 											<span
-												class="flex h-full overflow-hidden rounded-lg py-2 px-3 text-center text-sm font-medium transition group-hover:bg-gray-50 dark:bg-transparent dark:group-hover:bg-vercel-accents-2"
+												class="flex overflow-hidden rounded-lg py-2 px-3 text-center text-sm font-medium transition group-hover:bg-gray-50 dark:bg-transparent dark:group-hover:bg-vercel-accents-2"
 											>
 												{{ tab.name }}
 											</span>
@@ -284,6 +294,86 @@ useTitle(title)
 		</Popover>
 
 		<main class="flex flex-1 flex-col">
+			<AppModal v-model="groupModalToggle" title="Group Settings">
+				<form @submit.prevent="onGroupFormSummit">
+					<div class="mt-8 grid grid-cols-1 gap-6">
+						<div>
+							<AppInput
+								v-model="groupModalForm.title"
+								type="text"
+								class="dark:bg-black"
+								label="Group label"
+							/>
+						</div>
+						<div>
+							<!-- <input v-model="groupModalForm.color" class="dark:bg-black" /> -->
+							<div>
+								<h2 class="text-sm font-medium text-gray-900 dark:text-white">Color</h2>
+
+								<RadioGroup v-model="groupModalForm.color" class="mt-2">
+									<RadioGroupLabel class="sr-only"> Choose a color </RadioGroupLabel>
+									<div class="flex flex-wrap items-center gap-3">
+										<RadioGroupOption
+											as="template"
+											v-for="color in groupColors"
+											:key="color.hex"
+											:value="color.value"
+											v-slot="{ active, checked }"
+										>
+											<div
+												:class="[
+													color.selectedColor,
+													active && checked ? 'ring ring-offset-1' : '',
+													!active && checked ? 'ring-2' : '',
+													'relative -m-0.5 flex cursor-pointer items-center justify-center rounded-full p-0.5 focus:outline-none',
+												]"
+											>
+												<RadioGroupLabel as="span" class="sr-only">
+													{{ color.value }}
+												</RadioGroupLabel>
+												<span
+													aria-hidden="true"
+													:class="[
+														color.bgColor,
+														'h-8 w-8 rounded-full border border-black border-opacity-10',
+													]"
+												/>
+											</div>
+										</RadioGroupOption>
+									</div>
+								</RadioGroup>
+							</div>
+						</div>
+						<div class="flex justify-end">
+							<AppButton intent="primary" size="medium" type="submit">Save</AppButton>
+						</div>
+					</div>
+				</form>
+			</AppModal>
+
+			<!-- Group Settings Modal -->
+			<!-- Session Modal -->
+			<AppModal v-model="confirmModalToggle" title="Confirm action" v-slot="slotProps">
+				<div class="mt-2">
+					<p class="text-sm text-slate-500 dark:text-slate-400">This action cannot be undone.</p>
+				</div>
+
+				<div class="mt-4 space-x-4">
+					<AppButton @click="confirmAction" intent="primary" size="medium" type="button">
+						Confirm
+					</AppButton>
+					<AppButton
+						:ref="(el) => slotProps.trigger(el)"
+						@click="cancelAction"
+						intent="secondary"
+						size="medium"
+						type="button"
+					>
+						Cancel
+					</AppButton>
+				</div>
+			</AppModal>
+			<!-- confirm  -->
 			<router-view />
 		</main>
 	</div>

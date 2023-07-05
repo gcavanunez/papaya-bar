@@ -114,3 +114,35 @@ async function getTextBlobFromUrl(url) {
 }
 
 // copyImageToClipboard(document.querySelector('.image-to-copy'))
+// import { router } from '@/router'
+// main.js
+// .use(myPlugin, {
+/* optional options */
+// })
+// const app = document.createElement('div')
+// app.id = 'my-extension-root'
+// document.body.appendChild(app)
+
+// import { createApp } from 'vue'
+// import 'focus-visible'
+// import '@/index.css'
+// import App from '@/ContentApp.vue'
+// import 'v-calendar/dist/style.css'
+
+// import VCalendar from 'v-calendar'
+
+// createApp(App)
+// 	.use(VCalendar, {})
+// 	.directive('autogrow', {
+// 		created(el) {
+// 			el.addEventListener('input', () => {
+// 				el.style.height = 'auto'
+// 				el.style.height = el.scrollHeight + 'px'
+// 			})
+// 		},
+// 		mounted(el) {
+// 			el.style.height = 'auto'
+// 			el.style.height = el.scrollHeight + 'px'
+// 		},
+// 	})
+// 	.mount('#my-extension-root')

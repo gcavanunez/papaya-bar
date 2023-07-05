@@ -4,7 +4,17 @@ const getCurrentTab = async () => {
 	const [tab] = await chrome.tabs.query(queryOptions)
 	return tab
 }
-
+chrome.history.onVisited.addListener(function (historyItem) {
+	console.log(historyItem)
+	console.log(historyItem.url)
+	chrome.tabs.query(
+		{ url: historyItem.url },
+		//query the tabItem
+		function (tab) {
+			console.log('tab', tab)
+		}
+	)
+})
 chrome.commands.onCommand.addListener((command, openedTab) => {
 	console.log(`Command "${command}" triggered`)
 	if (command == 'open-page') {
@@ -106,3 +116,18 @@ chrome.runtime.onMessage.addListener((message, sender, senderResponse) => {
 		return true
 	}
 })
+// const getTabCount = async () => {
+// 	const tabs = await chrome.tabs.query({})
+// 	console.log(tabs.length.toString())
+// 	// chrome.action.setBadgeText({ text: tabs.length.toString() })
+// 	chrome.action.setBadgeText({ text: '' })
+// 	chrome.action.setBadgeBackgroundColor({ color: '#9688F1' })
+// }
+// // listen to event for changes from saved data in storage
+// chrome.tabs.onUpdated.addListener(getTabCount)
+// chrome.tabs.onRemoved.addListener(getTabCount)
+// Chrome Extensions: Adding a badge - DEV Community
+// https://dev.to/paulasantamaria/chrome-extensions-adding-a-badge-644
+
+// Chrome extension — How to add a badge on your extension’s icon | by Anna Ikoki | extensions development | Medium
+// https://medium.com/extensions-development/chrome-extension-how-to-add-a-badge-on-your-extensions-icon-c3385b00932b

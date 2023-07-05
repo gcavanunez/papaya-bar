@@ -1,112 +1,42 @@
 <script setup lang="ts">
-import { MagnifyingGlassIcon, RssIcon } from '@heroicons/vue/20/solid'
-import {
-	HomeIcon,
-	TagIcon,
-	RectangleGroupIcon,
-	CalendarDaysIcon,
-	PlusIcon,
-} from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid'
+import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
-import { XMarkIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/vue/20/solid'
+import { XMarkIcon, FunnelIcon } from '@heroicons/vue/20/solid'
 import { Switch } from '@headlessui/vue'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { TabGroup, TabList, Tab as AppTab } from '@headlessui/vue'
 import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
 
 import { copyToClipboard } from '../utils'
 import AppBtn from '@/components/AppBtn.vue'
 import { Tab, Grouped, WindowsMap, Group, HistoryMap, LookUpTab } from '@/types'
-import { closeDuplicates, closeTab, moveTabTo, moveTabs } from '@/helpers'
+import { closeTab, moveTabs } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
 
 import autoAnimate from '@formkit/auto-animate'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import AppButton from './AppButton.vue'
-import AppInput from './forms/AppInput.vue'
-import AppModal from './AppModal.vue'
+// import AppInput from './forms/AppInput.vue'
+// import AppModal from './AppModal.vue'
 import TabMoveToMenu from './TabMoveToMenu.vue'
+import { useGlobalModals } from '@/hooks/useGlobalModals'
 // composable start - grouping
 const loggy = (val: any) => console.log(val)
-const groupColors: {
-	value: chrome.tabGroups.ColorEnum
-	hex: string
-	selectedColor: string
-	bgColor: string
-}[] = [
-	{ bgColor: 'bg-[#DADCE0]', selectedColor: 'ring-[#DADCE0]', hex: '#DADCE0', value: 'grey' },
-	{ bgColor: 'bg-[#93B3F2]', selectedColor: 'ring-[#93B3F2]', hex: '#93B3F2', value: 'blue' },
-	{ bgColor: 'bg-[#E49086]', selectedColor: 'ring-[#E49086]', hex: '#E49086', value: 'red' },
-	{ bgColor: 'bg-[#F7D775]', selectedColor: 'ring-[#F7D775]', hex: '#F7D775', value: 'yellow' },
-	{ bgColor: 'bg-[#91C799]', selectedColor: 'ring-[#91C799]', hex: '#91C799', value: 'green' },
-	{ bgColor: 'bg-[#F091C8]', selectedColor: 'ring-[#F091C8]', hex: '#F091C8', value: 'pink' },
-	{ bgColor: 'bg-[#BC8CF2]', selectedColor: 'ring-[#BC8CF2]', hex: '#BC8CF2', value: 'purple' },
-	{ bgColor: 'bg-[#90D7E9]', selectedColor: 'ring-[#90D7E9]', hex: '#90D7E9', value: 'cyan' },
-	{ bgColor: 'bg-[#F0B07A]', selectedColor: 'ring-[#F0B07A]', hex: '#F0B07A', value: 'orange' },
-]
-const createGroup = async ({
-	tabs,
-	form,
-}: {
-	tabs: Tab[]
-	form: chrome.tabGroups.UpdateProperties
-}) => {
-	let ids: number[] = []
-	for (const tab of tabs) {
-		if (tab.id) {
-			ids.push(tab.id)
-		}
-	}
-	const groupId = await chrome.tabs.group({ tabIds: ids })
-	return chrome.tabGroups.update(groupId, { ...form, collapsed: true })
-}
-const groupModalToggle = ref(false)
-const groupModalForm = ref<{
-	/**
-	 * @see chrome.tabGroups.UpdateProperties
-	 */
-	collapsed?: boolean
 
-	color: chrome.tabGroups.ColorEnum
-
-	title: string
-}>({ color: 'blue', title: '' })
-type GroupFormMode = 'create' | 'edit'
-const mode = ref<GroupFormMode>('create')
-const editingGroupId = ref<number>(0)
-const groupSelection = ref<Tab[]>([])
-const onGroupFormSummit = async () => {
-	if (mode.value === 'create') {
-		await createGroup({ tabs: groupSelection.value, form: groupModalForm.value })
-	} else {
-		chrome.tabGroups.update(editingGroupId.value, { ...groupModalForm.value, collapsed: true })
-		editingGroupId.value = 0
-	}
-	groupModalToggle.value = false
-}
-const onEditGroup = async ({ tabs }: { tabs: Tab[] }) => {
-	const groupId = tabs[0].groupId
-	if (groupId) {
-		editingGroupId.value = groupId
-		const groupData = await chrome.tabGroups.get(groupId)
-		const editState = { color: groupData.color, title: '' }
-		if (groupData.title) {
-			editState['title'] = groupData.title
-		}
-		groupModalForm.value = editState
-		mode.value = 'edit'
-		groupModalToggle.value = true
-	}
-}
-const onCreateNewGroup = ({ tabs }: { tabs: Tab[] }) => {
-	editingGroupId.value = 0
-	mode.value = 'create'
-	groupModalToggle.value = true
-	groupSelection.value = tabs
-}
+const {
+	// groupModalToggle, // after moving modal
+	// mode,
+	// groupModalForm, // after moving modal
+	// editingGroupId,
+	// groupSelection,
+	// createGroup,
+	// onGroupFormSummit, // after moving modal
+	onEditGroup,
+	onCreateNewGroup,
+} = useGlobalModals()
 
 // composable end
 
@@ -387,9 +317,12 @@ const closeTabs = (tabs: Tab[]) => {
 	closeTab(tabs)
 }
 
-const closeSelectedTabs = (tabs: Tab[]) => {
-	closeTab(tabs)
+const closeSelectedTabs = () => {
+	closeTab(selectedGroup.value)
 	tabsSelected.value.clear()
+}
+const closeUnSelectedTabs = () => {
+	closeTab(loadedTabs.filter((row) => !tabsSelected.value.has(row.stableId)))
 }
 
 const copyLinks = (tabs: Tab[]) => {
@@ -415,6 +348,24 @@ const selectGroup = (tabs: Tab[]) => {
 		tabsSelected.value.add(tab.stableId)
 	})
 }
+import { useMagicKeys } from '@vueuse/core'
+const { shift, escape, a, m, w, g } = useMagicKeys()
+
+watchEffect(() => {
+	if (shift.value && escape.value) {
+		tabsSelected.value.clear()
+	}
+	if (shift.value && a.value) {
+		tabsSelected.value.clear()
+		selectGroup(Object.values(grouped.value).flatMap((row) => row))
+	}
+	if (shift.value && m.value && w.value) {
+		moveTabs(Object.values(grouped.value).flatMap((row) => row))
+	}
+	if (shift.value && m.value && g.value) {
+		onCreateNewGroup({ tabs: Object.values(grouped.value).flatMap((row) => row) })
+	}
+})
 </script>
 
 <template>
@@ -436,7 +387,7 @@ const selectGroup = (tabs: Tab[]) => {
 						>
 							<button
 								:class="[
-									'flex w-full items-center rounded-md py-2 px-3 text-sm font-medium leading-5 ',
+									'flex w-full items-center rounded-md px-3 py-2 text-sm font-medium leading-5 ',
 									'group  ring-papaya-900 focus:outline-none focus-visible:ring-2',
 									selected
 										? 'bg-white text-slate-900 shadow dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5'
@@ -582,7 +533,7 @@ const selectGroup = (tabs: Tab[]) => {
 														title="Close"
 														type="button"
 														@click="close"
-														class="filament-icon-button absolute top-3 right-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none rtl:right-auto rtl:left-3 dark:hover:bg-slate-300/5"
+														class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none rtl:left-3 rtl:right-auto dark:hover:bg-slate-300/5"
 													>
 														<span class="sr-only"> Close </span>
 														<svg
@@ -650,7 +601,7 @@ const selectGroup = (tabs: Tab[]) => {
 																					>
 																						<button
 																							:class="[
-																								'flex w-full justify-center rounded-md py-2 px-3 text-sm font-medium leading-5 text-slate-700',
+																								'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium leading-5 text-slate-700',
 																								'ring-white ring-opacity-60 ring-offset-2 ring-offset-papaya-900 focus:outline-none focus-visible:ring-2',
 																								checked
 																									? 'bg-white shadow'
@@ -943,7 +894,7 @@ const selectGroup = (tabs: Tab[]) => {
 													@click="closeTabs(group)"
 													type="button"
 												>
-													Close all
+													Close tabs
 												</AppButton>
 												<!-- <AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn> -->
 												<TabMoveToMenu
@@ -958,7 +909,14 @@ const selectGroup = (tabs: Tab[]) => {
 												>
 													<template #menu-trigger-label>Move </template></TabMoveToMenu
 												>
-												<AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
+												<AppButton
+													intent="common"
+													size="x-small"
+													@click="copyLinks(group)"
+													type="button"
+												>
+													Copy
+												</AppButton>
 												<DisclosureButton as="template">
 													<AppBtn type="button" color="round-primary">
 														<XMarkIcon class="h-3 w-3" />
@@ -1078,60 +1036,7 @@ const selectGroup = (tabs: Tab[]) => {
 			</div>
 		</aside>
 	</div>
-	<AppModal v-model="groupModalToggle" title="Group Settings">
-		<form @submit.prevent="onGroupFormSummit">
-			<div class="mt-8 grid grid-cols-1 gap-6">
-				<div>
-					<AppInput
-						v-model="groupModalForm.title"
-						type="text"
-						class="dark:bg-black"
-						label="Group label"
-					/>
-				</div>
-				<div>
-					<!-- <input v-model="groupModalForm.color" class="dark:bg-black" /> -->
-					<div>
-						<h2 class="text-sm font-medium text-gray-900 dark:text-white">Color</h2>
 
-						<RadioGroup v-model="groupModalForm.color" class="mt-2">
-							<RadioGroupLabel class="sr-only"> Choose a color </RadioGroupLabel>
-							<div class="flex flex-wrap items-center gap-3">
-								<RadioGroupOption
-									as="template"
-									v-for="color in groupColors"
-									:key="color.hex"
-									:value="color.value"
-									v-slot="{ active, checked }"
-								>
-									<div
-										:class="[
-											color.selectedColor,
-											active && checked ? 'ring ring-offset-1' : '',
-											!active && checked ? 'ring-2' : '',
-											'relative -m-0.5 flex cursor-pointer items-center justify-center rounded-full p-0.5 focus:outline-none',
-										]"
-									>
-										<RadioGroupLabel as="span" class="sr-only"> {{ color.value }} </RadioGroupLabel>
-										<span
-											aria-hidden="true"
-											:class="[
-												color.bgColor,
-												'h-8 w-8 rounded-full border border-black border-opacity-10',
-											]"
-										/>
-									</div>
-								</RadioGroupOption>
-							</div>
-						</RadioGroup>
-					</div>
-				</div>
-				<div class="flex justify-end">
-					<AppButton intent="primary" size="medium" type="submit">Save</AppButton>
-				</div>
-			</div>
-		</form>
-	</AppModal>
 	<footer
 		v-if="[...tabsSelected].length > 0"
 		class="sticky bottom-0 left-0 right-0 z-50 w-full bg-slate-900 shadow-lg dark:bg-papaya-500"
@@ -1142,18 +1047,21 @@ const selectGroup = (tabs: Tab[]) => {
 					{{ [...tabsSelected].length }} Tabs selected
 				</div>
 				<div class="flex items-center space-x-2">
-					<AppButton
-						@click="closeSelectedTabs(selectedGroup)"
-						type="button"
-						intent="plain"
-						size="small"
-					>
-						Close all
+					<AppButton @click="closeUnSelectedTabs" type="button" intent="plain-dark" size="small">
+						Close unselected
+					</AppButton>
+					<AppButton @click="closeSelectedTabs" type="button" intent="plain-dark" size="small">
+						Close selected
 					</AppButton>
 					<TabMoveToMenu
 						:tabs="selectedGroup"
 						:loadedGroups="loadedGroups"
 						:windowsMap="windowsMap"
+						@on-create-group="
+							({ tabs: emitedTabs }) => {
+								onCreateNewGroup({ tabs: emitedTabs })
+							}
+						"
 					>
 						<template #button-trigger="{ trigger }">
 							<AppButton intent="primary" :ref="(el) => trigger(el)" size="small" type="button">

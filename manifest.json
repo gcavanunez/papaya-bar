@@ -17,12 +17,14 @@
 		"downloads",
 		"tabGroups",
 		"desktopCapture",
+		"identity",
 		"contextMenus",
 		"clipboardWrite",
 		"system.display"
 	],
 	"background": {
-		"service_worker": "background.js"
+		"service_worker": "background.js",
+		"type": "module"
 	},
 	"web_accessible_resources": [
 		{
@@ -39,7 +41,7 @@
 	},
 	"content_scripts": [
 		{
-			"matches": ["<all_urls>"],
+			"matches": ["<all_urls>", "https://*.google.com/*"],
 			"js": ["public/content.js"]
 		}
 	],

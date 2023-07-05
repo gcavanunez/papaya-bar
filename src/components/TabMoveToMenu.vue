@@ -54,7 +54,7 @@ const onGroupTrigger = () => {
 								<span class="inline-flex items-center">
 									Move to
 									<ChevronDownIcon
-										class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
+										class="ml-1 -mr-1 h-2.5 w-2.5 text-slate-800 dark:text-white"
 										aria-hidden="true"
 									/> </span
 							></slot>

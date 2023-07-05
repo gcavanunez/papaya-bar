@@ -424,7 +424,7 @@ const closeDuplicates = () => {
 											title="Close"
 											type="button"
 											@click="close"
-											class="filament-icon-button absolute top-3 right-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-500/5 focus:bg-gray-500/10 focus:outline-none rtl:right-auto rtl:left-3 dark:hover:bg-gray-300/5"
+											class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-500/5 focus:bg-gray-500/10 focus:outline-none rtl:left-3 rtl:right-auto dark:hover:bg-gray-300/5"
 										>
 											<span class="sr-only"> Close </span>
 
@@ -490,7 +490,7 @@ const closeDuplicates = () => {
 																		>
 																			<button
 																				:class="[
-																					'flex w-full justify-center rounded-md py-2 px-3 text-sm font-medium leading-5 text-slate-700',
+																					'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium leading-5 text-slate-700',
 																					'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
 																					checked
 																						? 'bg-white shadow'
@@ -708,7 +708,7 @@ const closeDuplicates = () => {
 								>
 									<button
 										:class="[
-											'w-full rounded-md py-2 px-3 text-sm font-medium leading-5 ',
+											'w-full rounded-md px-3 py-2 text-sm font-medium leading-5 ',
 											'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
 											selected
 												? 'bg-white text-blue-700 shadow'
@@ -724,7 +724,7 @@ const closeDuplicates = () => {
 				</div>
 			</div>
 		</header>
-		<div class="container mx-auto max-w-5xl py-6 px-4 sm:px-2" id="head">
+		<div class="container mx-auto max-w-5xl px-4 py-6 sm:px-2" id="head">
 			<div class="grid grid-cols-3 gap-6">
 				<div>
 					<ul
@@ -832,7 +832,7 @@ const closeDuplicates = () => {
 							<MenuButton as="template">
 								<AppBtn color="primary-dark">
 									Move to
-									<ChevronDownIcon class="ml-2 -mr-1 h-3 w-3 text-slate-200" aria-hidden="true" />
+									<ChevronDownIcon class="-mr-1 ml-2 h-3 w-3 text-slate-200" aria-hidden="true" />
 								</AppBtn>
 							</MenuButton>
 
@@ -845,7 +845,7 @@ const closeDuplicates = () => {
 								leave-to-class="transform scale-95 opacity-0"
 							>
 								<MenuItems
-									class="absolute right-0 bottom-0 z-10 mt-2 w-56 origin-bottom-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+									class="absolute bottom-0 right-0 z-10 mt-2 w-56 origin-bottom-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
 								>
 									<div class="px-1 py-1">
 										<MenuItem

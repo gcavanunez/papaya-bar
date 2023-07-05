@@ -2,9 +2,32 @@
 import { useChromeTabs } from '@/hooks/useChromeTabs'
 import TabManager from '@/components/TabManager.vue'
 import { useSessionsData } from '@/hooks/useSessionsData'
-import { closeDuplicates } from '@/helpers'
+import { closeDuplicates, closeTab } from '@/helpers'
+import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
+
 const { windowsMap, loadedGroups, loadedTabHistory, lookUpTab, loadedTabs } = useChromeTabs()
 const { storeSession } = useSessionsData()
+const { triggerConfirm } = useGlobalConfirm()
+const actions = [
+	{
+		onClick: () => {
+			storeSession(loadedTabs.value)
+		},
+		text: 'Save session',
+	},
+	{
+		onClick: () => {
+			closeDuplicates(loadedTabs.value)
+		},
+		text: 'Save and new',
+	},
+	{
+		onClick: () => {
+			closeDuplicates(loadedTabs.value)
+		},
+		text: 'Close duplicates',
+	},
+]
 </script>
 
 <template>
@@ -25,16 +48,17 @@ const { storeSession } = useSessionsData()
 				</p>
 				<div class="mt-3 space-y-2" aria-labelledby="quick-actions-headline">
 					<button
+						v-for="action in actions"
 						class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
-						@click="storeSession(loadedTabs)"
+						@click="action.onClick"
 					>
-						<span class="truncate"> Save session </span>
+						<span class="truncate"> {{ action.text }} </span>
 					</button>
 					<button
 						class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
-						@click="closeDuplicates(loadedTabs)"
+						@click="triggerConfirm(() => closeTab(loadedTabs))"
 					>
-						<span class="truncate"> Close duplicates </span>
+						<span class="truncate"> Close all </span>
 					</button>
 					<!-- <a
               v-for="community in communities"

@@ -52,7 +52,9 @@ const button = cva('transition   border focus:outline-none dark:focus-visible:ri
 			common: cx(
 				'bg-slate-100 active:bg-slate-50 text-slate-800',
 				'shadow-sm',
-				'dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5 dark:active:bg-vercel-accents-3 dark:active:text-white dark:border-vercel-accents-3'
+				// 'dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5 dark:active:bg-vercel-accents-3 dark:active:text-white dark:border-vercel-accents-3'
+				'dark:bg-vercel-accents-2 dark:hover:bg-vercel-accents-2/80 dark:text-white dark:active:bg-vercel-accents-3 dark:active:text-white  dark:border-transparent'
+				// dark:border-vercel-accents-3
 			),
 			plain: cx(
 				'border-gray-300',
@@ -62,6 +64,17 @@ const button = cva('transition   border focus:outline-none dark:focus-visible:ri
 				'active:bg-gray-100',
 				'bg-white',
 				'text-black'
+			),
+			'plain-dark': cx(
+				// 'border-gray-300',
+				// 'dark:border-black',
+				'dark:border-transparent',
+				// 'hover:border-gray-800',
+				// 'dark:hover:border-gray-800',
+				// 'active:bg-gray-100',
+				// 'bg-transparent',
+				// 'text-black'
+				'dark:bg-white/20  dark:text-black  dark:hover:bg-white/40'
 			),
 			glass: cx(
 				'focus-visible:ring-offset-white',
@@ -92,6 +105,16 @@ const button = cva('transition   border focus:outline-none dark:focus-visible:ri
 				'dark:bg-transparent bg-black dark:border-transparent dark:text-white ',
 				// colors | secondary | hover
 				'dark:hover:bg-vercel-accents-1',
+				// colors | secondary | focus
+				'dark:focus-visible:bg-vercel-accents-1 dark:focus-visible:ring ',
+				// colors | secondary | active
+				'dark:active:bg-vercel-accents-2'
+			),
+			'secondary-dark-ghost': cx(
+				// colors | secondary
+				'dark:bg-transparent bg-black dark:border-transparent dark:text-black ',
+				// colors | secondary | hover
+				'dark:hover:bg-vercel-accents-1 dark:hover:text-white',
 				// colors | secondary | focus
 				'dark:focus-visible:bg-vercel-accents-1 dark:focus-visible:ring ',
 				// colors | secondary | active
