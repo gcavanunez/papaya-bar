@@ -18,8 +18,10 @@
 		"tabGroups",
 		"desktopCapture",
 		"identity",
+		"offscreen",
 		"contextMenus",
 		"clipboardWrite",
+		"clipboardRead",
 		"system.display"
 	],
 	"background": {
@@ -72,7 +74,7 @@
 		}
 	},
 	"action": {
-		"default_popup": "index.html#/about",
+		"default_popup": "index.html#/popup",
 		"default_title": "Choncho"
 	}
 }

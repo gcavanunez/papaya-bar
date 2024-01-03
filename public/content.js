@@ -1,9 +1,9 @@
 chrome.runtime.onMessage.addListener(
 	// this is the message listener
 	function (request, sender, sendResponse) {
-		if (request.message === 'copyText') {
-			copyToTheClipboard(request.textToCopy)
-			sendResponse({ success: true })
+		if (request.message === "copyText") {
+			copyToTheClipboard(request.textToCopy);
+			sendResponse({ success: true });
 		}
 		// if (request.name === 'stream' && request.streamId) {
 		// 	// if (message.message === 'stream' && message.streamId) {
@@ -55,34 +55,34 @@ chrome.runtime.onMessage.addListener(
 		// 		})
 		// 	return true
 		// }
-		if (request.name === 'stream' && request.dataURI) {
+		if (request.name === "stream" && request.dataURI) {
 			// if (message.message === 'stream' && message.streamId) {
 			// if (message.message === 'screenshot-area' && message.streamId) {
 			// if (message.message === 'screenshot-area') {
 
 			copyImageToClipboard(request.dataURI)
 				.then(() => {
-					sendResponse({ success: true })
+					sendResponse({ success: true });
 				})
 				.catch((err) => {
-					alert('Could not take screenshot')
-					sendResponse({ success: false, message: err })
-				})
-			return true
+					alert("Could not take screenshot");
+					sendResponse({ success: false, message: err });
+				});
+			return true;
 		}
-	}
-)
+	},
+);
 
 function copyToTheClipboard(textToCopy) {
-	const el = document.createElement('textarea')
-	el.value = textToCopy
-	el.setAttribute('readonly', '')
-	el.style.position = 'absolute'
-	el.style.left = '-9999px'
-	document.body.appendChild(el)
-	el.select()
-	document.execCommand('copy')
-	document.body.removeChild(el)
+	const el = document.createElement("textarea");
+	el.value = textToCopy;
+	el.setAttribute("readonly", "");
+	el.style.position = "absolute";
+	el.style.left = "-9999px";
+	document.body.appendChild(el);
+	el.select();
+	document.execCommand("copy");
+	document.body.removeChild(el);
 }
 
 async function copyImageToClipboard(img) {
@@ -91,26 +91,26 @@ async function copyImageToClipboard(img) {
 	// const blob = imageMimeType === 'image/svg'
 	//   ? await getTextBlobFromUrl(src)
 	//   : await getImageBlobFromUrl(src)
-	const blob = await getImageBlobFromUrl(img)
-	console.log({ blob })
+	const blob = await getImageBlobFromUrl(img);
+	console.log({ blob });
 	await navigator.clipboard.write([
 		new ClipboardItem({
 			[blob.type]: blob,
 		}),
-	])
+	]);
 }
 // function getImageMimeTypeFromUrl(url) {
 //   return `image/${url.match(/([a-z]+)$/)[0]}`
 // }
 async function getImageBlobFromUrl(url) {
-	const fetchedImageData = await fetch(url)
-	const blob = await fetchedImageData.blob()
-	return blob
+	const fetchedImageData = await fetch(url);
+	const blob = await fetchedImageData.blob();
+	return blob;
 }
 async function getTextBlobFromUrl(url) {
-	const response = await fetch(url)
-	const source = await response.text()
-	return new Blob([source], { type: 'text/plain' })
+	const response = await fetch(url);
+	const source = await response.text();
+	return new Blob([source], { type: "text/plain" });
 }
 
 // copyImageToClipboard(document.querySelector('.image-to-copy'))
