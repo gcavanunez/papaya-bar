@@ -35,7 +35,7 @@ export const useChromeTabs = () => {
 				chrome.tabGroups.query({}, (group) => resolve(group));
 			}),
 		]);
-		console.log(tabs, currentWindowId, groups);
+		console.log(tabs.length, currentWindowId, groups.length);
 		loadedCurrentWindowId.value = currentWindowId;
 
 		loadedTabs.value = tabs.map((row) => ({
