@@ -9,24 +9,24 @@ import 'v-calendar/dist/style.css'
 import VCalendar from 'v-calendar'
 
 // Setup plugin for defaults or `$screens` (optional)
-const myPlugin = {
-	install(app: AppVue) {
-		app.config.globalProperties.$translate = (key: any) => {
-			// retrieve a nested property in `options`
-			// using `key` as the path
-			// console.log(key)
-			// return key.split('.').reduce((o, i) => {
-			//   if (o) return o[i]
-			// }, options)
-		}
-	},
-}
+// const myPlugin = {
+// 	install(app: AppVue) {
+// 		app.config.globalProperties.$translate = (key: any) => {
+// 			// retrieve a nested property in `options`
+// 			// using `key` as the path
+// 			// console.log(key)
+// 			// return key.split('.').reduce((o, i) => {
+// 			//   if (o) return o[i]
+// 			// }, options)
+// 		}
+// 	},
+// }
 createApp(App)
 	.use(router)
 	.use(VCalendar, {})
-	.use(myPlugin, {
-		/* optional options */
-	})
+	// .use(myPlugin, {
+	// 	/* optional options */
+	// })
 	.directive('autogrow', {
 		created(el) {
 			el.addEventListener('input', () => {

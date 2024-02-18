@@ -23,13 +23,13 @@ const value = computed({
 </script>
 
 <template>
-	<div class="relative rounded-sm shadow-sm dark:bg-black">
+	<div class="relative rounded-md bg-white shadow-sm dark:bg-black">
 		<input
 			:id="id"
 			v-bind="$attrs"
 			v-model="value"
 			:type="type"
-			class="focus:border-gatopolis-light peer w-full rounded-md border border-gray-300 bg-transparent px-3 pb-0.5 pt-[1.375rem] text-gray-900 placeholder-transparent focus:outline-none focus:ring-0 dark:bg-black dark:text-white sm:text-sm"
+			class="peer w-full rounded-md border border-gray-300 bg-transparent px-3 pb-1 pt-[1.375rem] text-gray-900 placeholder-transparent ring-1 ring-black ring-opacity-5 transition focus:border-gray-600 focus:outline-none focus:ring-0 dark:border-vercel-accents-2 dark:bg-black dark:text-white dark:focus:border-white sm:text-sm"
 			:placeholder="placeholder"
 		/>
 		<label

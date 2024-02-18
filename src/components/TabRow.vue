@@ -7,6 +7,7 @@ import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
 
 import AppBtn from './AppBtn.vue'
+import AppButton from './AppButton.vue'
 import TabMoveToMenu from './TabMoveToMenu.vue'
 
 interface Props {
@@ -59,9 +60,11 @@ const tabHistory = computed(() => {
 						tabsSelected.has(tab.stableId),
 				}"
 			>
+				<!-- layer over the button -->
 				<div
-					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 opacity-0 transition delay-200 focus-within:z-20 focus-within:opacity-100 hover:delay-[0ms] hover:duration-150 group-hover:opacity-100"
+					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 opacity-0 transition focus-within:z-20 focus-within:opacity-100 hover:duration-150 group-hover:opacity-100"
 				>
+					<!-- delay-200  hover:delay-[0ms] -->
 					<div>
 						<button
 							class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow-md transition dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white dark:active:bg-vercel-accents-2 dark:active:text-white"
@@ -71,7 +74,9 @@ const tabHistory = computed(() => {
 							<MinusIcon class="h-4 w-4" v-else />
 						</button>
 					</div>
-					<div class="pointer-events-auto flex items-center space-x-2">
+					<div
+						class="pointer-events-auto flex items-center space-x-2 rounded-lg bg-white p-1 group-hover:bg-slate-200 dark:bg-black dark:group-hover:bg-vercel-accents-1"
+					>
 						<div class="relative inline-flex flex-col text-left">
 							<TabMoveToMenu
 								:tabs="[tab]"
@@ -153,17 +158,27 @@ const tabHistory = computed(() => {
 								</div>
 							</Menu> -->
 						</div>
+						<!-- <AppBtn :class="{ 'opacity-75': open }">
+							History
+							<ChevronUpIcon
+								:class="open ? 'rotate-180 transform' : ''"
+								class="ml-2 -mr-1 h-3 w-3 text-slate-800 transition dark:text-white"
+								aria-hidden="true"
+							/>
+						</AppBtn> -->
 						<DisclosureButton as="template">
-							<AppBtn :class="{ 'opacity-75': open }">
-								History
-								<ChevronUpIcon
-									:class="open ? 'rotate-180 transform' : ''"
-									class="ml-2 -mr-1 h-3 w-3 text-slate-800 transition dark:text-white"
-									aria-hidden="true"
-								/>
-							</AppBtn>
+							<AppButton :class="{ 'opacity-80': open }" intent="common" size="x-small">
+								<span class="flex items-center">
+									<span>History</span>
+									<ChevronUpIcon
+										:class="!open ? 'rotate-180 transform' : ''"
+										class="ml-1 -mr-1 h-2.5 w-2.5 text-slate-800 transition dark:text-white"
+										aria-hidden="true"
+									/>
+								</span>
+							</AppButton>
 						</DisclosureButton>
-						<AppBtn @click="copyLink(tab)"> Copy </AppBtn>
+						<AppButton intent="common" size="x-small" @click="copyLink(tab)"> Copy </AppButton>
 						<AppBtn @click="closeTab([tab])" color="round-primary">
 							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppBtn from '@/components/AppBtn.vue'
+import AppTextarea from '@/components/forms/AppTextarea.vue'
 import { computed, ref } from 'vue'
 const textWithUrls = ref('')
 // const parsedUrls = ref<string[]>([])
@@ -32,41 +33,32 @@ const openLinks = async () => {
 			</div>
 			<div class="mt-6 grid grid-cols-2 gap-4">
 				<div>
-					<div class="shadow sm:overflow-hidden sm:rounded-md">
-						<div class="space-y-6 bg-white px-4 py-5 sm:p-6">
+					<div class="shadow-sm ring-1 ring-black ring-opacity-5 sm:overflow-hidden sm:rounded-lg">
+						<div class="space-y-6 bg-white py-5 px-4 dark:bg-black sm:p-6">
 							<div>
-								<label for="about" class="block text-sm font-medium text-slate-700">
-									Input your text
-								</label>
-								<div class="mt-1">
-									<textarea
-										id="about"
-										name="code"
-										rows="15"
-										v-model="textWithUrls"
-										class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
-										placeholder="<div ..."
-									></textarea>
-								</div>
+								<AppTextarea
+									v-model="textWithUrls"
+									label="Input your text"
+									rows="15"
+									id="input-links"
+									name="input_links"
+								/>
 							</div>
 						</div>
 					</div>
 				</div>
 				<div>
-					<div class="shadow sm:overflow-hidden sm:rounded-md">
-						<div class="space-y-6 bg-white px-4 py-5 sm:p-6">
+					<div class="shadow-sm ring-1 ring-black ring-opacity-5 sm:overflow-hidden sm:rounded-lg">
+						<div class="space-y-6 bg-white py-5 px-4 dark:bg-black sm:p-6">
 							<div>
-								<label for="about" class="block text-sm font-medium text-slate-700">
-									Links matched
-								</label>
-								<div class="mt-1">
-									<textarea
-										readonly
-										rows="15"
-										class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
-										>{{ parsedUrls.join('\n\n') }}</textarea
-									>
-								</div>
+								<AppTextarea
+									:modelValue="parsedUrls.join('\n\n')"
+									label="Links matched"
+									readonly
+									rows="15"
+									id="output-links"
+									name="output_links"
+								/>
 							</div>
 						</div>
 					</div>

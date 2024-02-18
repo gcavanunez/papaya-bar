@@ -28,3 +28,7 @@
 - [ ] Swap Popper or better implemention (avoid current lag)
 - [ ] Swap Session -> Select a passed session and swap to it (close all tabs, open new set)
 - [ ] Close all current tabs
+---
+
+- [ ] use a virtual link like select box in order to use arrow keys to select items 
+- [ ] have some ability to preview the sites

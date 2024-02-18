@@ -2,12 +2,17 @@
 import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 
+const initialFocus = ref<HTMLElement | null>(null)
+const setSlotRef = (el: any) => {
+	initialFocus.value = el
+}
 const props = defineProps<{
 	modelValue: boolean
 	title: string
 }>()
 const emit = defineEmits<{
 	(event: 'update:modelValue', payload: boolean): void
+	(event: 'after-enter'): void
 }>()
 
 // const isOpen = props.modelValue
@@ -18,11 +23,14 @@ function closeModal() {
 function openModal() {
 	emit('update:modelValue', false)
 }
+function afterEnter() {
+	emit('after-enter')
+}
 </script>
 
 <template>
-	<TransitionRoot appear :show="modelValue" as="template">
-		<Dialog as="div" @close="closeModal" class="relative z-50">
+	<TransitionRoot appear :show="modelValue" as="template" @after-enter="afterEnter">
+		<Dialog as="div" @close="closeModal" class="relative z-50" :initialFocus="initialFocus">
 			<TransitionChild
 				as="template"
 				enter="duration-300 ease-out"
@@ -51,13 +59,13 @@ function openModal() {
 						<DialogPanel
 							class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-black lg:max-w-lg"
 						>
-							<DialogTitle
-								as="h3"
-								class="text-lg font-medium leading-6 text-gray-900 dark:text-white"
-							>
-								{{ title }}
-							</DialogTitle>
-							<slot></slot>
+							<!-- <DialogTitle
+									as="h3"
+									class="text-lg font-medium leading-6 text-gray-900 dark:text-white"
+								>
+									{{ title }}
+								</DialogTitle> -->
+							<slot :trigger="setSlotRef"></slot>
 						</DialogPanel>
 					</TransitionChild>
 				</div>
