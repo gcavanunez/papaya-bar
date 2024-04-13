@@ -1,20 +1,20 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
-import { crx } from '@crxjs/vite-plugin'
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { resolve } from "path";
+import { crx } from "@crxjs/vite-plugin";
 
 //@ts-ignore
-import manifest from './manifest.json' // Node 14 & 16
+import manifest from "./manifest.json"; // Node 14 & 16
 
-import { execSync } from 'child_process'
+import { execSync } from "child_process";
 // const childProcess = require('child_process')
-let lastCommitHash = ''
+let lastCommitHash = "";
 try {
-	lastCommitHash = execSync('git rev-parse --short HEAD').toString().trim()
+	lastCommitHash = execSync("git rev-parse --short HEAD").toString().trim();
 } catch (e) {
-	console.error(e)
+	console.error(e);
 }
-console.log({ lastCommitHash })
+console.log({ lastCommitHash });
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -30,7 +30,7 @@ export default defineConfig({
 
 	resolve: {
 		alias: {
-			'@': resolve(__dirname, 'src'),
+			"@": resolve(__dirname, "src"),
 		},
 	},
-})
+});
