@@ -1,42 +1,30 @@
 <script setup lang="ts">
-import { MagnifyingGlassIcon } from "@heroicons/vue/20/solid";
-import {
-	HomeIcon,
-	TagIcon,
-	RectangleGroupIcon,
-	CalendarDaysIcon,
-} from "@heroicons/vue/24/outline";
-import { computed, onMounted, reactive, ref, watchEffect } from "vue";
-import { XMarkIcon, FunnelIcon } from "@heroicons/vue/20/solid";
-import { Switch } from "@headlessui/vue";
-import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { TabGroup, TabList, Tab as AppTab } from "@headlessui/vue";
-import { RadioGroup, RadioGroupLabel, RadioGroupOption } from "@headlessui/vue";
+import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid'
+import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
+import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
+import { XMarkIcon, FunnelIcon } from '@heroicons/vue/20/solid'
+import { Switch } from '@headlessui/vue'
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
+import { TabGroup, TabList, Tab as AppTab } from '@headlessui/vue'
+import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
 
-import { copyToClipboard } from "../utils";
-import AppBtn from "@/components/AppBtn.vue";
-import {
-	Tab,
-	Grouped,
-	WindowsMap,
-	Group,
-	HistoryMap,
-	LookUpTab,
-} from "@/types";
-import { closeTab, moveTabs } from "@/helpers";
-import TabRow from "@/components/TabRow.vue";
+import { copyToClipboard } from '../utils'
+import AppBtn from '@/components/AppBtn.vue'
+import { Tab, Grouped, WindowsMap, Group, HistoryMap, LookUpTab } from '@/types'
+import { closeTab, moveTabs } from '@/helpers'
+import TabRow from '@/components/TabRow.vue'
 
-import autoAnimate from "@formkit/auto-animate";
-import { format, isAfter, isBefore, isWithinInterval, sub } from "date-fns";
-import { useSessionsData } from "@/hooks/useSessionsData";
-import AppButton from "./AppButton.vue";
+import autoAnimate from '@formkit/auto-animate'
+import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
+import { useSessionsData } from '@/hooks/useSessionsData'
+import AppButton from './AppButton.vue'
 // import AppInput from './forms/AppInput.vue'
 // import AppModal from './AppModal.vue'
-import TabMoveToMenu from "./TabMoveToMenu.vue";
-import { useGlobalModals } from "@/hooks/useGlobalModals";
+import TabMoveToMenu from './TabMoveToMenu.vue'
+import { useGlobalModals } from '@/hooks/useGlobalModals'
 // composable start - grouping
-const loggy = (val: any) => console.log(val);
+const loggy = (val: any) => console.log(val)
 
 const {
 	// groupModalToggle, // after moving modal
@@ -48,160 +36,151 @@ const {
 	// onGroupFormSummit, // after moving modal
 	onEditGroup,
 	onCreateNewGroup,
-} = useGlobalModals();
+} = useGlobalModals()
 
 // composable end
 
-const { storeSession } = useSessionsData();
-const groupContainer = ref<HTMLElement | null>(null);
-const groupHeaders = ref<HTMLElement | null>(null);
-const ranges: Record<
-	string,
-	{ value: string; label: string; is_range: boolean }
-> = {
-	"<>": {
-		value: "<>",
-		label: "<>",
+const { storeSession } = useSessionsData()
+const groupContainer = ref<HTMLElement | null>(null)
+const groupHeaders = ref<HTMLElement | null>(null)
+const ranges: Record<string, { value: string; label: string; is_range: boolean }> = {
+	'<>': {
+		value: '<>',
+		label: '<>',
 		is_range: true,
 	},
-	"><": {
-		value: "><",
-		label: "><",
+	'><': {
+		value: '><',
+		label: '><',
 		is_range: true,
 	},
-	"=": {
-		value: "=",
-		label: "=",
+	'=': {
+		value: '=',
+		label: '=',
 		is_range: false,
 	},
-	"<": {
-		value: "<",
-		label: "<",
+	'<': {
+		value: '<',
+		label: '<',
 		is_range: false,
 	},
-	">": {
-		value: ">",
-		label: ">",
+	'>': {
+		value: '>',
+		label: '>',
 		is_range: false,
 	},
-};
+}
 
 const filter = reactive({
 	has_date_range: false,
-	date_range_type: ranges["<>"].value,
+	date_range_type: ranges['<>'].value,
 	date: new Date(),
 	range: {
 		start: sub(new Date(), { days: 1 }),
 		end: new Date(),
 	},
-});
+})
 const masks = {
-	input: "YYYY-MM-DD h:mm A",
-};
+	input: 'YYYY-MM-DD h:mm A',
+}
 onMounted(() => {
 	if (groupContainer.value) {
-		autoAnimate(groupContainer.value, { duration: 150 });
+		autoAnimate(groupContainer.value, { duration: 150 })
 	}
 	if (groupHeaders.value) {
-		autoAnimate(groupHeaders.value, { duration: 150 });
+		autoAnimate(groupHeaders.value, { duration: 150 })
 	}
-});
-const inputRef = ref<HTMLInputElement | null>(null);
+})
+const inputRef = ref<HTMLInputElement | null>(null)
 const focusOnInput = () => {
 	if (inputRef.value) {
-		inputRef.value.focus();
+		inputRef.value.focus()
 	}
-};
+}
 
 onMounted(() => {
 	watchEffect((onInvalidate) => {
 		const focusSearch = (e: KeyboardEvent) => {
-			if (e.key == "/" && document.activeElement !== inputRef.value) {
+			if (e.key == '/' && document.activeElement !== inputRef.value) {
 				// console.log('focusSearch hi')
-				e.preventDefault();
-				focusOnInput();
+				e.preventDefault()
+				focusOnInput()
 			}
-		};
-		document.addEventListener("keydown", focusSearch);
+		}
+		document.addEventListener('keydown', focusSearch)
 		onInvalidate(() => {
-			document.removeEventListener("keydown", focusSearch);
-		});
-	});
-});
+			document.removeEventListener('keydown', focusSearch)
+		})
+	})
+})
 
-const searchTerm = ref<string>("");
-const tabsSelected = ref<Set<string>>(new Set());
+const searchTerm = ref<string>('')
+const tabsSelected = ref<Set<string>>(new Set())
 const categories = {
 	All: { icon: HomeIcon },
 	Grouped: { icon: TagIcon },
 	Windows: { icon: RectangleGroupIcon },
 	Date: { icon: CalendarDaysIcon },
-};
+}
 const changeTab = (index: number) => {
-	selectedTab.value = index;
-};
-const selectedTab = ref(0);
+	selectedTab.value = index
+}
+const selectedTab = ref(0)
 const selectedTabName = computed(() => {
-	const tabCategory = Object.keys(categories).find(
-		(row, index) => selectedTab.value === index,
-	);
-	return tabCategory ? tabCategory : "All";
-});
+	const tabCategory = Object.keys(categories).find((row, index) => selectedTab.value === index)
+	return tabCategory ? tabCategory : 'All'
+})
 
 type Props = {
-	loadedTabs: Tab[];
-	loadedGroups: Group[];
-	loadedTabHistory: HistoryMap;
-	lookUpTab: LookUpTab;
-	windowsMap: WindowsMap;
-};
-const { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab, windowsMap } =
-	defineProps<Props>();
+	loadedTabs: Tab[]
+	loadedGroups: Group[]
+	loadedTabHistory: HistoryMap
+	lookUpTab: LookUpTab
+	windowsMap: WindowsMap
+}
+const { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab, windowsMap } = defineProps<Props>()
 
 const groupMap = computed(() => {
-	let computedMap = new Map();
+	let computedMap = new Map()
 	loadedGroups.forEach((row) => {
-		computedMap.set(row.id, row.title);
-	});
-	return computedMap;
-});
+		computedMap.set(row.id, row.title)
+	})
+	return computedMap
+})
 
 const selectedGroup = computed(() => {
-	return loadedTabs.filter((row) => tabsSelected.value.has(row.stableId));
-});
+	return loadedTabs.filter((row) => tabsSelected.value.has(row.stableId))
+})
 const based = computed(() => {
 	return loadedTabs.reduce((acc, curr) => {
 		if (selectedTab.value === 0) {
 			if (!curr.url) {
-				return acc;
+				return acc
 			}
-			const domain = new URL(curr.url).hostname;
+			const domain = new URL(curr.url).hostname
 			if (acc[domain]) {
-				return { ...acc, [domain]: [...acc[domain], curr] };
+				return { ...acc, [domain]: [...acc[domain], curr] }
 			}
 			return {
 				...acc,
 				[domain]: [curr],
-			};
+			}
 		}
 		if (selectedTab.value === 1) {
 			// other case
 			if (!curr.groupId) {
-				return acc;
+				return acc
 			}
 
-			const domain =
-				curr.groupId !== -1
-					? groupMap.value.get(curr.groupId)
-					: "other";
+			const domain = curr.groupId !== -1 ? groupMap.value.get(curr.groupId) : 'other'
 
 			if (acc[domain]) {
-				return { ...acc, [domain]: [...acc[domain], curr] };
+				return { ...acc, [domain]: [...acc[domain], curr] }
 			}
 			return {
 				...acc,
 				[domain]: [curr],
-			};
+			}
 		}
 		// other case
 		// if (!curr.windowId) {
@@ -212,15 +191,15 @@ const based = computed(() => {
 		//   curr.groupId !== -1 ? groupMap.value.get(curr.groupId) : 'other'
 		// const domain = `${curr.windowId}` windowsMap.value
 		if (selectedTab.value === 2) {
-			const windowName = windowsMap.get(curr.windowId);
-			const domain = windowName ? windowName : "Other";
+			const windowName = windowsMap.get(curr.windowId)
+			const domain = windowName ? windowName : 'Other'
 			if (acc[domain]) {
-				return { ...acc, [domain]: [...acc[domain], curr] };
+				return { ...acc, [domain]: [...acc[domain], curr] }
 			}
 			return {
 				...acc,
 				[domain]: [curr],
-			};
+			}
 		}
 
 		// by Date
@@ -228,20 +207,20 @@ const based = computed(() => {
 
 		// const windowName = windowsMap.value.get(curr.windowId)
 		// if(!curr.url){ return }
-		const tabLog = lookUpTab[curr.url!];
+		const tabLog = lookUpTab[curr.url!]
 		// const tabLog = Object.fromEntries(loadedTabHistory.value.entries())[curr.url!]
 		// const tabLog = loadedTabHistory.value.get(curr.url!)
 		// const tabLog = curr.lastestHistory
-		let latestDateAccessed;
+		let latestDateAccessed
 		if (!tabLog) {
-			latestDateAccessed = "Other";
+			latestDateAccessed = 'Other'
 		} else {
-			const latestFromTab = tabLog![0];
+			const latestFromTab = tabLog![0]
 			// const latestFromTab = tabLog
-			console.log("----Matching group----");
+			console.log('----Matching group----')
 			latestDateAccessed = latestFromTab?.visitTime
-				? format(new Date(latestFromTab.visitTime), "MM/dd/yyyy")
-				: "Other";
+				? format(new Date(latestFromTab.visitTime), 'MM/dd/yyyy')
+				: 'Other'
 		}
 
 		// const domain = windowName ? windowName : 'Other'
@@ -249,16 +228,16 @@ const based = computed(() => {
 			return {
 				...acc,
 				[latestDateAccessed]: [...acc[latestDateAccessed], curr],
-			};
+			}
 		}
 		return {
 			...acc,
 			[latestDateAccessed]: [curr],
-		};
-	}, {} as Grouped);
-});
+		}
+	}, {} as Grouped)
+})
 const historySet = computed(() => {
-	let checkSet = new Set<string>();
+	let checkSet = new Set<string>()
 	// loadedTabHistory.value.forEach((historyRecent,index) =>{
 	//   historyRecent.map(row=>{
 	//     row.
@@ -268,146 +247,143 @@ const historySet = computed(() => {
 		// Using the default iterator (could be `map.entries()` instead)
 		// console.log(`The value for key ${key} is ${value}`);
 		let bool = value.some((row) => {
-			if (
-				[ranges["<>"].value, ranges["><"].value].includes(
-					filter.date_range_type,
-				)
-			) {
+			if ([ranges['<>'].value, ranges['><'].value].includes(filter.date_range_type)) {
 				return isWithinInterval(row.visitTime!, {
 					end: filter.range.end,
 					start: filter.range.start,
-				});
+				})
 			}
-			if (filter.date_range_type == ranges["<"].value) {
-				return isBefore(row.visitTime!, filter.date);
+			if (filter.date_range_type == ranges['<'].value) {
+				return isBefore(row.visitTime!, filter.date)
 			}
-			if (filter.date_range_type == ranges[">"].value) {
-				return isAfter(row.visitTime!, filter.date);
+			if (filter.date_range_type == ranges['>'].value) {
+				return isAfter(row.visitTime!, filter.date)
 			}
 			return isWithinInterval(row.visitTime!, {
 				end: filter.date,
 				start: sub(filter.date, { days: 1 }),
-			});
-		});
+			})
+		})
 		if (bool) {
-			checkSet.add(key);
+			checkSet.add(key)
 		}
 	}
-	return checkSet;
-});
+	return checkSet
+})
 // The Logic
 const grouped = computed<Grouped>(() => {
 	// const based
-	const actualGroup = Object.entries(based.value).reduce(
-		(acc, [index, values]) => {
-			let checkedValues = values.filter((row) => {
-				if (!row.title || !row.url) {
-					return false;
-				}
-				if (filter.has_date_range) {
-					if (!historySet.value.has(row.url)) {
-						return false;
-					}
-				}
-				return (
-					row.title
-						.toLocaleLowerCase()
-						.indexOf(searchTerm.value.toLocaleLowerCase()) > -1 ||
-					row.url
-						.toLocaleLowerCase()
-						.indexOf(searchTerm.value.toLocaleLowerCase()) > -1
-				);
-			});
-			if (checkedValues.length > 1) {
-				return { ...acc, [index]: checkedValues };
+	const actualGroup = Object.entries(based.value).reduce((acc, [index, values]) => {
+		let checkedValues = values.filter((row) => {
+			if (!row.title || !row.url) {
+				return false
 			}
-			if (acc["other"]) {
-				return {
-					...acc,
-					["other"]: [...acc["other"], ...checkedValues],
-				};
+			if (filter.has_date_range) {
+				if (!historySet.value.has(row.url)) {
+					return false
+				}
 			}
-			return { ...acc, ["other"]: [...checkedValues] };
-		},
-		{} as Grouped,
-	);
+			return (
+				row.title.toLocaleLowerCase().indexOf(searchTerm.value.toLocaleLowerCase()) > -1 ||
+				row.url.toLocaleLowerCase().indexOf(searchTerm.value.toLocaleLowerCase()) > -1
+			)
+		})
+		if (checkedValues.length > 1) {
+			return { ...acc, [index]: checkedValues }
+		}
+		if (acc['other']) {
+			return {
+				...acc,
+				['other']: [...acc['other'], ...checkedValues],
+			}
+		}
+		return { ...acc, ['other']: [...checkedValues] }
+	}, {} as Grouped)
 	// if (selectedTab.value === 0) {
 	// return actualGroup
 	// }
 	return Object.keys(actualGroup)
 		.sort((a, b) => {
-			return actualGroup[b].length - actualGroup[a].length;
+			return actualGroup[b].length - actualGroup[a].length
 		})
 		.reduce((obj, key) => {
 			if (actualGroup[key].length) {
-				obj[key] = actualGroup[key];
+				obj[key] = actualGroup[key]
 			}
-			return obj;
-		}, {} as Grouped);
-});
+			return obj
+		}, {} as Grouped)
+})
 const totalTabs = computed(() => {
 	return Object.values(grouped.value)
 		.flatMap((row) => row.length)
 		.reduce((acc, curr) => {
-			return acc + curr;
-		}, 0);
-});
+			return acc + curr
+		}, 0)
+})
 
 const closeTabs = (tabs: Tab[]) => {
-	closeTab(tabs);
-};
+	closeTab(tabs)
+}
 
 const closeSelectedTabs = () => {
-	closeTab(selectedGroup.value);
-	tabsSelected.value.clear();
-};
+	closeTab(selectedGroup.value)
+	tabsSelected.value.clear()
+}
 const closeUnSelectedTabs = () => {
-	closeTab(loadedTabs.filter((row) => !tabsSelected.value.has(row.stableId)));
-};
+	closeTab(loadedTabs.filter((row) => !tabsSelected.value.has(row.stableId)))
+}
 
 const copyLinks = (tabs: Tab[]) => {
 	const urls = tabs
 		.map((row) => [row.url, row.title])
 		.reduce((acc, curr) => {
-			return `${acc}\n\n${curr[1]}\n${curr[0]}`;
-		}, "");
+			return `${acc}\n\n${curr[1]}\n${curr[0]}`
+		}, '')
 	if (urls) {
-		copyToClipboard(urls);
+		copyToClipboard(urls)
 	}
-};
+}
 
 const toggleSelection = (tab: Tab) => {
 	if (tabsSelected.value.has(tab.stableId)) {
-		tabsSelected.value.delete(tab.stableId);
+		tabsSelected.value.delete(tab.stableId)
 	} else {
-		tabsSelected.value.add(tab.stableId);
+		tabsSelected.value.add(tab.stableId)
 	}
-};
+}
 const selectGroup = (tabs: Tab[]) => {
 	tabs.forEach((tab) => {
-		tabsSelected.value.add(tab.stableId);
-	});
-};
-import { useMagicKeys } from "@vueuse/core";
-const { shift, escape, a, m, w, g } = useMagicKeys();
+		tabsSelected.value.add(tab.stableId)
+	})
+}
+import { useActiveElement, useMagicKeys } from '@vueuse/core'
+
+const activeElement = useActiveElement()
+const notUsingInput = computed(
+	() => activeElement.value?.tagName !== 'INPUT' && activeElement.value?.tagName !== 'TEXTAREA',
+)
+const { shift, ctrl, escape, a, m, w, g } = useMagicKeys()
 
 watchEffect(() => {
-	if (shift.value && escape.value) {
-		tabsSelected.value.clear();
+	if (!notUsingInput.value) {
+		return
 	}
-	if (shift.value && a.value) {
-		tabsSelected.value.clear();
-		selectGroup(Object.values(grouped.value).flatMap((row) => row));
+	if (shift.value && escape.value) {
+		tabsSelected.value.clear()
+	}
+	if (ctrl.value && a.value) {
+		tabsSelected.value.clear()
+		selectGroup(Object.values(grouped.value).flatMap((row) => row))
 	}
 	if (shift.value && m.value && w.value) {
-		moveTabs(Object.values(grouped.value).flatMap((row) => row));
+		moveTabs(Object.values(grouped.value).flatMap((row) => row))
 	}
 	if (shift.value && m.value && g.value) {
 		onCreateNewGroup({
 			tabs: Object.values(grouped.value).flatMap((row) => row),
-		});
+		})
 	}
-});
+})
 </script>
 
 <template>
@@ -419,19 +395,13 @@ watchEffect(() => {
 				aria-label="Tab viewing styles"
 				class="sticky top-[88px] divide-y divide-slate-300 dark:divide-vercel-accents-2"
 			>
-				<TabGroup
-					@change="changeTab"
-					:selectedIndex="selectedTab"
-					vertical
-				>
+				<TabGroup :selected-index="selectedTab" vertical @change="changeTab">
 					<TabList class="flex flex-col space-y-1 rounded-lg pb-8">
 						<AppTab
-							v-for="[category, values] in Object.entries(
-								categories,
-							)"
-							as="template"
+							v-for="[category, values] in Object.entries(categories)"
 							:key="category"
 							v-slot="{ selected }"
+							as="template"
 						>
 							<button
 								:class="[
@@ -492,9 +462,7 @@ watchEffect(() => {
 					<section>
 						<div class="">
 							<div class="">
-								<label for="search" class="sr-only"
-									>Search tabs</label
-								>
+								<label for="search" class="sr-only">Search tabs</label>
 								<div
 									class="flex rounded-md shadow-sm ring-1 ring-black ring-opacity-5"
 								>
@@ -509,12 +477,12 @@ watchEffect(() => {
 											/>
 										</div>
 										<input
-											type="text"
-											ref="inputRef"
-											autofocus
 											id="search"
+											ref="inputRef"
 											v-model="searchTerm"
-											class="peer block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm focus-visible:border-papaya-900 focus-visible:ring-papaya-900 sm:text-sm dark:border-vercel-accents-2 dark:bg-black dark:placeholder-vercel-accents-4"
+											type="text"
+											autofocus
+											class="peer block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm focus-visible:border-papaya-900 focus-visible:ring-papaya-900 dark:border-vercel-accents-2 dark:bg-black dark:placeholder-vercel-accents-4 sm:text-sm"
 											placeholder="Search"
 										/>
 										<div
@@ -537,12 +505,10 @@ watchEffect(() => {
 													{{ totalTabs }}
 												</p>
 												<button
-													@click="searchTerm = ''"
 													class="pointer-events-auto rounded-r border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-400 dark:border-vercel-accents-2 dark:bg-vercel-accents-2 dark:text-white"
+													@click="searchTerm = ''"
 												>
-													<XMarkIcon
-														class="h-3 w-3 fill-current"
-													/>
+													<XMarkIcon class="h-3 w-3 fill-current" />
 												</button>
 											</div>
 										</div>
@@ -557,7 +523,8 @@ watchEffect(() => {
 												<FunnelIcon
 													title="Add a Filter"
 													class="h-5 w-5 text-slate-400 dark:group-hover:text-white"
-												></FunnelIcon>
+												>
+												</FunnelIcon>
 												<span>Sort</span>
 											</button>
 										</PopoverButton>
@@ -588,12 +555,10 @@ watchEffect(() => {
 													<button
 														title="Close"
 														type="button"
+														class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none dark:hover:bg-slate-300/5 rtl:left-3 rtl:right-auto"
 														@click="close"
-														class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none rtl:left-3 rtl:right-auto dark:hover:bg-slate-300/5"
 													>
-														<span class="sr-only">
-															Close
-														</span>
+														<span class="sr-only"> Close </span>
 														<svg
 															class="filament-icon-button-icon h-5 w-5"
 															xmlns="http://www.w3.org/2000/svg"
@@ -616,13 +581,9 @@ watchEffect(() => {
 														<div
 															class="filament-forms-component-container grid grid-cols-1 gap-6 lg:grid-cols-1"
 														>
-															<div
-																class="col-span-1"
-															>
+															<div class="col-span-1">
 																<Switch
-																	v-model="
-																		filter.has_date_range
-																	"
+																	v-model="filter.has_date_range"
 																	:class="
 																		filter.has_date_range
 																			? 'bg-blue-700'
@@ -630,10 +591,8 @@ watchEffect(() => {
 																	"
 																	class="relative inline-flex h-[38px] w-[74px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75"
 																>
-																	<span
-																		class="sr-only"
-																		>Use
-																		setting</span
+																	<span class="sr-only"
+																		>Use setting</span
 																	>
 																	<span
 																		aria-hidden="true"
@@ -646,9 +605,7 @@ watchEffect(() => {
 																	/>
 																</Switch>
 															</div>
-															<div
-																class="col-span-1"
-															>
+															<div class="col-span-1">
 																<div
 																	class="filament-forms-component-container grid grid-cols-1 gap-6"
 																>
@@ -658,15 +615,12 @@ watchEffect(() => {
 																				filter.date_range_type
 																			"
 																		>
-																			<div
-																				class="space-y-2"
-																			>
+																			<div class="space-y-2">
 																				<RadioGroupLabel>
 																					<span
 																						class="text-sm font-medium leading-4 text-slate-700 dark:text-slate-300"
 																					>
-																						Range
-																						type
+																						Range type
 																					</span>
 																				</RadioGroupLabel>
 																				<div
@@ -702,15 +656,11 @@ watchEffect(() => {
 																			</div>
 																		</RadioGroup>
 																	</div>
-																	<div
-																		class="col-span-1"
-																	>
+																	<div class="col-span-1">
 																		<div
 																			class="filament-forms-field-wrapper"
 																		>
-																			<div
-																				class="space-y-2"
-																			>
+																			<div class="space-y-2">
 																				<div
 																					class="flex items-center justify-between space-x-2"
 																				>
@@ -730,7 +680,6 @@ watchEffect(() => {
 																					class="flex items-center space-x-1"
 																				>
 																					<div
-																						class="min-w-0 flex-1"
 																						v-if="
 																							ranges[
 																								filter
@@ -738,6 +687,7 @@ watchEffect(() => {
 																							]
 																								.is_range
 																						"
+																						class="min-w-0 flex-1"
 																					>
 																						<v-date-picker
 																							v-model="
@@ -758,7 +708,7 @@ watchEffect(() => {
 																							"
 																						>
 																							<template
-																								v-slot="{
+																								#default="{
 																									inputValue,
 																									inputEvents,
 																									isDragging,
@@ -851,8 +801,8 @@ watchEffect(() => {
 																						</v-date-picker>
 																					</div>
 																					<div
-																						class="min-w-0 flex-1"
 																						v-else
+																						class="min-w-0 flex-1"
 																					>
 																						<v-date-picker
 																							v-model="
@@ -864,7 +814,7 @@ watchEffect(() => {
 																							"
 																						>
 																							<template
-																								v-slot="{
+																								#default="{
 																									inputValue,
 																									inputEvents,
 																								}"
@@ -975,25 +925,18 @@ watchEffect(() => {
             </section>
           </div> -->
 			</div>
-			<div
-				class="mt-6"
-				v-if="Object.values(grouped).some((row) => row.length)"
-			>
+			<div v-if="Object.values(grouped).some((row) => row.length)" class="mt-6">
 				<div class="">
 					<div class="px-4 sm:px-0">
 						<div class="sm:hidden">
-							<label for="question-tabs" class="sr-only"
-								>Select a tab Category</label
-							>
+							<label for="question-tabs" class="sr-only">Select a tab Category</label>
 							<select
 								id="question-tabs"
-								class="block w-full rounded-md border-slate-300 text-base font-medium text-slate-900 shadow-sm focus:border-rose-500 focus:ring-rose-500"
 								v-model="selectedTab"
+								class="block w-full rounded-md border-slate-300 text-base font-medium text-slate-900 shadow-sm focus:border-rose-500 focus:ring-rose-500"
 							>
 								<option
-									v-for="(tab, index) in Object.keys(
-										categories,
-									)"
+									v-for="(tab, index) in Object.keys(categories)"
 									:key="tab"
 									:value="index"
 								>
@@ -1016,102 +959,82 @@ watchEffect(() => {
 								leave-to-class="transform scale-95 opacity-0"
 							>
 								<Disclosure
+									v-for="(group, index) in grouped"
+									:id="`section-${index}`"
+									:key="`section-${index}`"
 									as="li"
 									class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5 dark:divide-vercel-accents-2 dark:bg-black"
-									v-for="(group, index) in grouped"
-									:key="`section-${index}`"
-									:id="`section-${index}`"
 									:default-open="true"
 								>
 									<div class="px-4 py-4 md:px-6">
 										<h2 class="sr-only">{{ index }}</h2>
-										<div
-											class="flex items-center justify-between"
-										>
-											<div
-												class="flex items-center space-x-2"
-											>
+										<div class="flex items-center justify-between">
+											<div class="flex items-center space-x-2">
 												<DisclosureButton as="template">
-													<AppButton
-														intent="common"
-														size="x-small"
-													>
+													<AppButton intent="common" size="x-small">
 														{{ index }}
 													</AppButton>
 												</DisclosureButton>
 												<AppBtn
 													v-if="
-														selectedTabName ===
-															'Grouped' &&
+														selectedTabName === 'Grouped' &&
 														index !== 'other'
 													"
+													type="button"
 													@click="
 														() =>
 															onEditGroup({
 																tabs: group,
 															})
 													"
-													type="button"
 												>
 													Edit
 												</AppBtn>
 											</div>
 
-											<div
-												class="flex items-center space-x-2"
-											>
+											<div class="flex items-center space-x-2">
 												<AppButton
 													intent="common"
 													size="x-small"
-													@click="selectGroup(group)"
 													type="button"
+													@click="selectGroup(group)"
 												>
 													Select
 												</AppButton>
 												<AppButton
 													intent="common"
 													size="x-small"
-													@click="closeTabs(group)"
 													type="button"
+													@click="closeTabs(group)"
 												>
 													Close tabs
 												</AppButton>
 												<!-- <AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn> -->
 												<TabMoveToMenu
 													:tabs="group"
-													:windowsMap="windowsMap"
-													:loadedGroups="loadedGroups"
+													:windows-map="windowsMap"
+													:loaded-groups="loadedGroups"
 													@on-create-group="
-														({
-															tabs: emitedTabs,
-														}) => {
+														({ tabs: emitedTabs }) => {
 															onCreateNewGroup({
 																tabs: emitedTabs,
-															});
+															})
 														}
 													"
 												>
-													<template
-														#menu-trigger-label
-														>Move
-													</template></TabMoveToMenu
-												>
+													<template #menu-trigger-label>Move </template>
+												</TabMoveToMenu>
 												<AppButton
 													intent="common"
 													size="x-small"
-													@click="copyLinks(group)"
 													type="button"
+													@click="copyLinks(group)"
 												>
 													Copy
 												</AppButton>
 												<DisclosureButton as="template">
-													<AppBtn
-														type="button"
-														color="round-primary"
-													>
-														<XMarkIcon
-															class="h-3 w-3"
-														/>
+													<AppBtn type="button" color="round-primary">
+														<XMarkIcon class="h-3 w-3" />
 													</AppBtn>
 												</DisclosureButton>
 											</div>
@@ -1125,10 +1048,7 @@ watchEffect(() => {
 										leave-from-class="transform scale-100 opacity-100"
 										leave-to-class="transform scale-95 opacity-0"
 									>
-										<DisclosurePanel
-											as="ul"
-											class="px-4 py-4 md:px-6"
-										>
+										<DisclosurePanel as="ul" class="px-4 py-4 md:px-6">
 											<TabRow
 												v-for="tab in group"
 												:key="`${tab.windowId}-${tab.stableId}`"
@@ -1137,9 +1057,7 @@ watchEffect(() => {
 												:loaded-groups="loadedGroups"
 												:tabs-selected="tabsSelected"
 												:history="loadedTabHistory"
-												@toggle-selection="
-													toggleSelection
-												"
+												@toggle-selection="toggleSelection"
 											/>
 										</DisclosurePanel>
 									</transition>
@@ -1151,13 +1069,12 @@ watchEffect(() => {
 			</div>
 			<div v-else-if="searchTerm" class="mt-6">
 				<div
-					class="flex flex-col items-center py-20 text-sm leading-6 text-slate-600 md:py-32 dark:text-vercel-accents-5"
+					class="flex flex-col items-center py-20 text-sm leading-6 text-slate-600 dark:text-vercel-accents-5 md:py-32"
 				>
 					<XMarkIcon class="h-8 w-8" />
 					<p class="mt-6">
 						No matches for
-						<span
-							class="font-semibold text-slate-900 dark:text-white"
+						<span class="font-semibold text-slate-900 dark:text-white"
 							>“{{ searchTerm }}”</span
 						>.
 					</p>
@@ -1166,8 +1083,8 @@ watchEffect(() => {
 		</section>
 		<aside class="hidden lg:col-span-2 lg:block">
 			<div
-				class="sticky top-[88px] space-y-4"
 				v-if="Object.values(grouped).some((row) => row.length)"
+				class="sticky top-[88px] space-y-4"
 			>
 				<section aria-labelledby="who-to-follow-heading">
 					<div class="lg:h-screen lg:overflow-y-auto">
@@ -1230,27 +1147,17 @@ watchEffect(() => {
 												class="mt-2 space-y-4 border-l border-slate-200 pl-6 dark:border-vercel-accents-2"
 											>
 												<li>
-													<button
-														@click="moveTabs(group)"
-													>
+													<button @click="moveTabs(group)">
 														New window
 													</button>
 												</li>
 												<li>
-													<button
-														@click="
-															closeTabs(group)
-														"
-													>
+													<button @click="closeTabs(group)">
 														Close all
 													</button>
 												</li>
 												<li>
-													<button
-														@click="
-															copyLinks(group)
-														"
-													>
+													<button @click="copyLinks(group)">
 														Copy all links
 													</button>
 												</li>
@@ -1279,35 +1186,35 @@ watchEffect(() => {
 				</div>
 				<div class="flex items-center space-x-2">
 					<AppButton
-						@click="closeUnSelectedTabs"
 						type="button"
 						intent="plain-dark"
 						size="small"
+						@click="closeUnSelectedTabs"
 					>
 						Close unselected
 					</AppButton>
 					<AppButton
-						@click="closeSelectedTabs"
 						type="button"
 						intent="plain-dark"
 						size="small"
+						@click="closeSelectedTabs"
 					>
 						Close selected
 					</AppButton>
 					<TabMoveToMenu
 						:tabs="selectedGroup"
-						:loadedGroups="loadedGroups"
-						:windowsMap="windowsMap"
+						:loaded-groups="loadedGroups"
+						:windows-map="windowsMap"
 						@on-create-group="
 							({ tabs: emitedTabs }) => {
-								onCreateNewGroup({ tabs: emitedTabs });
+								onCreateNewGroup({ tabs: emitedTabs })
 							}
 						"
 					>
 						<template #button-trigger="{ trigger }">
 							<AppButton
-								intent="primary"
 								:ref="(el) => trigger(el)"
+								intent="primary"
 								size="small"
 								type="button"
 							>
@@ -1316,26 +1223,22 @@ watchEffect(() => {
 						</template>
 					</TabMoveToMenu>
 					<AppButton
-						@click="storeSession(selectedGroup)"
 						intent="primary"
 						size="small"
 						type="button"
+						@click="storeSession(selectedGroup)"
 					>
 						Save as session
 					</AppButton>
 					<AppButton
-						@click="copyLinks(selectedGroup)"
 						intent="primary"
 						size="small"
 						type="button"
+						@click="copyLinks(selectedGroup)"
 					>
 						Copy
 					</AppButton>
-					<AppBtn
-						@click="tabsSelected.clear()"
-						color="round-dark-primary"
-						type="button"
-					>
+					<AppBtn color="round-dark-primary" type="button" @click="tabsSelected.clear()">
 						<XMarkIcon class="h-3 w-3" />
 					</AppBtn>
 				</div>

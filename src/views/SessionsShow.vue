@@ -50,15 +50,20 @@ const updateSession = () => {
 </script>
 <template>
 	<div class="flex flex-1 flex-col">
-		<div class="container mx-auto py-6 px-4 sm:px-2 lg:max-w-7xl">
+		<div class="container mx-auto px-4 py-6 sm:px-2 lg:max-w-7xl">
 			<!-- This example requires Tailwind CSS v2.0+ -->
-			<div class="px-4 sm:px-6 lg:px-8" v-if="parsedState">
+			<div v-if="parsedState" class="px-4 sm:px-6 lg:px-8">
 				<div class="justify-between sm:flex sm:items-center">
 					<div class="flex flex-col">
-						<h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+						<h1
+							class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white"
+						>
 							Tabs {{ parsedState.tabs.length }}
 						</h1>
-						<nav aria-label="Breadcrumbs" class="order-first flex space-x-2 text-sm font-semibold">
+						<nav
+							aria-label="Breadcrumbs"
+							class="order-first flex space-x-2 text-sm font-semibold"
+						>
 							<router-link
 								class="text-slate-500 hover:text-slate-600 dark:text-vercel-accents-5 dark:hover:text-white"
 								:to="{ name: 'sessions' }"
@@ -74,16 +79,18 @@ const updateSession = () => {
 							</a>
 						</nav>
 					</div>
-					<div class="mt-4 space-x-2 sm:mt-0 sm:ml-16 sm:flex-none">
-						<AppButton intent="primary" size="medium" @click="toggleEdit">Edit</AppButton>
+					<div class="mt-4 space-x-2 sm:ml-16 sm:mt-0 sm:flex-none">
+						<AppButton intent="primary" size="medium" @click="toggleEdit"
+							>Edit</AppButton
+						>
 						<AppModal v-model="openEdit" title="Edit Session">
 							<form @submit.prevent="updateSession">
 								<div class="mt-8 grid grid-cols-1 gap-6">
 									<div>
 										<AppInput
+											id="sesh-title"
 											v-model="data.title"
 											type="text"
-											id="sesh-title"
 											class="dark:bg-black"
 											label="Group label"
 										/>
@@ -92,14 +99,16 @@ const updateSession = () => {
 										<!-- <input v-model="groupModalForm.color" class="dark:bg-black" /> -->
 
 										<AppTextarea
+											id="sesh-description"
 											v-model="data.description"
 											label="Description"
-											id="sesh-description"
 											name="sup"
 										/>
 									</div>
 									<div class="flex justify-end">
-										<AppButton intent="primary" size="medium" type="submit">Save</AppButton>
+										<AppButton intent="primary" size="medium" type="submit">
+											Save
+										</AppButton>
 									</div>
 								</div>
 							</form>

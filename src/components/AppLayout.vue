@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import AppInput from "./forms/AppInput.vue";
-import AppModal from "./AppModal.vue";
-import { RadioGroup, RadioGroupLabel, RadioGroupOption } from "@headlessui/vue";
-import AppButton from "./AppButton.vue";
+import AppInput from './forms/AppInput.vue'
+import AppModal from './AppModal.vue'
+import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
+import AppButton from './AppButton.vue'
 
-import { useChromeTabs } from "@/hooks/useChromeTabs";
-import { useGlobalModals } from "@/hooks/useGlobalModals";
-import { useGlobalConfirm } from "@/hooks/useGlobalConfirm";
-import { router } from "@/router";
+import { useChromeTabs } from '@/hooks/useChromeTabs'
+import { useGlobalModals } from '@/hooks/useGlobalModals'
+import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
+import { router } from '@/router'
 import {
 	Menu,
 	MenuButton,
@@ -16,7 +16,7 @@ import {
 	Popover,
 	PopoverButton,
 	PopoverPanel,
-} from "@headlessui/vue";
+} from '@headlessui/vue'
 
 import {
 	ArrowTrendingUpIcon,
@@ -26,63 +26,62 @@ import {
 	HomeIcon,
 	UserGroupIcon,
 	XMarkIcon,
-} from "@heroicons/vue/24/outline";
+} from '@heroicons/vue/24/outline'
 
-import { useTitle } from "@vueuse/core";
-import { computed } from "vue";
-import DarkModeSwitch from "./DarkModeSwitch.vue";
-const { confirmModalToggle, confirmAction, cancelAction } = useGlobalConfirm();
+import { useTitle } from '@vueuse/core'
+import { computed } from 'vue'
+import DarkModeSwitch from './DarkModeSwitch.vue'
+const { confirmModalToggle, confirmAction, cancelAction } = useGlobalConfirm()
 
-const { groupColors, groupModalToggle, groupModalForm, onGroupFormSummit } =
-	useGlobalModals();
+const { groupColors, groupModalToggle, groupModalForm, onGroupFormSummit } = useGlobalModals()
 
-const commit_hash = __COMMIT_HASH__;
+const commit_hash = __COMMIT_HASH__
 
 const user = {
-	name: "Chelsea Hagon",
-	email: "chelsea.hagon@example.com",
+	name: 'Chelsea Hagon',
+	email: 'chelsea.hagon@example.com',
 	imageUrl:
-		"https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
+		'https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+}
 const navigation = [
-	{ name: "Home", href: "#", icon: HomeIcon, current: true },
-	{ name: "Popular", href: "#", icon: FireIcon, current: false },
-	{ name: "Communities", href: "#", icon: UserGroupIcon, current: false },
-	{ name: "Trending", href: "#", icon: ArrowTrendingUpIcon, current: false },
-];
+	{ name: 'Home', href: '#', icon: HomeIcon, current: true },
+	{ name: 'Popular', href: '#', icon: FireIcon, current: false },
+	{ name: 'Communities', href: '#', icon: UserGroupIcon, current: false },
+	{ name: 'Trending', href: '#', icon: ArrowTrendingUpIcon, current: false },
+]
 const userNavigation = [
-	{ name: "Other Devices", href: "#" },
-	{ name: "Settings", href: "#" },
+	{ name: 'Other Devices', href: '#' },
+	{ name: 'Settings', href: '#' },
 	// { name: 'Sign out', href: '#' },
-];
+]
 const tabs = computed(() =>
 	[
-		{ name: "Tabs", href: "index", current: false },
-		{ name: "Sessions", href: "sessions", current: false },
-		{ name: "Utils", href: "utilities", current: false },
+		{ name: 'Tabs', href: 'index', current: false },
+		{ name: 'Sessions', href: 'sessions', current: false },
+		{ name: 'Utils', href: 'utilities', current: false },
 	].map((row) => ({
 		...row,
 		current: router.currentRoute.value.name == row.href,
 	})),
-);
+)
 
-const { loadedTabs, initlisteners } = useChromeTabs();
-initlisteners();
+const { loadedTabs, initlisteners } = useChromeTabs()
+initlisteners()
 const title = computed(() => {
-	return `${loadedTabs.value.length}`;
-});
-useTitle(title);
+	return `${loadedTabs.value.length}`
+})
+useTitle(title)
 </script>
 
 <template>
 	<div class="flex min-h-full flex-1 flex-col">
 		<!-- When the mobile menu is open, add `overflow-hidden` to the `body` element to prevent double scrollbars -->
 		<!-- v-slot="{ href, route, navigate, isActive, isExactActive }" -->
-		<Popover as="template" v-slot="{ open }">
+		<Popover v-slot="{ open }" as="template">
 			<header
 				:class="[
 					open ? 'fixed inset-0 z-40 overflow-y-auto' : '',
-					'firefox:bg-opacity-90 sticky top-0 z-50  h-[72px] bg-white bg-opacity-50 shadow-sm  backdrop-blur backdrop-filter lg:overflow-y-visible  dark:bg-black dark:bg-opacity-20',
+					'firefox:bg-opacity-90 sticky top-0 z-50  h-[72px] bg-white bg-opacity-50 shadow-sm  backdrop-blur backdrop-filter dark:bg-black  dark:bg-opacity-20 lg:overflow-y-visible',
 				]"
 			>
 				<div class="mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -103,9 +102,7 @@ useTitle(title);
 								</a>
 							</div>
 						</div>
-						<div
-							class="h-full min-w-0 flex-1 md:px-8 lg:px-0 xl:col-span-6"
-						>
+						<div class="h-full min-w-0 flex-1 md:px-8 lg:px-0 xl:col-span-6">
 							<div
 								class="flex h-full items-center px-6 md:mx-auto md:max-w-3xl lg:mx-0 lg:max-w-none xl:px-0"
 							>
@@ -118,9 +115,7 @@ useTitle(title);
 											v-for="(tab, tabIdx) in tabs"
 											:key="tab.name"
 											:to="{ name: tab.href }"
-											:aria-current="
-												tab.current ? 'page' : undefined
-											"
+											:aria-current="tab.current ? 'page' : undefined"
 											:class="[
 												tab.current
 													? 'text-gray-900 dark:text-white'
@@ -156,21 +151,11 @@ useTitle(title);
 								class="-mx-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-rose-500"
 							>
 								<span class="sr-only">Open menu</span>
-								<Bars3Icon
-									v-if="!open"
-									class="block h-6 w-6"
-									aria-hidden="true"
-								/>
-								<XMarkIcon
-									v-else
-									class="block h-6 w-6"
-									aria-hidden="true"
-								/>
+								<Bars3Icon v-if="!open" class="block h-6 w-6" aria-hidden="true" />
+								<XMarkIcon v-else class="block h-6 w-6" aria-hidden="true" />
 							</PopoverButton>
 						</div>
-						<div
-							class="hidden lg:flex lg:items-center lg:justify-end xl:col-span-4"
-						>
+						<div class="hidden lg:flex lg:items-center lg:justify-end xl:col-span-4">
 							<a
 								href="https://github.com/gcavanunez/unknown-tab"
 								class="text-sm font-medium text-gray-900 hover:underline dark:text-white"
@@ -192,16 +177,9 @@ useTitle(title);
 									<MenuButton
 										class="flex items-center rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-papaya-900 focus:ring-offset-2 dark:text-vercel-accents-5 dark:hover:text-white dark:focus:ring-offset-black"
 									>
-										<span class="sr-only"
-											>Open user menu</span
-										>
-										<RectangleStackIcon
-											class="h-6 w-6"
-											aria-hidden="true"
-										/>
-										<span class="ml-1">{{
-											loadedTabs.length
-										}}</span>
+										<span class="sr-only">Open user menu</span>
+										<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />
+										<span class="ml-1">{{ loadedTabs.length }}</span>
 									</MenuButton>
 								</div>
 								<transition
@@ -268,38 +246,26 @@ useTitle(title);
 				</div> -->
 
 				<PopoverPanel as="nav" class="lg:hidden" aria-label="Global">
-					<div
-						class="mx-auto max-w-3xl space-y-1 px-2 pb-3 pt-2 sm:px-4"
-					>
+					<div class="mx-auto max-w-3xl space-y-1 px-2 pb-3 pt-2 sm:px-4">
 						<a
 							v-for="item in navigation"
 							:key="item.name"
 							:href="item.href"
 							:aria-current="item.current ? 'page' : undefined"
 							:class="[
-								item.current
-									? 'bg-gray-100 text-gray-900'
-									: 'hover:bg-gray-50',
+								item.current ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50',
 								'block rounded-md px-3 py-2 text-base font-medium',
 							]"
 							>{{ item.name }}</a
 						>
 					</div>
 					<div class="border-t border-gray-200 pt-4">
-						<div
-							class="mx-auto flex max-w-3xl items-center px-4 sm:px-6"
-						>
+						<div class="mx-auto flex max-w-3xl items-center px-4 sm:px-6">
 							<div class="flex-shrink-0">
-								<img
-									class="h-10 w-10 rounded-full"
-									:src="user.imageUrl"
-									alt=""
-								/>
+								<img class="h-10 w-10 rounded-full" :src="user.imageUrl" alt="" />
 							</div>
 							<div class="ml-3">
-								<div
-									class="text-base font-medium text-gray-800"
-								>
+								<div class="text-base font-medium text-gray-800">
 									{{ user.name }}
 								</div>
 								<div class="text-sm font-medium text-gray-500">
@@ -311,15 +277,10 @@ useTitle(title);
 								class="ml-auto flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
 							>
 								<span class="sr-only">View notifications</span>
-								<RectangleStackIcon
-									class="h-6 w-6"
-									aria-hidden="true"
-								/>
+								<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />
 							</button>
 						</div>
-						<div
-							class="mx-auto mt-3 max-w-3xl space-y-1 px-2 sm:px-4"
-						>
+						<div class="mx-auto mt-3 max-w-3xl space-y-1 px-2 sm:px-4">
 							<a
 								v-for="item in userNavigation"
 								:key="item.name"
@@ -366,45 +327,31 @@ useTitle(title);
 						<div>
 							<!-- <input v-model="groupModalForm.color" class="dark:bg-black" /> -->
 							<div>
-								<h2
-									class="text-sm font-medium text-gray-900 dark:text-white"
-								>
+								<h2 class="text-sm font-medium text-gray-900 dark:text-white">
 									Color
 								</h2>
 
-								<RadioGroup
-									v-model="groupModalForm.color"
-									class="mt-2"
-								>
+								<RadioGroup v-model="groupModalForm.color" class="mt-2">
 									<RadioGroupLabel class="sr-only">
 										Choose a color
 									</RadioGroupLabel>
-									<div
-										class="flex flex-wrap items-center gap-3"
-									>
+									<div class="flex flex-wrap items-center gap-3">
 										<RadioGroupOption
-											as="template"
 											v-for="color in groupColors"
 											:key="color.hex"
-											:value="color.value"
 											v-slot="{ active, checked }"
+											as="template"
+											:value="color.value"
 										>
 											<div
 												:class="[
 													color.selectedColor,
-													active && checked
-														? 'ring ring-offset-1'
-														: '',
-													!active && checked
-														? 'ring-2'
-														: '',
+													active && checked ? 'ring ring-offset-1' : '',
+													!active && checked ? 'ring-2' : '',
 													'relative -m-0.5 flex cursor-pointer items-center justify-center rounded-full p-0.5 focus:outline-none',
 												]"
 											>
-												<RadioGroupLabel
-													as="span"
-													class="sr-only"
-												>
+												<RadioGroupLabel as="span" class="sr-only">
 													{{ color.value }}
 												</RadioGroupLabel>
 												<span
@@ -421,12 +368,7 @@ useTitle(title);
 							</div>
 						</div>
 						<div class="flex justify-end">
-							<AppButton
-								intent="primary"
-								size="medium"
-								type="submit"
-								>Save</AppButton
-							>
+							<AppButton intent="primary" size="medium" type="submit">Save</AppButton>
 						</div>
 					</div>
 				</form>
@@ -434,11 +376,7 @@ useTitle(title);
 
 			<!-- Group Settings Modal -->
 			<!-- Session Modal -->
-			<AppModal
-				v-model="confirmModalToggle"
-				title="Confirm action"
-				v-slot="slotProps"
-			>
+			<AppModal v-slot="slotProps" v-model="confirmModalToggle" title="Confirm action">
 				<div class="mt-2">
 					<p class="text-sm text-slate-500 dark:text-slate-400">
 						This action cannot be undone.
@@ -446,20 +384,15 @@ useTitle(title);
 				</div>
 
 				<div class="mt-4 space-x-4">
-					<AppButton
-						@click="confirmAction"
-						intent="primary"
-						size="medium"
-						type="button"
-					>
+					<AppButton intent="primary" size="medium" type="button" @click="confirmAction">
 						Confirm
 					</AppButton>
 					<AppButton
 						:ref="(el) => slotProps.trigger(el)"
-						@click="cancelAction"
 						intent="secondary"
 						size="medium"
 						type="button"
+						@click="cancelAction"
 					>
 						Cancel
 					</AppButton>

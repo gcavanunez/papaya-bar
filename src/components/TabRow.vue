@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { format, formatDistance } from 'date-fns'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { PlusIcon, XMarkIcon, MinusIcon, ChevronUpIcon } from '@heroicons/vue/20/solid'
+import {
+	PlusIcon,
+	XMarkIcon,
+	MinusIcon,
+	ChevronUpIcon,
+} from '@heroicons/vue/20/solid'
 import { closeTab, copyLink, moveTabTo, goTo } from '@/helpers'
 import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
@@ -17,7 +22,8 @@ interface Props {
 	loadedGroups: Group[]
 	history: HistoryMap
 }
-const { tab, tabsSelected, windowsMap, history, loadedGroups } = defineProps<Props>()
+const { tab, tabsSelected, windowsMap, history, loadedGroups } =
+	defineProps<Props>()
 const emit = defineEmits<{
 	(e: 'toggleSelection', tab: Tab): void
 }>()
@@ -34,7 +40,11 @@ const tabHistory = computed(() => {
 		return []
 	}
 	return [...hasHistory]
-		.sort((a, b) => new Date(b.visitTime!).getTime() - new Date(a.visitTime!).getTime())
+		.sort(
+			(a, b) =>
+				new Date(b.visitTime!).getTime() -
+				new Date(a.visitTime!).getTime(),
+		)
 		.map((row) => ({
 			...row,
 			humanDistance: formatDistance(new Date(row.visitTime!), new Date()),
@@ -44,20 +54,22 @@ const tabHistory = computed(() => {
 </script>
 
 <template>
-	<li class="group w-full py-2" :key="`${tab.windowId}-${tab.stableId}`">
+	<li :key="`${tab.windowId}-${tab.stableId}`" class="group w-full py-2">
 		<Disclosure v-slot="{ open }">
 			<div
 				class="relative overflow-hidden rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5 transition dark:ring-vercel-accents-2"
 				:style="{
-					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color,
+					borderColor: loadedGroups.find(
+						(row) => row.id === tab.groupId,
+					)?.color,
 				}"
 				:class="{
 					'group-hover:border-l-slate-200  dark:border-black dark:group-hover:border-vercel-accents-1':
-						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
-						!tabsSelected.has(tab.stableId),
-					'group-hover:border-papaya-500/85 border-papaya-500':
-						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
-						tabsSelected.has(tab.stableId),
+						!loadedGroups.find((row) => row.id === tab.groupId)
+							?.color && !tabsSelected.has(tab.stableId),
+					'border-papaya-500 group-hover:border-papaya-500/85':
+						!loadedGroups.find((row) => row.id === tab.groupId)
+							?.color && tabsSelected.has(tab.stableId),
 				}"
 			>
 				<!-- layer over the button -->
@@ -70,8 +82,11 @@ const tabHistory = computed(() => {
 							class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow-md transition dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white dark:active:bg-vercel-accents-2 dark:active:text-white"
 							@click="emit('toggleSelection', tab)"
 						>
-							<PlusIcon class="h-4 w-4" v-if="!tabsSelected.has(tab.stableId)" />
-							<MinusIcon class="h-4 w-4" v-else />
+							<PlusIcon
+								v-if="!tabsSelected.has(tab.stableId)"
+								class="h-4 w-4"
+							/>
+							<MinusIcon v-else class="h-4 w-4" />
 						</button>
 					</div>
 					<div
@@ -80,9 +95,9 @@ const tabHistory = computed(() => {
 						<div class="relative inline-flex flex-col text-left">
 							<TabMoveToMenu
 								:tabs="[tab]"
-								:loadedGroups="loadedGroups"
-								:windowsMap="windowsMap"
-								:canCreateGroup="false"
+								:loaded-groups="loadedGroups"
+								:windows-map="windowsMap"
+								:can-create-group="false"
 							/>
 							<!-- <Menu v-slot="{ open }">
 								<span class="pointer-events-auto relative inline-flex text-left">
@@ -167,19 +182,31 @@ const tabHistory = computed(() => {
 							/>
 						</AppBtn> -->
 						<DisclosureButton as="template">
-							<AppButton :class="{ 'opacity-80': open }" intent="common" size="x-small">
+							<AppButton
+								:class="{ 'opacity-80': open }"
+								intent="common"
+								size="x-small"
+							>
 								<span class="flex items-center">
 									<span>History</span>
 									<ChevronUpIcon
-										:class="!open ? 'rotate-180 transform' : ''"
-										class="ml-1 -mr-1 h-2.5 w-2.5 text-slate-800 transition dark:text-white"
+										:class="
+											!open ? 'rotate-180 transform' : ''
+										"
+										class="-mr-1 ml-1 h-2.5 w-2.5 text-slate-800 transition dark:text-white"
 										aria-hidden="true"
 									/>
 								</span>
 							</AppButton>
 						</DisclosureButton>
-						<AppButton intent="common" size="x-small" @click="copyLink(tab)"> Copy </AppButton>
-						<AppBtn @click="closeTab([tab])" color="round-primary">
+						<AppButton
+							intent="common"
+							size="x-small"
+							@click="copyLink(tab)"
+						>
+							Copy
+						</AppButton>
+						<AppBtn color="round-primary" @click="closeTab([tab])">
 							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>
 					</div>
@@ -191,24 +218,27 @@ const tabHistory = computed(() => {
 							loadedGroups.find((row) => row.id === tab.groupId)?.color || 'transparent',
 					}" -->
 				<button
-					class="flex w-full items-center rounded py-2 px-2"
+					class="flex w-full items-center rounded px-2 py-2"
 					:class="
 						!tabsSelected.has(tab.stableId)
 							? 'bg-white group-hover:bg-slate-200 dark:bg-black dark:group-hover:bg-vercel-accents-1'
-							: 'group-hover:bg-papaya-500/85 bg-papaya-500'
+							: 'bg-papaya-500 group-hover:bg-papaya-500/85'
 					"
 					:title="tab.url"
 					@click="goTo(tab)"
 				>
 					<div class="shrink-0">
 						<img
+							v-if="!hasImageError && tab.favIconUrl"
 							class="h-8 w-8 rounded-full"
 							:src="tab.favIconUrl"
 							alt=""
 							@error="onImageLoadError"
-							v-if="!hasImageError && tab.favIconUrl"
 						/>
-						<div class="h-8 w-8 rounded-full bg-slate-700" v-else></div>
+						<div
+							v-else
+							class="h-8 w-8 rounded-full bg-slate-700"
+						></div>
 					</div>
 					<div
 						class="ml-2 truncate text-sm font-medium group-hover:mr-40 group-focus:truncate"
@@ -225,7 +255,10 @@ const tabHistory = computed(() => {
 			<DisclosurePanel class="px-4 text-sm text-slate-500">
 				<!-- <ul role="list" class="mt-2 space-y-4 border-l border-slate-200 pl-6"> -->
 				<ul role="list" class="mt-2 pl-2">
-					<li v-for="(historyEvent, index) in tabHistory" :key="historyEvent.id">
+					<li
+						v-for="(historyEvent, index) in tabHistory"
+						:key="historyEvent.id"
+					>
 						<div class="grid grid-cols-12">
 							<div
 								class="false relative col-span-12 flex flex-col gap-8 border-slate-200 pb-1 lg:pl-8"
@@ -233,12 +266,13 @@ const tabHistory = computed(() => {
 								<div
 									class="absolute left-0 top-[4px] h-full"
 									:class="{
-										' border-l border-slate-200': index !== tabHistory.length - 1,
+										' border-l border-slate-200':
+											index !== tabHistory.length - 1,
 									}"
 								></div>
 								<div class="flex flex-col gap-4 pl-4 lg:pl-0">
 									<div
-										class="absolute mt-[4px] -ml-[21px] h-3 w-3 rounded-full border border-slate-100 bg-slate-300 lg:-ml-[37.5px]"
+										class="absolute -ml-[21px] mt-[4px] h-3 w-3 rounded-full border border-slate-100 bg-slate-300 lg:-ml-[37.5px]"
 									></div>
 									<div class="flex items-end justify-between">
 										<div class="dark:text-vercel-accents-4">
