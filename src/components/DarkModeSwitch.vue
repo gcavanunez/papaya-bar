@@ -53,8 +53,8 @@ const enabled = computed({
 				leave-from-class="transform opacity-100 scale-100"
 				leave-to-class="transform opacity-0 scale-95"
 			>
-				<MoonIcon class="h-4 w-4" v-if="enabled"></MoonIcon>
-				<SunIcon class="h-4 w-4" v-else></SunIcon>
+				<MoonIcon v-if="enabled" class="h-4 w-4"></MoonIcon>
+				<SunIcon v-else class="h-4 w-4"></SunIcon>
 			</transition>
 		</span>
 	</Switch>

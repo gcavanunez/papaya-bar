@@ -1,27 +1,27 @@
 <script setup lang="ts">
-import AppBtn from "@/components/AppBtn.vue";
-import { formatDistance } from "date-fns";
-import { useChromeTabs } from "@/hooks/useChromeTabs";
-import { useSessionsData } from "@/hooks/useSessionsData";
-import { computed, ref } from "vue";
-import AppButton from "@/components/AppButton.vue";
-import AppInput from "@/components/forms/AppInput.vue";
-const { loadedTabs } = useChromeTabs();
+import AppBtn from '@/components/AppBtn.vue'
+import { formatDistance } from 'date-fns'
+import { useChromeTabs } from '@/hooks/useChromeTabs'
+import { useSessionsData } from '@/hooks/useSessionsData'
+import { computed, ref } from 'vue'
+import AppButton from '@/components/AppButton.vue'
+import AppInput from '@/components/forms/AppInput.vue'
+const { loadedTabs } = useChromeTabs()
 const {
 	state,
 	storeSession,
 	openAll,
 	removeSavedSession,
 	downloadSavedSession,
-} = useSessionsData();
+} = useSessionsData()
 
-const search = ref("");
+const search = ref('')
 const parsedState = computed(() => {
 	return [...state.value.entries()]
 		.map(([key, value]) => {
 			const matches = value.tabs.filter((row) => {
 				if (!row.title || !row.url) {
-					return false;
+					return false
 				}
 
 				return (
@@ -31,19 +31,19 @@ const parsedState = computed(() => {
 					row.url
 						.toLocaleLowerCase()
 						.indexOf(search.value.toLocaleLowerCase()) > -1
-				);
-			});
+				)
+			})
 			return {
 				key,
 				matches,
 				humanDistance: formatDistance(new Date(key), new Date()),
 				...value,
-			};
+			}
 		})
 		.toSorted(
 			(a, b) => new Date(b.key).getTime() - new Date(a.key).getTime(),
-		);
-});
+		)
+})
 // const matchse
 </script>
 <template>
@@ -81,7 +81,7 @@ const parsedState = computed(() => {
 				</div>
 				<div class="mt-6 flex">
 					<div class="lg:w-96">
-						<AppInput label="Search" v-model="search" />
+						<AppInput v-model="search" label="Search" />
 					</div>
 				</div>
 				<div class="mt-8 flex flex-col">
@@ -185,7 +185,7 @@ const parsedState = computed(() => {
 												>
 													{{ value.title }}
 												</span>
-												<span class="italic" v-else
+												<span v-else class="italic"
 													>without description</span
 												>
 											</td>

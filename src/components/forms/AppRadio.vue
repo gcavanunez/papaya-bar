@@ -36,11 +36,11 @@ const selected = ref(plans[0])
 		<RadioGroupLabel class="sr-only">Server size</RadioGroupLabel>
 		<div class="space-y-2">
 			<RadioGroupOption
-				as="template"
 				v-for="plan in plans"
 				:key="plan.name"
-				:value="plan"
 				v-slot="{ active, checked, disabled }"
+				as="template"
+				:value="plan"
 			>
 				<!-- <div
 					:class="[

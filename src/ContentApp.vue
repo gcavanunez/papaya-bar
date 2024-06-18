@@ -15,7 +15,7 @@
   ```
 -->
 <template>
-	<TransitionRoot :show="open" as="template" @after-leave="query = ''" appear>
+	<TransitionRoot :show="open" as="template" appear @after-leave="query = ''">
 		<Dialog as="div" class="relative z-10" @close="open = false">
 			<TransitionChild
 				as="template"
@@ -42,7 +42,7 @@
 					<DialogPanel
 						class="mx-auto max-w-xl transform rounded-xl bg-white p-2 shadow-2xl ring-1 ring-black ring-opacity-5 transition-all"
 					>
-						<Combobox @update:modelValue="onSelect">
+						<Combobox @update:model-value="onSelect">
 							<ComboboxInput
 								class="w-full rounded-md border-0 bg-gray-100 px-4 py-2.5 text-gray-900 placeholder-gray-500 focus:ring-0 sm:text-sm"
 								placeholder="Search..."
@@ -57,9 +57,9 @@
 								<ComboboxOption
 									v-for="person in filteredPeople"
 									:key="person.id"
+									v-slot="{ active }"
 									:value="person"
 									as="template"
-									v-slot="{ active }"
 								>
 									<li
 										:class="[

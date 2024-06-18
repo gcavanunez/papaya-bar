@@ -27,14 +27,13 @@ export const getTabHistory = async (tabs: SaveableTab[]) => {
 
 export const moveTabTo = (
 	tabs: Tab[],
-	{ containerId, type }: { containerId: number; type: moveToTypes }
+	{ containerId, type }: { containerId: number; type: moveToTypes },
 ) => {
 	if (type === 'window_container') {
 		tabs.forEach((row) => {
 			if (row.id) {
 				chrome.tabs.move(row.id, {
 					index: -1,
-					// windowId
 					windowId: containerId,
 				})
 			}
@@ -45,7 +44,6 @@ export const moveTabTo = (
 			groupId: containerId,
 			tabIds: tabs.filter((row) => row.id).map((row) => row.id!),
 		})
-		// chrome.tabGroups.move()
 	}
 }
 
@@ -65,9 +63,6 @@ export const closeTab = (tabs: Tab[]) => {
 }
 
 export const goTo = (tab: Tab) => {
-	// chrome.tabs.get(tab.id, function (onTab) {
-	//   chrome.tabs.highlight({ tabs: onTab.index }, function () {})
-	// })
 	chrome.tabs.query({}, function (tabs) {
 		if (tabs.length) {
 			if (tab.id && tabs.find((row) => row.id == tab.id)) {
@@ -82,7 +77,7 @@ export const goTo = (tab: Tab) => {
 export const moveTabs = async (tabs: Tab[]) => {
 	const newWindow = await chrome.windows.create({})
 	const newTab = newWindow.tabs
-	tabs.forEach((row, index) => {
+	tabs.forEach((row) => {
 		if (row.id) {
 			chrome.tabs.move(row.id, {
 				index: -1,
@@ -96,7 +91,7 @@ export const moveTabs = async (tabs: Tab[]) => {
 }
 export const closeDuplicates = (loadedTabs: Tab[]) => {
 	const duplicates = loadedTabs.filter(
-		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index
+		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index,
 	)
 	closeTab(duplicates)
 }

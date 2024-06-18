@@ -1,54 +1,45 @@
-import { getTabHistory } from "@/helpers";
-import {
-	ChromeTab,
-	Group,
-	HistoryMap,
-	LookUpTab,
-	Tab,
-	WindowsMap,
-} from "@/types";
+import { getTabHistory } from '@/helpers'
+import { ChromeTab, Group, HistoryMap, LookUpTab, Tab } from '@/types'
 
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useChromeWindowsMap } from "./useChromeWindowsMap";
+import { onUnmounted, ref } from 'vue'
+import { useChromeWindowsMap } from './useChromeWindowsMap'
 
-const loadedTabs = ref<Tab[]>([]);
-const loadedTabHistory = ref<HistoryMap>(new Map());
-const lookUpTab = ref<LookUpTab>({});
-const loadedGroups = ref<Group[]>([]);
-const loadedCurrentWindowId = ref<number>();
+const loadedTabs = ref<Tab[]>([])
+const loadedTabHistory = ref<HistoryMap>(new Map())
+const lookUpTab = ref<LookUpTab>({})
+const loadedGroups = ref<Group[]>([])
+const loadedCurrentWindowId = ref<number>()
 
 export const useChromeTabs = () => {
 	const windowsMap = useChromeWindowsMap({
 		loadedTabs,
 		loadedCurrentWindowId: loadedCurrentWindowId.value,
-	});
+	})
 
 	const init = async () => {
 		const [tabs, currentWindowId, groups] = await Promise.all([
 			new Promise<ChromeTab[]>((resolve) => {
-				chrome.tabs.query({}, (tabs) => resolve(tabs));
+				chrome.tabs.query({}, (tabs) => resolve(tabs))
 			}),
 			new Promise<number | undefined>((resolve) => {
-				chrome.windows.getCurrent({}, ({ id }) => resolve(id));
+				chrome.windows.getCurrent({}, ({ id }) => resolve(id))
 			}),
 			new Promise<Group[]>((resolve) => {
-				chrome.tabGroups.query({}, (group) => resolve(group));
+				chrome.tabGroups.query({}, (group) => resolve(group))
 			}),
-		]);
-		console.log(tabs.length, currentWindowId, groups.length);
-		loadedCurrentWindowId.value = currentWindowId;
+		])
+		console.log(tabs.length, currentWindowId, groups.length)
+		loadedCurrentWindowId.value = currentWindowId
 
 		loadedTabs.value = tabs.map((row) => ({
 			...row,
 			stableId: `stableId-${row.id}`,
-		}));
+		}))
 
-		const {
-			loadedTabHistory: loadedTabHistoryValues,
-			lookUpTab: lookUpTabValues,
-		} = await getTabHistory(loadedTabs.value);
-		loadedTabHistory.value = loadedTabHistoryValues;
-		lookUpTab.value = lookUpTabValues;
+		const { loadedTabHistory: loadedTabHistoryValues, lookUpTab: lookUpTabValues } =
+			await getTabHistory(loadedTabs.value)
+		loadedTabHistory.value = loadedTabHistoryValues
+		lookUpTab.value = lookUpTabValues
 
 		// let count = Object.values(Object.fromEntries(loadedTabHistory.value.entries())).reduce(
 		// 	(acc, curr) => acc + curr.length,
@@ -84,65 +75,41 @@ export const useChromeTabs = () => {
 		// tabHistoryResults.forEach((tabHistory) => {
 		//   tabHistory
 		// })
-		loadedGroups.value = groups;
-	};
+		loadedGroups.value = groups
+	}
 	// onMounted(() => {
 	// To be able to load in dev environment
 	const fire = () => {
-		init();
-	};
+		init()
+	}
 	// this whole portion needs to be refactored to also removeListener
 	const initlisteners = () => {
 		if (chrome.tabs) {
-			console.log("---initing---");
-			fire();
-			chrome.tabs.onUpdated.addListener(fire);
-			chrome.tabs.onRemoved.addListener(fire);
-			chrome.tabs.onMoved.addListener(fire);
-			chrome.tabs.onAttached.addListener(fire);
-			chrome.tabGroups.onCreated.addListener(fire);
-			chrome.tabGroups.onMoved.addListener(fire);
-			chrome.tabGroups.onRemoved.addListener(fire);
-			chrome.tabGroups.onUpdated.addListener(fire);
+			console.log('---initing---')
+			fire()
+			chrome.tabs.onUpdated.addListener(fire)
+			chrome.tabs.onRemoved.addListener(fire)
+			chrome.tabs.onMoved.addListener(fire)
+			chrome.tabs.onAttached.addListener(fire)
+			chrome.tabGroups.onCreated.addListener(fire)
+			chrome.tabGroups.onMoved.addListener(fire)
+			chrome.tabGroups.onRemoved.addListener(fire)
+			chrome.tabGroups.onUpdated.addListener(fire)
 		}
 		onUnmounted(() => {
 			if (chrome.tabs) {
-				console.log("---killing---");
-				chrome.tabs.onUpdated.removeListener(fire);
-				chrome.tabs.onRemoved.removeListener(fire);
-				chrome.tabs.onMoved.removeListener(fire);
-				chrome.tabs.onAttached.removeListener(fire);
-				chrome.tabGroups.onCreated.removeListener(fire);
-				chrome.tabGroups.onMoved.removeListener(fire);
-				chrome.tabGroups.onRemoved.removeListener(fire);
-				chrome.tabGroups.onUpdated.removeListener(fire);
+				console.log('---killing---')
+				chrome.tabs.onUpdated.removeListener(fire)
+				chrome.tabs.onRemoved.removeListener(fire)
+				chrome.tabs.onMoved.removeListener(fire)
+				chrome.tabs.onAttached.removeListener(fire)
+				chrome.tabGroups.onCreated.removeListener(fire)
+				chrome.tabGroups.onMoved.removeListener(fire)
+				chrome.tabGroups.onRemoved.removeListener(fire)
+				chrome.tabGroups.onUpdated.removeListener(fire)
 			}
-		});
-	};
-
-	// implicit approach
-	// const fire = () => {
-	// 	init()
-	// }
-	// onMounted(() => {
-	// 	if (chrome.tabs) {
-	// 		console.log('---initing---')
-	// 		chrome.tabs.onUpdated.addListener(fire)
-	// 		chrome.tabs.onRemoved.addListener(fire)
-	// 		chrome.tabs.onMoved.addListener(fire)
-	// 		chrome.tabs.onAttached.addListener(fire)
-	// 	}
-	// })
-	// onUnmounted(() => {
-	// 	if (chrome.tabs) {
-	// 		console.log('---killing---')
-	// 		chrome.tabs.onUpdated.removeListener(fire)
-	// 		chrome.tabs.onRemoved.removeListener(fire)
-	// 		chrome.tabs.onMoved.removeListener(fire)
-	// 		chrome.tabs.onAttached.removeListener(fire)
-	// 	}
-	// })
-	// })
+		})
+	}
 
 	return {
 		loadedTabs,
@@ -151,5 +118,5 @@ export const useChromeTabs = () => {
 		lookUpTab,
 		windowsMap,
 		initlisteners,
-	};
-};
+	}
+}

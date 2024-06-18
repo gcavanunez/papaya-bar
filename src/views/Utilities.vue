@@ -37,10 +37,10 @@ const openLinks = async () => {
 						<div class="space-y-6 bg-white py-5 px-4 dark:bg-black sm:p-6">
 							<div>
 								<AppTextarea
+									id="input-links"
 									v-model="textWithUrls"
 									label="Input your text"
 									rows="15"
-									id="input-links"
 									name="input_links"
 								/>
 							</div>
@@ -52,11 +52,11 @@ const openLinks = async () => {
 						<div class="space-y-6 bg-white py-5 px-4 dark:bg-black sm:p-6">
 							<div>
 								<AppTextarea
-									:modelValue="parsedUrls.join('\n\n')"
+									id="output-links"
+									:model-value="parsedUrls.join('\n\n')"
 									label="Links matched"
 									readonly
 									rows="15"
-									id="output-links"
 									name="output_links"
 								/>
 							</div>

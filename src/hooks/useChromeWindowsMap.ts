@@ -1,5 +1,4 @@
 import { SaveableTab, WindowsMap } from '@/types'
-import { MaybeRef } from '@vueuse/core'
 import { computed, Ref } from 'vue'
 
 type UseChromeTabsArgs = {

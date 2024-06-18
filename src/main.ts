@@ -1,9 +1,8 @@
-import { App as AppVue, createApp } from 'vue'
+import { createApp } from 'vue'
 import { router } from './router'
 import 'focus-visible'
 import './index.css'
 import App from './App.vue'
-// main.js
 import 'v-calendar/dist/style.css'
 
 import VCalendar from 'v-calendar'

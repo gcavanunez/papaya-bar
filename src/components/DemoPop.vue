@@ -44,7 +44,7 @@
               <div class="py-1">
                 <MenuItem
                   as="a"
-                  :className="resolveClass"
+                  :class-name="resolveClass"
                   href="#account-settings"
                 >
                   Account settings
@@ -54,18 +54,18 @@
                 </MenuItem>
                 <MenuItem
                   as="a"
-                  :className="resolveClass"
+                  :class-name="resolveClass"
                   disabled
                   href="#new-feature"
                 >
                   New feature (soon)
                 </MenuItem>
-                <MenuItem as="a" :className="resolveClass" href="#license"
+                <MenuItem as="a" :class-name="resolveClass" href="#license"
                   >License</MenuItem
                 >
               </div>
               <div class="py-1">
-                <MenuItem as="a" :className="resolveClass" href="#sign-out"
+                <MenuItem as="a" :class-name="resolveClass" href="#sign-out"
                   >Sign out</MenuItem
                 >
               </div>

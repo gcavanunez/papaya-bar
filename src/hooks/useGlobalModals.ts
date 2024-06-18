@@ -45,7 +45,7 @@ export const useGlobalModals = () => {
 		tabs: Tab[]
 		form: chrome.tabGroups.UpdateProperties
 	}) => {
-		let ids: number[] = []
+		const ids: number[] = []
 		for (const tab of tabs) {
 			if (tab.id) {
 				ids.push(tab.id)

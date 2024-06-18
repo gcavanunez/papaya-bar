@@ -81,7 +81,7 @@ useTitle(title)
 			<header
 				:class="[
 					open ? 'fixed inset-0 z-40 overflow-y-auto' : '',
-					'firefox:bg-opacity-90 sticky top-0 z-50  h-[72px] bg-white bg-opacity-50 shadow-sm  backdrop-blur backdrop-filter dark:bg-black  dark:bg-opacity-20 lg:overflow-y-visible',
+					'firefox:bg-opacity-90 sticky top-0 z-50 h-[72px] bg-white bg-opacity-50 shadow-sm backdrop-blur backdrop-filter dark:bg-black dark:bg-opacity-20 lg:overflow-y-visible',
 				]"
 			>
 				<div class="mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -112,7 +112,7 @@ useTitle(title)
 										aria-label="Tabs"
 									>
 										<router-link
-											v-for="(tab, tabIdx) in tabs"
+											v-for="tab in tabs"
 											:key="tab.name"
 											:to="{ name: tab.href }"
 											:aria-current="tab.current ? 'page' : undefined"
@@ -135,7 +135,7 @@ useTitle(title)
 													tab.current
 														? 'bg-papaya-900'
 														: 'bg-transparent',
-													'absolute inset-x-0 bottom-0 h-0.5 ',
+													'absolute inset-x-0 bottom-0 h-0.5',
 												]"
 											/>
 										</router-link>

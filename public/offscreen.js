@@ -20,26 +20,26 @@
 // Registering this listener when the script is first executed ensures that the
 // offscreen document will be able to receive messages when the promise returned
 // by `offscreen.createDocument()` resolves.
-chrome.runtime.onMessage.addListener(handleMessages);
+chrome.runtime.onMessage.addListener(handleMessages)
 
 // This function performs basic filtering and error checking on messages before
 // dispatching the
 // message to a more specific message handler.
 async function handleMessages(message) {
 	// Return early if this message isn't meant for the offscreen document.
-	if (message.target !== "offscreen-doc") {
-		return;
+	if (message.target !== 'offscreen-doc') {
+		return
 	}
 
 	// Dispatch the message to an appropriate handler.
 	switch (message.type) {
-		case "copy-data-to-clipboard":
-			handleClipboardWrite(message.data);
-			break;
+		case 'copy-data-to-clipboard':
+			handleClipboardWrite(message.data)
+			break
 		default:
 			console.warn(
 				`Unexpected message type received: '${message.type}'.`,
-			);
+			)
 	}
 }
 
@@ -54,11 +54,11 @@ async function handleMessages(message) {
 // requires that the window is focused, but offscreen documents cannot be
 // focused. As such, we have to fall back to `document.execCommand()`.
 async function handleClipboardWrite(data) {
-	const textEl = document.querySelector("#text");
+	const textEl = document.querySelector('#text')
 	document.oncopy = function (e) {
-		e.clipboardData.setData("text/plain", text.value);
-		console.log(e.clipboardData.getData("text/plain"));
-	};
+		e.clipboardData.setData('text/plain', text.value)
+		console.log(e.clipboardData.getData('text/plain'))
+	}
 	try {
 		// // Error if we received the wrong kind of data.
 		// if (typeof data !== "string") {
@@ -75,7 +75,7 @@ async function handleClipboardWrite(data) {
 
 		fetch(data)
 			.then(function (response) {
-				return response.blob();
+				return response.blob()
 			})
 			.then(function (blob) {
 				// var reader = new FileReader();
@@ -87,16 +87,16 @@ async function handleClipboardWrite(data) {
 				// };
 				// reader.readAsDataURL(blob);
 
-				let reader = new FileReader();
+				let reader = new FileReader()
 				reader.onload = function () {
 					//   document.body.appendChild(text);
-					console.log(textEl);
-					textEl.value = reader.result;
-					textEl.select();
-					document.execCommand("copy");
-				};
-				reader.readAsDataURL(blob);
-			});
+					console.log(textEl)
+					textEl.value = reader.result
+					textEl.select()
+					document.execCommand('copy')
+				}
+				reader.readAsDataURL(blob)
+			})
 		// image = document.createElement("img");
 		// image.style = "display: none;";
 		// // image.src = "data:image/png;base64," + (await blobToBase64(blob));
@@ -121,7 +121,7 @@ async function handleClipboardWrite(data) {
 	}
 }
 async function copyImageToClipboard(img) {
-	navigator.clipboard.writeText(value);
+	navigator.clipboard.writeText(value)
 	// const blob = await getImageBlobFromUrl(img);
 	// await navigator.clipboard.write([
 	// 	new ClipboardItem({
@@ -130,7 +130,7 @@ async function copyImageToClipboard(img) {
 	// ]);
 }
 async function getImageBlobFromUrl(url) {
-	const fetchedImageData = await fetch(url);
-	const blob = await fetchedImageData.blob();
-	return blob;
+	const fetchedImageData = await fetch(url)
+	const blob = await fetchedImageData.blob()
+	return blob
 }

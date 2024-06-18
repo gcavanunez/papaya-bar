@@ -1,44 +1,44 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref } from 'vue'
 
-const isLoading = ref(true);
+const isLoading = ref(true)
 chrome.runtime.onMessage.addListener(
 	// this is the message listener
 	function (request, sender, sendResponse) {
-		if (request.name === "stream" && request.dataURI) {
+		if (request.name === 'stream' && request.dataURI) {
 			copyImageToClipboard(request.dataURI)
 				.then(() => {
-					sendResponse({ success: true });
+					sendResponse({ success: true })
 				})
 				.catch((err) => {
-					alert("Could not take screenshot");
-					sendResponse({ success: false, message: err });
+					alert('Could not take screenshot')
+					sendResponse({ success: false, message: err })
 				})
 				.finally(() => {
-					isLoading.value = false;
+					isLoading.value = false
 					setTimeout(() => {
-						window.close();
-					}, 1000);
-				});
+						window.close()
+					}, 1000)
+				})
 
-			return true;
+			return true
 		}
 	},
-);
+)
 
 async function copyImageToClipboard(img: string) {
-	const blob = await getImageBlobFromUrl(img);
-	console.log({ blob });
+	const blob = await getImageBlobFromUrl(img)
+	console.log({ blob })
 	await navigator.clipboard.write([
 		new ClipboardItem({
 			[blob.type]: blob,
 		}),
-	]);
+	])
 }
 async function getImageBlobFromUrl(url: string) {
-	const fetchedImageData = await fetch(url);
-	const blob = await fetchedImageData.blob();
-	return blob;
+	const fetchedImageData = await fetch(url)
+	const blob = await fetchedImageData.blob()
+	return blob
 }
 </script>
 
@@ -47,9 +47,9 @@ async function getImageBlobFromUrl(url: string) {
 		<div class="relative overflow-auto rounded-xl p-8">
 			<div class="flex items-center justify-center">
 				<button
+					v-if="isLoading"
 					type="button"
 					class="inline-flex cursor-not-allowed items-center rounded-md bg-indigo-500 px-4 py-2 text-sm font-semibold leading-6 text-white shadow transition duration-150 ease-in-out hover:bg-indigo-400"
-					v-if="isLoading"
 				>
 					<svg
 						class="-ml-1 mr-3 h-5 w-5 animate-spin text-white"

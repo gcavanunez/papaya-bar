@@ -349,11 +349,11 @@ const closeDuplicates = () => {
 							<label for="search" class="sr-only">Search tabs</label>
 							<div class="relative w-full">
 								<input
-									type="text"
-									ref="inputRef"
-									autofocus
 									id="search"
+									ref="inputRef"
 									v-model="searchTerm"
+									type="text"
+									autofocus
 									class="peer block w-full rounded-md border-slate-300 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 									placeholder="Search"
 								/>
@@ -377,8 +377,8 @@ const closeDuplicates = () => {
 											{{ totalTabs }}
 										</p>
 										<button
-											@click="searchTerm = ''"
 											class="pointer-events-auto rounded-r border border-gray-200 bg-slate-50 px-2 py-0.5 text-gray-400"
+											@click="searchTerm = ''"
 										>
 											<XMarkIcon class="h-3 w-3 fill-current" />
 										</button>
@@ -423,8 +423,8 @@ const closeDuplicates = () => {
 										<button
 											title="Close"
 											type="button"
-											@click="close"
 											class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-500/5 focus:bg-gray-500/10 focus:outline-none rtl:left-3 rtl:right-auto dark:hover:bg-gray-300/5"
+											@click="close"
 										>
 											<span class="sr-only"> Close </span>
 
@@ -522,8 +522,8 @@ const closeDuplicates = () => {
 
 																	<div class="flex items-center space-x-1">
 																		<div
-																			class="min-w-0 flex-1"
 																			v-if="ranges[filter.date_range_type].is_range"
+																			class="min-w-0 flex-1"
 																		>
 																			<v-date-picker
 																				v-model="filter.range"
@@ -532,7 +532,7 @@ const closeDuplicates = () => {
 																				is-range
 																				:columns="$screens({ default: 1, lg: 2 })"
 																			>
-																				<template v-slot="{ inputValue, inputEvents, isDragging }">
+																				<template #default="{ inputValue, inputEvents, isDragging }">
 																					<div
 																						class="flex flex-col items-center justify-start sm:flex-row"
 																					>
@@ -601,13 +601,13 @@ const closeDuplicates = () => {
 																				</template>
 																			</v-date-picker>
 																		</div>
-																		<div class="min-w-0 flex-1" v-else>
+																		<div v-else class="min-w-0 flex-1">
 																			<v-date-picker
 																				v-model="filter.date"
 																				mode="dateTime"
 																				:masks="masks"
 																			>
-																				<template v-slot="{ inputValue, inputEvents }">
+																				<template #default="{ inputValue, inputEvents }">
 																					<div
 																						class="flex flex-col items-center justify-start sm:flex-row"
 																					>
@@ -698,13 +698,13 @@ const closeDuplicates = () => {
 						</Popover>
 					</div>
 					<div class="w-full max-w-md flex-grow px-4">
-						<TabGroup @change="changeTab" :selectedIndex="selectedTab">
+						<TabGroup :selected-index="selectedTab" @change="changeTab">
 							<TabList class="flex space-x-1 rounded-lg bg-blue-900/20 p-1">
 								<AppTab
 									v-for="category in Object.keys(categories)"
-									as="template"
 									:key="category"
 									v-slot="{ selected }"
+									as="template"
 								>
 									<button
 										:class="[
@@ -724,7 +724,7 @@ const closeDuplicates = () => {
 				</div>
 			</div>
 		</header>
-		<div class="container mx-auto max-w-5xl px-4 py-6 sm:px-2" id="head">
+		<div id="head" class="container mx-auto max-w-5xl px-4 py-6 sm:px-2">
 			<div class="grid grid-cols-3 gap-6">
 				<div>
 					<ul
@@ -778,12 +778,12 @@ const closeDuplicates = () => {
 						</li>
 					</ul>
 				</div>
-				<div class="col-span-2 space-y-6" ref="groupContainer">
+				<div ref="groupContainer" class="col-span-2 space-y-6">
 					<div
-						class="divide-y divide-slate-100 rounded-lg bg-white shadow-md"
 						v-for="(group, index) in grouped"
-						:key="`section-${index}`"
 						:id="`section-${index}`"
+						:key="`section-${index}`"
+						class="divide-y divide-slate-100 rounded-lg bg-white shadow-md"
 					>
 						<div class="px-4 py-4 md:px-6">
 							<h2 class="sr-only">{{ index }}</h2>
@@ -792,10 +792,10 @@ const closeDuplicates = () => {
 									{{ index }}
 								</AppBtn>
 								<div class="flex items-center space-x-2">
-									<AppBtn @click="selectGroup(group)" type="button"> Select </AppBtn>
-									<AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn>
-									<AppBtn @click="copyLinks(group)" type="button"> Copy </AppBtn>
-									<AppBtn @click="closeTabs(group)" type="button" color="round-primary">
+									<AppBtn type="button" @click="selectGroup(group)"> Select </AppBtn>
+									<AppBtn type="button" @click="moveTabs(group)"> Move </AppBtn>
+									<AppBtn type="button" @click="copyLinks(group)"> Copy </AppBtn>
+									<AppBtn type="button" color="round-primary" @click="closeTabs(group)">
 										<XMarkIcon class="h-3 w-3" />
 									</AppBtn>
 								</div>
@@ -825,7 +825,7 @@ const closeDuplicates = () => {
 				<div class="flex w-full items-center justify-between rounded-lg px-4 py-4 text-lg md:px-6">
 					<div class="text-slate-300">{{ [...tabsSelected].length }} Tabs selected</div>
 					<div class="flex items-center space-x-2">
-						<AppBtn @click="closeTabs(selectedGroup)" type="button" color="primary-dark">
+						<AppBtn type="button" color="primary-dark" @click="closeTabs(selectedGroup)">
 							Close all
 						</AppBtn>
 						<Menu as="div" class="pointer-events-auto relative inline-flex text-left">
@@ -849,9 +849,9 @@ const closeDuplicates = () => {
 								>
 									<div class="px-1 py-1">
 										<MenuItem
+											v-for="[windowId, value] in [...windowsMap]"
 											v-slot="{ active, disabled }"
 											:key="`${windowId}-custom-selected`"
-											v-for="[windowId, value] in [...windowsMap]"
 											@click="
 												moveTabTo(selectedGroup, {
 													containerId: windowId,
@@ -872,9 +872,9 @@ const closeDuplicates = () => {
 									</div>
 									<div class="px-1 py-1">
 										<MenuItem
+											v-for="loadedGroup in loadedGroups"
 											v-slot="{ active, disabled }"
 											:key="`${loadedGroup.id}-custom-selected`"
-											v-for="loadedGroup in loadedGroups"
 											@click="
 												moveTabTo(selectedGroup, {
 													containerId: loadedGroup.id,
@@ -896,16 +896,16 @@ const closeDuplicates = () => {
 								</MenuItems>
 							</transition>
 						</Menu>
-						<AppBtn @click="moveTabs(selectedGroup)" color="primary-dark" type="button">
+						<AppBtn color="primary-dark" type="button" @click="moveTabs(selectedGroup)">
 							Move
 						</AppBtn>
-						<AppBtn @click="storeSession(selectedGroup)" color="primary-dark" type="button">
+						<AppBtn color="primary-dark" type="button" @click="storeSession(selectedGroup)">
 							Save as session
 						</AppBtn>
-						<AppBtn @click="copyLinks(selectedGroup)" color="primary-dark" type="button">
+						<AppBtn color="primary-dark" type="button" @click="copyLinks(selectedGroup)">
 							Copy
 						</AppBtn>
-						<AppBtn @click="tabsSelected.clear()" color="round-dark-primary" type="button">
+						<AppBtn color="round-dark-primary" type="button" @click="tabsSelected.clear()">
 							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>
 					</div>
