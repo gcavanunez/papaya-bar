@@ -9,12 +9,17 @@ interface Props {
 	type?: InputTypes
 	label?: string
 }
-const { id = '', type = '', label = '', placeholder = ' ', modelValue } = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	id: '',
+	type: 'text',
+	label: '',
+	placeholder: ' ',
+})
 const emit = defineEmits(['update:modelValue'])
 
 const value = computed({
 	get() {
-		return modelValue
+		return props.modelValue
 	},
 	set(value) {
 		emit('update:modelValue', value)
@@ -35,7 +40,7 @@ const value = computed({
 		<label
 			v-if="label"
 			:for="id"
-			class="pointer-events-none absolute top-1.5 left-0 cursor-text px-3 text-xs text-gray-600 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:text-gray-500 peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-gray-600 dark:text-gray-300 dark:peer-placeholder-shown:text-gray-50 dark:peer-focus:text-gray-300"
+			class="pointer-events-none absolute left-0 top-1.5 cursor-text px-3 text-xs text-gray-600 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:text-gray-500 peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-gray-600 dark:text-gray-300 dark:peer-placeholder-shown:text-gray-50 dark:peer-focus:text-gray-300"
 		>
 			{{ label }}
 		</label>

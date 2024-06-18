@@ -23,7 +23,7 @@ export default defineConfig({
 	},
 	plugins: [
 		vue({
-			reactivityTransform: true,
+			// reactivityTransform: true,
 		}),
 		crx({ manifest }),
 	],

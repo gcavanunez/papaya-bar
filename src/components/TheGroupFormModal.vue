@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import AppInput from './forms/AppInput.vue'
 import AppModal from './AppModal.vue'
-import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
-import AppButton from './AppButton.vue'
 import { computed } from 'vue'
 interface Props {
 	modelValue: boolean
 }
-const { modelValue } = defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits(['update:modelValue'])
 const value = computed({
 	get() {
-		return modelValue
+		return props.modelValue
 	},
 	set(value) {
 		emit('update:modelValue', value)

@@ -7,12 +7,16 @@ interface Props extends /* @vue-ignore */ TextareaHTMLAttributes {
 	label?: string
 	placeholder?: string
 }
-const { id = '', label = '', placeholder = ' ', modelValue } = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	id: '',
+	label: '',
+	placeholder: ' ',
+})
 const emit = defineEmits(['update:modelValue'])
 
 const value = computed({
 	get() {
-		return modelValue
+		return props.modelValue
 	},
 	set(value) {
 		emit('update:modelValue', value)
@@ -41,7 +45,7 @@ const value = computed({
 			{{ label }}
 		</label>
 		<!-- </template>
-		</ResizeAuto> -->
+</ResizeAuto> -->
 	</div>
 </template>
 

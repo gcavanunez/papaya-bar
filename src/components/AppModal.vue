@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
+import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 
 const initialFocus = ref<HTMLElement | null>(null)
 const setSlotRef = (el: any) => {
 	initialFocus.value = el
 }
-const props = defineProps<{
+
+defineProps<{
 	modelValue: boolean
 	title: string
 }>()
+
 const emit = defineEmits<{
 	(event: 'update:modelValue', payload: boolean): void
 	(event: 'after-enter'): void
 }>()
-
-// const isOpen = props.modelValue
 
 function closeModal() {
 	emit('update:modelValue', false)
@@ -30,7 +30,7 @@ function afterEnter() {
 
 <template>
 	<TransitionRoot appear :show="modelValue" as="template" @after-enter="afterEnter">
-		<Dialog as="div" @close="closeModal" class="relative z-50" :initialFocus="initialFocus">
+		<Dialog as="div" class="relative z-50" :initial-focus="initialFocus" @close="closeModal">
 			<TransitionChild
 				as="template"
 				enter="duration-300 ease-out"

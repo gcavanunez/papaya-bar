@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import AppBtn from '@/components/AppBtn.vue'
-import { formatDistance } from 'date-fns'
-import { useChromeTabs } from '@/hooks/useChromeTabs'
 import { useSessionsData } from '@/hooks/useSessionsData'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import TabManager from '@/components/TabManager.vue'
-import { Group, HistoryMap, LookUpTab, SaveableTab, Tab, WindowsMap } from '@/types'
+import { HistoryMap, LookUpTab } from '@/types'
 import { getTabHistory } from '@/helpers'
 import { useChromeWindowsMap } from '@/hooks/useChromeWindowsMap'
 import AppButton from '@/components/AppButton.vue'
@@ -17,8 +14,8 @@ const { findByUid, saveByUid } = useSessionsData()
 type Props = {
 	uid: string
 }
-const { uid } = defineProps<Props>()
-const parsedState = findByUid(uid)!
+const props = defineProps<Props>()
+const parsedState = findByUid(props.uid)!
 
 const loadedTabsState = ref(parsedState.tabs)
 const loadedGroups = ref(parsedState.groups)
@@ -44,7 +41,7 @@ const toggleEdit = () => {
 }
 const updateSession = () => {
 	console.log({ data })
-	saveByUid(uid, { title: data.title, description: data.description })
+	saveByUid(props.uid, { title: data.title, description: data.description })
 	openEdit.value = false
 }
 </script>

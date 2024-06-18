@@ -19,24 +19,10 @@ import autoAnimate from '@formkit/auto-animate'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import AppButton from './AppButton.vue'
-// import AppInput from './forms/AppInput.vue'
-// import AppModal from './AppModal.vue'
 import TabMoveToMenu from './TabMoveToMenu.vue'
 import { useGlobalModals } from '@/hooks/useGlobalModals'
-// composable start - grouping
-const loggy = (val: any) => console.log(val)
 
-const {
-	// groupModalToggle, // after moving modal
-	// mode,
-	// groupModalForm, // after moving modal
-	// editingGroupId,
-	// groupSelection,
-	// createGroup,
-	// onGroupFormSummit, // after moving modal
-	onEditGroup,
-	onCreateNewGroup,
-} = useGlobalModals()
+const { onEditGroup, onCreateNewGroup } = useGlobalModals()
 
 // composable end
 
@@ -127,7 +113,7 @@ const changeTab = (index: number) => {
 }
 const selectedTab = ref(0)
 const selectedTabName = computed(() => {
-	const tabCategory = Object.keys(categories).find((row, index) => selectedTab.value === index)
+	const tabCategory = Object.keys(categories).find((_row, index) => selectedTab.value === index)
 	return tabCategory ? tabCategory : 'All'
 })
 
@@ -138,21 +124,21 @@ type Props = {
 	lookUpTab: LookUpTab
 	windowsMap: WindowsMap
 }
-const { loadedTabs, loadedGroups, loadedTabHistory, lookUpTab, windowsMap } = defineProps<Props>()
+const props = defineProps<Props>()
 
 const groupMap = computed(() => {
 	let computedMap = new Map()
-	loadedGroups.forEach((row) => {
+	props.loadedGroups.forEach((row) => {
 		computedMap.set(row.id, row.title)
 	})
 	return computedMap
 })
 
 const selectedGroup = computed(() => {
-	return loadedTabs.filter((row) => tabsSelected.value.has(row.stableId))
+	return props.loadedTabs.filter((row) => tabsSelected.value.has(row.stableId))
 })
 const based = computed(() => {
-	return loadedTabs.reduce((acc, curr) => {
+	return props.loadedTabs.reduce((acc, curr) => {
 		if (selectedTab.value === 0) {
 			if (!curr.url) {
 				return acc
@@ -191,7 +177,7 @@ const based = computed(() => {
 		//   curr.groupId !== -1 ? groupMap.value.get(curr.groupId) : 'other'
 		// const domain = `${curr.windowId}` windowsMap.value
 		if (selectedTab.value === 2) {
-			const windowName = windowsMap.get(curr.windowId)
+			const windowName = props.windowsMap.get(curr.windowId)
 			const domain = windowName ? windowName : 'Other'
 			if (acc[domain]) {
 				return { ...acc, [domain]: [...acc[domain], curr] }
@@ -207,7 +193,7 @@ const based = computed(() => {
 
 		// const windowName = windowsMap.value.get(curr.windowId)
 		// if(!curr.url){ return }
-		const tabLog = lookUpTab[curr.url!]
+		const tabLog = props.lookUpTab[curr.url!]
 		// const tabLog = Object.fromEntries(loadedTabHistory.value.entries())[curr.url!]
 		// const tabLog = loadedTabHistory.value.get(curr.url!)
 		// const tabLog = curr.lastestHistory
@@ -243,7 +229,7 @@ const historySet = computed(() => {
 	//     row.
 	//   })
 	// })
-	for (const [key, value] of loadedTabHistory) {
+	for (const [key, value] of props.loadedTabHistory) {
 		// Using the default iterator (could be `map.entries()` instead)
 		// console.log(`The value for key ${key} is ${value}`);
 		let bool = value.some((row) => {
@@ -330,7 +316,7 @@ const closeSelectedTabs = () => {
 	tabsSelected.value.clear()
 }
 const closeUnSelectedTabs = () => {
-	closeTab(loadedTabs.filter((row) => !tabsSelected.value.has(row.stableId)))
+	closeTab(props.loadedTabs.filter((row) => !tabsSelected.value.has(row.stableId)))
 }
 
 const copyLinks = (tabs: Tab[]) => {

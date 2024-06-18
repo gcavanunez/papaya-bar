@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { format, formatDistance } from 'date-fns'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import {
-	PlusIcon,
-	XMarkIcon,
-	MinusIcon,
-	ChevronUpIcon,
-} from '@heroicons/vue/20/solid'
-import { closeTab, copyLink, moveTabTo, goTo } from '@/helpers'
+import { PlusIcon, XMarkIcon, MinusIcon, ChevronUpIcon } from '@heroicons/vue/20/solid'
+import { closeTab, copyLink, goTo } from '@/helpers'
 import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
 
@@ -22,8 +17,8 @@ interface Props {
 	loadedGroups: Group[]
 	history: HistoryMap
 }
-const { tab, tabsSelected, windowsMap, history, loadedGroups } =
-	defineProps<Props>()
+const props = defineProps<Props>()
+
 const emit = defineEmits<{
 	(e: 'toggleSelection', tab: Tab): void
 }>()
@@ -32,19 +27,15 @@ const onImageLoadError = () => {
 	hasImageError.value = true
 }
 const tabHistory = computed(() => {
-	if (!tab.url) {
+	if (!props.tab.url) {
 		return []
 	}
-	let hasHistory = history.get(tab.url)
+	let hasHistory = props.history.get(props.tab.url)
 	if (!hasHistory) {
 		return []
 	}
 	return [...hasHistory]
-		.sort(
-			(a, b) =>
-				new Date(b.visitTime!).getTime() -
-				new Date(a.visitTime!).getTime(),
-		)
+		.sort((a, b) => new Date(b.visitTime!).getTime() - new Date(a.visitTime!).getTime())
 		.map((row) => ({
 			...row,
 			humanDistance: formatDistance(new Date(row.visitTime!), new Date()),
@@ -59,17 +50,15 @@ const tabHistory = computed(() => {
 			<div
 				class="relative overflow-hidden rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5 transition dark:ring-vercel-accents-2"
 				:style="{
-					borderColor: loadedGroups.find(
-						(row) => row.id === tab.groupId,
-					)?.color,
+					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color,
 				}"
 				:class="{
 					'group-hover:border-l-slate-200  dark:border-black dark:group-hover:border-vercel-accents-1':
-						!loadedGroups.find((row) => row.id === tab.groupId)
-							?.color && !tabsSelected.has(tab.stableId),
+						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
+						!tabsSelected.has(tab.stableId),
 					'border-papaya-500 group-hover:border-papaya-500/85':
-						!loadedGroups.find((row) => row.id === tab.groupId)
-							?.color && tabsSelected.has(tab.stableId),
+						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
+						tabsSelected.has(tab.stableId),
 				}"
 			>
 				<!-- layer over the button -->
@@ -82,10 +71,7 @@ const tabHistory = computed(() => {
 							class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow-md transition dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white dark:active:bg-vercel-accents-2 dark:active:text-white"
 							@click="emit('toggleSelection', tab)"
 						>
-							<PlusIcon
-								v-if="!tabsSelected.has(tab.stableId)"
-								class="h-4 w-4"
-							/>
+							<PlusIcon v-if="!tabsSelected.has(tab.stableId)" class="h-4 w-4" />
 							<MinusIcon v-else class="h-4 w-4" />
 						</button>
 					</div>
@@ -190,20 +176,14 @@ const tabHistory = computed(() => {
 								<span class="flex items-center">
 									<span>History</span>
 									<ChevronUpIcon
-										:class="
-											!open ? 'rotate-180 transform' : ''
-										"
+										:class="!open ? 'rotate-180 transform' : ''"
 										class="-mr-1 ml-1 h-2.5 w-2.5 text-slate-800 transition dark:text-white"
 										aria-hidden="true"
 									/>
 								</span>
 							</AppButton>
 						</DisclosureButton>
-						<AppButton
-							intent="common"
-							size="x-small"
-							@click="copyLink(tab)"
-						>
+						<AppButton intent="common" size="x-small" @click="copyLink(tab)">
 							Copy
 						</AppButton>
 						<AppBtn color="round-primary" @click="closeTab([tab])">
@@ -235,10 +215,7 @@ const tabHistory = computed(() => {
 							alt=""
 							@error="onImageLoadError"
 						/>
-						<div
-							v-else
-							class="h-8 w-8 rounded-full bg-slate-700"
-						></div>
+						<div v-else class="h-8 w-8 rounded-full bg-slate-700"></div>
 					</div>
 					<div
 						class="ml-2 truncate text-sm font-medium group-hover:mr-40 group-focus:truncate"
@@ -255,10 +232,7 @@ const tabHistory = computed(() => {
 			<DisclosurePanel class="px-4 text-sm text-slate-500">
 				<!-- <ul role="list" class="mt-2 space-y-4 border-l border-slate-200 pl-6"> -->
 				<ul role="list" class="mt-2 pl-2">
-					<li
-						v-for="(historyEvent, index) in tabHistory"
-						:key="historyEvent.id"
-					>
+					<li v-for="(historyEvent, index) in tabHistory" :key="historyEvent.id">
 						<div class="grid grid-cols-12">
 							<div
 								class="false relative col-span-12 flex flex-col gap-8 border-slate-200 pb-1 lg:pl-8"
