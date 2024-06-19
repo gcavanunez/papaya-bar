@@ -6,11 +6,20 @@ import {
 	CameraIcon,
 	DocumentDuplicateIcon,
 } from '@heroicons/vue/24/outline'
+import { useTimeoutFn } from '@vueuse/core'
+import { ref } from 'vue'
 
 const { loadedTabs, initlisteners } = useChromeTabs()
 initlisteners()
 
+const copiedLink = ref<'link' | 'screen' | ''>('')
+const { start } = useTimeoutFn(() => {
+	copiedLink.value = ''
+}, 700)
+
 const copyOpenTab = async () => {
+	copiedLink.value = 'link'
+	start()
 	const current = await chrome.windows.getCurrent()
 	const tab = loadedTabs.value.find((row) => row.active && row.windowId == current.id)
 	if (tab) {
@@ -31,6 +40,8 @@ const openTabs = () => {
 	})
 }
 function screenshotArea() {
+	copiedLink.value = 'screen'
+	start()
 	chrome.runtime.sendMessage(chrome.runtime.id, 'screenshot-area', function (response) {
 		console.log(response)
 	})
@@ -62,11 +73,23 @@ function screenshotArea() {
 						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
 						@click="copyOpenTab"
 					>
-						<div class="w-full text-gray-600">
+						<div class="w-full text-gray-600 transition-all">
 							<div class="flex justify-center pb-1">
 								<DocumentDuplicateIcon class="h-6 w-6"></DocumentDuplicateIcon>
 							</div>
 							<div class="text-xs">Copy Link</div>
+							<transition
+								enter-active-class="transition duration-200 ease-out"
+								enter-from-class="translate-y-1 opacity-0"
+								enter-to-class="translate-y-0 opacity-100"
+								leave-active-class="transition duration-150 ease-in"
+								leave-from-class="translate-y-0 opacity-100"
+								leave-to-class="translate-y-1 opacity-0"
+							>
+								<div v-show="copiedLink === 'link'" class="text-xs text-green-500">
+									Copied!
+								</div>
+							</transition>
 						</div>
 					</button>
 				</div>
@@ -80,6 +103,21 @@ function screenshotArea() {
 								<CameraIcon class="h-6 w-6"></CameraIcon>
 							</div>
 							<div class="text-xs">Screenshot Tab</div>
+							<transition
+								enter-active-class="transition duration-200 ease-out"
+								enter-from-class="translate-y-1 opacity-0"
+								enter-to-class="translate-y-0 opacity-100"
+								leave-active-class="transition duration-150 ease-in"
+								leave-from-class="translate-y-0 opacity-100"
+								leave-to-class="translate-y-1 opacity-0"
+							>
+								<div
+									v-show="copiedLink === 'screen'"
+									class="text-xs text-green-500"
+								>
+									Copied!
+								</div>
+							</transition>
 						</div>
 					</button>
 				</div>

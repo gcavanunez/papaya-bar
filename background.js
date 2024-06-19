@@ -7,13 +7,9 @@ const getCurrentTab = async () => {
 chrome.history.onVisited.addListener(function (historyItem) {
 	console.log(historyItem)
 	console.log(historyItem.url)
-	chrome.tabs.query(
-		{ url: historyItem.url },
-		//query the tabItem
-		function (tab) {
-			console.log('tab', tab)
-		},
-	)
+	chrome.tabs.query({ url: historyItem.url }, function (tab) {
+		console.log('tab', tab)
+	})
 })
 chrome.commands.onCommand.addListener((command, openedTab) => {
 	console.log(`Command "${command}" triggered`)

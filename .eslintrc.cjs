@@ -6,7 +6,6 @@ module.exports = {
 	env: {
 		node: true,
 		webextensions: true,
-		'vue/setup-compiler-macros': true,
 	},
 	parserOptions: {
 		ecmaVersion: 'latest',
