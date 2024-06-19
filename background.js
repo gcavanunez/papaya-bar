@@ -139,7 +139,8 @@ chrome.commands.onCommand.addListener((command, openedTab) => {
 // })
 
 chrome.runtime.onMessage.addListener((message, sender, senderResponse) => {
-	if (message.name === 'download' && message.url) {
+	console.log({ message })
+	if (message?.name === 'download' && message.url) {
 		chrome.downloads.download(
 			{
 				filename: 'screenshot.png',
@@ -151,6 +152,36 @@ chrome.runtime.onMessage.addListener((message, sender, senderResponse) => {
 		)
 
 		return true
+	}
+
+	if (message == 'screenshot-area') {
+		getCurrentTab().then((tab) => {
+			chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataURI) => {
+				chrome.windows
+					.create({
+						url: chrome.runtime.getURL('index.html#/util-screenshot'),
+						type: 'popup',
+						top: 0,
+						left: 0,
+						height: 100,
+						width: 200,
+						focused: true,
+					})
+					.then((res) => {
+						const poptab = res.tabs[0]
+						setTimeout(() => {
+							chrome.tabs.sendMessage(
+								poptab.id,
+								{ name: 'stream', dataURI },
+								(response) => console.log(response),
+							)
+						}, 500)
+					})
+					.then(() => {
+						senderResponse({ success: true })
+					})
+			})
+		})
 	}
 })
 

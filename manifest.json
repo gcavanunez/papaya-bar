@@ -21,6 +21,7 @@
 		"offscreen",
 		"contextMenus",
 		"clipboardWrite",
+		"nativeMessaging",
 		"clipboardRead",
 		"system.display"
 	],
@@ -30,11 +31,18 @@
 	},
 	"web_accessible_resources": [
 		{
-			"resources": ["favicon.ico", "/static/media/*"],
-			"matches": ["<all_urls>"]
+			"resources": [
+				"favicon.ico",
+				"/static/media/*"
+			],
+			"matches": [
+				"<all_urls>"
+			]
 		}
 	],
-	"host_permissions": ["<all_urls>"],
+	"host_permissions": [
+		"<all_urls>"
+	],
 	"icons": {
 		"16": "public/assets/papaya-icon.png",
 		"32": "public/assets/papaya-icon.png",
@@ -43,8 +51,13 @@
 	},
 	"content_scripts": [
 		{
-			"matches": ["<all_urls>", "https://*.google.com/*"],
-			"js": ["public/content.js"]
+			"matches": [
+				"<all_urls>",
+				"https://*.google.com/*"
+			],
+			"js": [
+				"public/content.js"
+			]
 		}
 	],
 	"commands": {
@@ -62,7 +75,7 @@
 				"mac": "Command+Shift+1"
 			},
 			"description": "Copy link name",
-			"global": true
+			"global": false
 		},
 		"screenshot-area": {
 			"suggested_key": {

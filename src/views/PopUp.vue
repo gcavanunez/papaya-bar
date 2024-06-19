@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { copyLink } from '@/helpers'
 import { useChromeTabs } from '@/hooks/useChromeTabs'
-import { RectangleGroupIcon, ClipboardDocumentIcon } from '@heroicons/vue/20/solid'
+import {
+	ArrowTopRightOnSquareIcon,
+	CameraIcon,
+	DocumentDuplicateIcon,
+} from '@heroicons/vue/24/outline'
 
 const { loadedTabs, initlisteners } = useChromeTabs()
 initlisteners()
+
 const copyOpenTab = async () => {
 	const current = await chrome.windows.getCurrent()
 	const tab = loadedTabs.value.find((row) => row.active && row.windowId == current.id)
@@ -13,11 +18,6 @@ const copyOpenTab = async () => {
 	}
 }
 const openTabs = () => {
-	// chrome.extension.
-	// const optionsUrl = chrome.extension.getURL('index.html')
-	// chrome.tabs.create({
-	//   url: 'chrome-extension://' + chrome.runtime.id + '/index.html',
-	// })
 	let url = 'chrome-extension://' + chrome.runtime.id + '/index.html'
 	chrome.tabs.query({ url }, function (tabs) {
 		if (tabs.length) {
@@ -29,42 +29,76 @@ const openTabs = () => {
 			chrome.tabs.create({ url })
 		}
 	})
-	// chrome.tabs.create({ url: optionsUrl })
-	// console.log({ optionsUrl })
+}
+function screenshotArea() {
+	chrome.runtime.sendMessage(chrome.runtime.id, 'screenshot-area', function (response) {
+		console.log(response)
+	})
 }
 </script>
 <template>
-	<div class="w-48">
-		<ul role="list" class="divide-y divide-gray-200">
-			<li class="flex w-full">
-				<div class="w-full px-1 py-2 text-left text-slate-700">
-					All Tabs - {{ loadedTabs.length }}
+	<div class="h-[240px] w-[360px] bg-slate-100 antialiased">
+		<div class="relative flex h-full flex-col">
+			<div class="flex-shrink-0 bg-white shadow-sm">
+				<div class="flex items-center justify-center pb-6 pt-8">
+					<div>
+						<img
+							class="block h-16 w-auto"
+							src="/assets/papaya-icon-next.png"
+							alt="Papita from Papaya Bar"
+						/>
+					</div>
 				</div>
-			</li>
-			<li class="flex w-full">
-				<button
-					type="button"
-					class="flex w-full items-center px-1 py-2 hover:bg-slate-200"
-					@click="openTabs"
-				>
-					<RectangleGroupIcon class="h-6 w-6 rounded-full"></RectangleGroupIcon>
-					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-900">Manage</p>
-					</div>
-				</button>
-			</li>
-			<li class="flex w-full">
-				<button
-					type="button"
-					class="flex w-full items-center px-1 py-2 hover:bg-slate-200"
-					@click="copyOpenTab"
-				>
-					<ClipboardDocumentIcon class="h-6 w-6 rounded-full"></ClipboardDocumentIcon>
-					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-900">Copy</p>
-					</div>
-				</button>
-			</li>
-		</ul>
+				<div class="px-3 pb-6">
+					<h1 class="text-center text-2xl font-bold leading-snug text-slate-700">
+						{{ loadedTabs.length }} tabs
+					</h1>
+				</div>
+			</div>
+			<div class="flex-grow overflow-y-auto"></div>
+			<div class="flex flex-shrink-0 items-start p-1">
+				<div class="w-1/3">
+					<button
+						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						@click="copyOpenTab"
+					>
+						<div class="w-full text-gray-600">
+							<div class="flex justify-center pb-1">
+								<DocumentDuplicateIcon class="h-6 w-6"></DocumentDuplicateIcon>
+							</div>
+							<div class="text-xs">Copy Link</div>
+						</div>
+					</button>
+				</div>
+				<div class="w-1/3">
+					<button
+						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						@click="screenshotArea"
+					>
+						<div class="w-full text-gray-600">
+							<div class="flex justify-center pb-1">
+								<CameraIcon class="h-6 w-6"></CameraIcon>
+							</div>
+							<div class="text-xs">Screenshot Tab</div>
+						</div>
+					</button>
+				</div>
+				<div class="w-1/3">
+					<button
+						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						@click="openTabs"
+					>
+						<div class="w-full text-gray-600">
+							<div class="flex justify-center pb-1">
+								<ArrowTopRightOnSquareIcon
+									class="h-6 w-6"
+								></ArrowTopRightOnSquareIcon>
+							</div>
+							<div class="text-xs">Open Manager</div>
+						</div>
+					</button>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>

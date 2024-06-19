@@ -97,7 +97,7 @@ useTitle(title)
 									<img
 										class="block h-10 w-auto"
 										src="/assets/papaya-icon-next.png"
-										alt="Workflow"
+										alt="Papita from Papaya Bar"
 									/>
 								</a>
 							</div>
