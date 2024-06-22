@@ -4,6 +4,7 @@ import 'focus-visible'
 import './index.css'
 import App from './App.vue'
 import 'v-calendar/dist/style.css'
+import { MotionPlugin } from '@vueuse/motion'
 
 import VCalendar from 'v-calendar'
 
@@ -20,22 +21,24 @@ import VCalendar from 'v-calendar'
 // 		}
 // 	},
 // }
-createApp(App)
-	.use(router)
-	.use(VCalendar, {})
-	// .use(myPlugin, {
-	// 	/* optional options */
-	// })
-	.directive('autogrow', {
-		created(el) {
-			el.addEventListener('input', () => {
-				el.style.height = 'auto'
-				el.style.height = el.scrollHeight + 'px'
-			})
-		},
-		mounted(el) {
+const app = createApp(App)
+
+app.use(router)
+app.use(VCalendar, {})
+app.use(MotionPlugin)
+// app.use(myPlugin, {
+// 	/* optional options */
+// })
+app.directive('autogrow', {
+	created(el) {
+		el.addEventListener('input', () => {
 			el.style.height = 'auto'
 			el.style.height = el.scrollHeight + 'px'
-		},
-	})
-	.mount('#app')
+		})
+	},
+	mounted(el) {
+		el.style.height = 'auto'
+		el.style.height = el.scrollHeight + 'px'
+	},
+})
+app.mount('#app')

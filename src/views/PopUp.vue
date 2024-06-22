@@ -8,17 +8,54 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useTimeoutFn } from '@vueuse/core'
 import { ref } from 'vue'
+import { useMotion } from '@vueuse/motion'
 
 const { loadedTabs, initlisteners } = useChromeTabs()
 initlisteners()
 
 const copiedLink = ref<'link' | 'screen' | ''>('')
+
+const target = ref<HTMLElement>()
+const itemMoved = ref<HTMLElement>()
+
+const { apply } = useMotion(target, {
+	initial: {
+		opacity: 0,
+	},
+})
+
+const { apply: itemMovedApply } = useMotion(itemMoved, {
+	initial: {
+		y: 0,
+	},
+})
+
 const { start } = useTimeoutFn(() => {
 	copiedLink.value = ''
+	apply('initial')
+	itemMovedApply('initial')
 }, 700)
 
 const copyOpenTab = async () => {
 	copiedLink.value = 'link'
+	await Promise.all([
+		apply({
+			opacity: 1,
+			transition: {
+				type: 'tween',
+				delay: 100,
+				duration: 300,
+			},
+		}),
+		itemMovedApply({
+			y: -10,
+			transition: {
+				type: 'tween',
+				duration: 300,
+			},
+		}),
+	])
+
 	start()
 	const current = await chrome.windows.getCurrent()
 	const tab = loadedTabs.value.find((row) => row.active && row.windowId == current.id)
@@ -70,26 +107,19 @@ function screenshotArea() {
 			<div class="flex flex-shrink-0 items-start p-1">
 				<div class="w-1/3">
 					<button
-						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						class="relative inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
 						@click="copyOpenTab"
 					>
-						<div class="w-full text-gray-600 transition-all">
+						<div
+							class="absolute inset-x-0 bottom-1 inline-flex items-center justify-center"
+						>
+							<div ref="target" class="text-xs text-green-500">Copied!</div>
+						</div>
+						<div ref="itemMoved" class="w-full text-gray-600 transition-all">
 							<div class="flex justify-center pb-1">
 								<DocumentDuplicateIcon class="h-6 w-6"></DocumentDuplicateIcon>
 							</div>
 							<div class="text-xs">Copy Link</div>
-							<transition
-								enter-active-class="transition duration-200 ease-out"
-								enter-from-class="translate-y-1 opacity-0"
-								enter-to-class="translate-y-0 opacity-100"
-								leave-active-class="transition duration-150 ease-in"
-								leave-from-class="translate-y-0 opacity-100"
-								leave-to-class="translate-y-1 opacity-0"
-							>
-								<div v-show="copiedLink === 'link'" class="text-xs text-green-500">
-									Copied!
-								</div>
-							</transition>
 						</div>
 					</button>
 				</div>
