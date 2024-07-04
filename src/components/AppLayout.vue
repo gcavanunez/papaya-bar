@@ -51,7 +51,7 @@ const navigation = [
 ]
 const userNavigation = [
 	{ name: 'Other Devices', href: '#' },
-	{ name: 'Settings', href: '#' },
+	{ name: 'Settings', href: 'settings' },
 	// { name: 'Sign out', href: '#' },
 ]
 const tabs = computed(() =>
@@ -198,15 +198,15 @@ useTitle(title)
 											:key="item.name"
 											v-slot="{ active }"
 										>
-											<a
-												:href="item.href"
+											<router-link
+												:to="item.href"
 												:class="[
 													active ? 'bg-gray-100' : '',
 													'block px-4 py-2 text-sm text-gray-700',
 												]"
 											>
 												{{ item.name }}
-											</a>
+											</router-link>
 										</MenuItem>
 									</MenuItems>
 								</transition>

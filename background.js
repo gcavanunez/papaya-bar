@@ -72,6 +72,8 @@ chrome.commands.onCommand.addListener((command, openedTab) => {
 					})
 					.then((res) => {
 						const poptab = res.tabs[0]
+						// const views = chrome.extension.getViews({ type: 'popup' })
+						// console.log('view', views)
 						setTimeout(() => {
 							chrome.tabs.sendMessage(
 								poptab.id,
@@ -80,19 +82,22 @@ chrome.commands.onCommand.addListener((command, openedTab) => {
 							)
 						}, 500)
 					})
-				// chrome.tabs.create(
-				// 	{ url: chrome.runtime.getURL("index.html") },
-				// 	(poptab) => {
-				// 		setTimeout(() => {
-				// 			chrome.tabs.sendMessage(
-				// 				poptab.id,
-				// 				{ name: "stream", dataURI },
-				// 				(response) => console.log(response),
-				// 			);
-				// 		}, 500);
-				// 	},
-				// );
 			})
+			// chrome.action.openPopup
+			// chrome.action.setPopup({ popup: 'index.html#/popup', tabId: tab.id })
+
+			// chrome.runtime.openOptionsPage().then(() => {
+			// 	console.log('opened')
+			// })
+
+			// chrome.runtime
+			// 	.openOptionsPage()
+			// 	.then(() => {
+			// 		// sendResponse('OPENED')
+			// 	})
+			// 	.catch(() => {
+			// 		// sendResponse('FAILED_TO_OPEN', e)
+			// 	})
 		})
 		// chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
 		// 	const tab = tabs[0]

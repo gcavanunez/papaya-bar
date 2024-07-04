@@ -76,12 +76,37 @@ const openTabs = () => {
 		}
 	})
 }
+
 function screenshotArea() {
 	copiedLink.value = 'screen'
 	start()
-	chrome.runtime.sendMessage(chrome.runtime.id, 'screenshot-area', function (response) {
-		console.log(response)
+
+	getCurrentTab().then((tab) => {
+		chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataURI) => {
+			copyImageToClipboard(dataURI)
+		})
 	})
+}
+
+async function getCurrentTab() {
+	const queryOptions = { active: true, currentWindow: true }
+	const [tab] = await chrome.tabs.query(queryOptions)
+	return tab
+}
+async function copyImageToClipboard(img: string) {
+	const blob = await getImageBlobFromUrl(img)
+	console.log({ blob })
+	await navigator.clipboard.write([
+		new ClipboardItem({
+			[blob.type]: blob,
+		}),
+	])
+}
+
+async function getImageBlobFromUrl(url: string) {
+	const fetchedImageData = await fetch(url)
+	const blob = await fetchedImageData.blob()
+	return blob
 }
 </script>
 <template>

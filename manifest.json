@@ -89,5 +89,10 @@
 	"action": {
 		"default_popup": "index.html#/popup",
 		"default_title": "Choncho"
+	},
+	"options_page": "index.html#/popup",
+	"options_ui": {
+		"page": "index.html#/popup",
+		"open_in_tab": false
 	}
 }
