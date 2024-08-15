@@ -17,7 +17,7 @@ const routes: RouteRecordRaw[] = [
 				children: [
 					{
 						path: '',
-						component: () => import('@/views/Sessions.vue'),
+						component: () => import('@/views/SessionsIndex.vue'),
 						name: 'sessions',
 					},
 					{

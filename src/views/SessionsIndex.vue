@@ -7,13 +7,7 @@ import { computed, ref } from 'vue'
 import AppButton from '@/components/AppButton.vue'
 import AppInput from '@/components/forms/AppInput.vue'
 const { loadedTabs } = useChromeTabs()
-const {
-	state,
-	storeSession,
-	openAll,
-	removeSavedSession,
-	downloadSavedSession,
-} = useSessionsData()
+const { state, storeSession, openAll, removeSavedSession, downloadSavedSession } = useSessionsData()
 
 const search = ref('')
 const parsedState = computed(() => {
@@ -25,12 +19,8 @@ const parsedState = computed(() => {
 				}
 
 				return (
-					row.title
-						.toLocaleLowerCase()
-						.indexOf(search.value.toLocaleLowerCase()) > -1 ||
-					row.url
-						.toLocaleLowerCase()
-						.indexOf(search.value.toLocaleLowerCase()) > -1
+					row.title.toLocaleLowerCase().indexOf(search.value.toLocaleLowerCase()) > -1 ||
+					row.url.toLocaleLowerCase().indexOf(search.value.toLocaleLowerCase()) > -1
 				)
 			})
 			return {
@@ -40,9 +30,7 @@ const parsedState = computed(() => {
 				...value,
 			}
 		})
-		.toSorted(
-			(a, b) => new Date(b.key).getTime() - new Date(a.key).getTime(),
-		)
+		.toSorted((a, b) => new Date(b.key).getTime() - new Date(a.key).getTime())
 })
 // const matchse
 </script>
@@ -53,28 +41,18 @@ const parsedState = computed(() => {
 			<div class="px-4 sm:px-6 lg:px-8">
 				<div class="sm:flex sm:items-center">
 					<div class="sm:flex-auto">
-						<h1
-							class="text-xl font-semibold text-slate-900 dark:text-white"
-						>
+						<h1 class="text-xl font-semibold text-slate-900 dark:text-white">
 							Sessions
 						</h1>
-						<p
-							class="mt-2 text-sm text-slate-700 dark:text-vercel-accents-5"
-						>
+						<p class="mt-2 text-sm text-slate-700 dark:text-vercel-accents-5">
 							A list of all saved sessions
 						</p>
 					</div>
 					<div class="mt-4 space-x-2 sm:ml-16 sm:mt-0 sm:flex-none">
-						<AppButton
-							intent="common"
-							size="x-small"
-							@click="storeSession(loadedTabs)"
+						<AppButton intent="common" size="x-small" @click="storeSession(loadedTabs)"
 							>Restore from file</AppButton
 						>
-						<AppButton
-							intent="common"
-							size="x-small"
-							@click="storeSession(loadedTabs)"
+						<AppButton intent="common" size="x-small" @click="storeSession(loadedTabs)"
 							>Save session</AppButton
 						>
 					</div>
@@ -86,11 +64,9 @@ const parsedState = computed(() => {
 				</div>
 				<div class="mt-8 flex flex-col">
 					<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-						<div
-							class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8"
-						>
+						<div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
 							<div
-								class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg dark:border dark:border-vercel-accents-2"
+								class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:border dark:border-vercel-accents-2 md:rounded-lg"
 							>
 								<table
 									class="min-w-full divide-y divide-slate-300 dark:divide-vercel-accents-2"
@@ -99,7 +75,7 @@ const parsedState = computed(() => {
 										<tr>
 											<th
 												scope="col"
-												class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 sm:pl-6 dark:text-vercel-accents-6"
+												class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 dark:text-vercel-accents-6 sm:pl-6"
 											>
 												Date
 											</th>
@@ -119,9 +95,7 @@ const parsedState = computed(() => {
 												scope="col"
 												class="relative py-3.5 pl-3 pr-4 sm:pr-6"
 											>
-												<span class="sr-only"
-													>Actions</span
-												>
+												<span class="sr-only">Actions</span>
 											</th>
 										</tr>
 									</thead>
@@ -133,8 +107,7 @@ const parsedState = computed(() => {
 											:key="value.key"
 											:class="{
 												'bg-vercel-accents-2':
-													value.matches.length &&
-													search,
+													value.matches.length && search,
 											}"
 										>
 											<td
@@ -159,9 +132,7 @@ const parsedState = computed(() => {
 														<div
 															class="text-slate-500 dark:text-vercel-accents-4"
 														>
-															{{
-																value.humanDistance
-															}}
+															{{ value.humanDistance }}
 														</div>
 													</div>
 												</div>
@@ -169,9 +140,7 @@ const parsedState = computed(() => {
 											<td
 												class="whitespace-nowrap px-3 py-4 text-sm text-slate-500 dark:text-vercel-accents-4"
 											>
-												<div
-													class="text-slate-900 dark:text-white"
-												>
+												<div class="text-slate-900 dark:text-white">
 													{{ value.tabs.length }}
 												</div>
 											</td>
@@ -181,7 +150,7 @@ const parsedState = computed(() => {
 											>
 												<span
 													v-if="value.title"
-													class="font-medium text-slate-900 dark:text-white"
+													class="text-wrap font-medium text-slate-900 dark:text-white"
 												>
 													{{ value.title }}
 												</span>
@@ -193,27 +162,17 @@ const parsedState = computed(() => {
 												class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
 											>
 												<div class="space-x-2">
-													<AppBtn
-														@click="openAll(value)"
+													<AppBtn @click="openAll(value)"
 														>Open session</AppBtn
 													>
-													<AppBtn
-														@click="
-															removeSavedSession(
-																value.key,
-															)
-														"
+													<AppBtn @click="removeSavedSession(value.key)"
 														>Remove session</AppBtn
 													>
 													<AppBtn
 														@click="
-															downloadSavedSession(
-																value.key,
-																value,
-															)
+															downloadSavedSession(value.key, value)
 														"
-														>Download
-														session</AppBtn
+														>Download session</AppBtn
 													>
 												</div>
 											</td>
