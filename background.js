@@ -4,13 +4,43 @@ const getCurrentTab = async () => {
 	const [tab] = await chrome.tabs.query(queryOptions)
 	return tab
 }
-chrome.history.onVisited.addListener(function (historyItem) {
-	console.log(historyItem)
-	console.log(historyItem.url)
-	chrome.tabs.query({ url: historyItem.url }, function (tab) {
-		console.log('tab', tab)
-	})
+// chrome.history.onVisited.addListener(async () => {
+// 	// 	console.log(historyItem)
+// 	// 	console.log(historyItem.url)
+// 	// chrome.tabs.query({ url: historyItem.url }, function (tab) {
+// 	// 		console.log('tab', tab)
+// 	// })
+// 	// const tabs = await chrome.tabs.query({})
+// 	// console.log(tabs)
+// })
+
+async function updateBadget() {
+	const tabs = await chrome.tabs.query({})
+	const count = tabs.length
+
+	if (count > 20) {
+		chrome.action.setBadgeText({ text: `${count}` })
+		chrome.action.setBadgeBackgroundColor({ color: '#ef4444' })
+		return
+	}
+
+	if (count > 10) {
+		chrome.action.setBadgeText({ text: `${count}` })
+		chrome.action.setBadgeBackgroundColor({ color: '#eab308' })
+		return
+	}
+
+	chrome.action.setBadgeBackgroundColor({ color: '#22c55e' })
+	chrome.action.setBadgeText({ text: ' ' })
+}
+
+chrome.tabs.onCreated.addListener(async () => {
+	await updateBadget()
 })
+chrome.tabs.onRemoved.addListener(async () => {
+	await updateBadget()
+})
+
 chrome.commands.onCommand.addListener((command, openedTab) => {
 	console.log(`Command "${command}" triggered`)
 	if (command == 'open-page') {
