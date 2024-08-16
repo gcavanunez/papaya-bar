@@ -18,19 +18,20 @@ async function updateBadget() {
 	const tabs = await chrome.tabs.query({})
 	const count = tabs.length
 
+	chrome.action.setBadgeTextColor({ color: '#ffffff' })
 	if (count > 20) {
 		chrome.action.setBadgeText({ text: `${count}` })
-		chrome.action.setBadgeBackgroundColor({ color: '#ef4444' })
+		chrome.action.setBadgeBackgroundColor({ color: '#dc2626' })
 		return
 	}
 
 	if (count > 10) {
 		chrome.action.setBadgeText({ text: `${count}` })
-		chrome.action.setBadgeBackgroundColor({ color: '#eab308' })
+		chrome.action.setBadgeBackgroundColor({ color: '#ca8a04' })
 		return
 	}
 
-	chrome.action.setBadgeBackgroundColor({ color: '#22c55e' })
+	chrome.action.setBadgeBackgroundColor({ color: '#16a34a' })
 	chrome.action.setBadgeText({ text: ' ' })
 }
 
