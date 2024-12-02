@@ -53,7 +53,7 @@ const tabHistory = computed(() => {
 					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color,
 				}"
 				:class="{
-					'group-hover:border-l-slate-200  dark:border-black dark:group-hover:border-vercel-accents-1':
+					'group-hover:border-l-slate-200 dark:border-black dark:group-hover:border-vercel-accents-1':
 						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
 						!tabsSelected.has(tab.stableId),
 					'border-papaya-500 group-hover:border-papaya-500/85':
@@ -85,88 +85,8 @@ const tabHistory = computed(() => {
 								:windows-map="windowsMap"
 								:can-create-group="false"
 							/>
-							<!-- <Menu v-slot="{ open }">
-								<span class="pointer-events-auto relative inline-flex text-left">
-									<MenuButton
-										ref="trigger"
-										class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5"
-									>
-										Move to
-										<ChevronDownIcon
-											class="ml-2 -mr-1 h-3 w-3 text-slate-800 dark:text-white"
-											aria-hidden="true"
-										/>
-									</MenuButton>
-								</span>
-								<div ref="container" class="z-30 w-56">
-									<transition
-										enter-active-class="transition duration-100 ease-out"
-										enter-from-class="transform scale-95 opacity-0"
-										enter-to-class="transform scale-100 opacity-100"
-										leave-active-class="transition duration-75 ease-in"
-										leave-from-class="transform scale-100 opacity-100"
-										leave-to-class="transform z-30 scale-95 opacity-0"
-									>
-										<MenuItems
-											class="z-40 w-full divide-y divide-gray-100 rounded-md border border-gray-200 bg-white shadow-lg outline-none"
-										>
-											<div class="px-1 py-1">
-												<MenuItem
-													v-slot="{ active, disabled }"
-													:disabled="windowId === tab.windowId"
-													:key="`${windowId}-${tab.stableId}`"
-													v-for="[windowId, value] in [...windowsMap]"
-													@click="
-														moveTabTo([tab], { containerId: windowId, type: 'window_container' })
-													"
-												>
-													<button
-														:class="[
-															active ? 'bg-blue-500 text-white' : 'text-slate-700',
-															'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-															disabled ? 'opacity-50' : 'opacity-100',
-														]"
-													>
-														{{ value }}
-													</button>
-												</MenuItem>
-											</div>
-											<div class="px-1 py-1">
-												<MenuItem
-													v-slot="{ active, disabled }"
-													:key="`${loadedGroup.id}-custom-selected`"
-													v-for="loadedGroup in loadedGroups"
-													@click="
-														moveTabTo([tab], {
-															containerId: loadedGroup.id,
-															type: 'group_container',
-														})
-													"
-												>
-													<button
-														:class="[
-															active ? 'bg-blue-500 text-white' : 'text-slate-700',
-															'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-															disabled ? 'opacity-50' : 'opacity-100',
-														]"
-													>
-														{{ loadedGroup.title }}
-													</button>
-												</MenuItem>
-											</div>
-										</MenuItems>
-									</transition>
-								</div>
-							</Menu> -->
 						</div>
-						<!-- <AppBtn :class="{ 'opacity-75': open }">
-							History
-							<ChevronUpIcon
-								:class="open ? 'rotate-180 transform' : ''"
-								class="ml-2 -mr-1 h-3 w-3 text-slate-800 transition dark:text-white"
-								aria-hidden="true"
-							/>
-						</AppBtn> -->
+
 						<DisclosureButton as="template">
 							<AppButton
 								:class="{ 'opacity-80': open }"
@@ -191,12 +111,7 @@ const tabHistory = computed(() => {
 						</AppBtn>
 					</div>
 				</div>
-				<!-- 
-          ring-2 ring-inset
-          :style="{
-						'--tw-ring-color':
-							loadedGroups.find((row) => row.id === tab.groupId)?.color || 'transparent',
-					}" -->
+
 				<button
 					class="flex w-full items-center rounded px-2 py-2"
 					:class="
@@ -222,7 +137,7 @@ const tabHistory = computed(() => {
 						:class="
 							!tabsSelected.has(tab.stableId)
 								? 'text-slate-900 dark:text-vercel-accents-5 dark:group-hover:text-white'
-								: 'text-slate-900 dark:text-vercel-accents-1 '
+								: 'text-slate-900 dark:text-vercel-accents-1'
 						"
 					>
 						{{ tab.title }}
@@ -240,7 +155,7 @@ const tabHistory = computed(() => {
 								<div
 									class="absolute left-0 top-[4px] h-full"
 									:class="{
-										' border-l border-slate-200':
+										'border-l border-slate-200':
 											index !== tabHistory.length - 1,
 									}"
 								></div>

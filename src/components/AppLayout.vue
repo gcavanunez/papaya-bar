@@ -57,6 +57,7 @@ const userNavigation = [
 const tabs = computed(() =>
 	[
 		{ name: 'Tabs', href: 'index', current: false },
+		{ name: 'History', href: 'history', current: false },
 		{ name: 'Sessions', href: 'sessions', current: false },
 		{ name: 'Utils', href: 'utilities', current: false },
 	].map((row) => ({

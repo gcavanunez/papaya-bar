@@ -79,34 +79,35 @@ export const useChromeTabs = () => {
 	}
 	// onMounted(() => {
 	// To be able to load in dev environment
-	const fire = () => {
+	const fire = (listener: string) => {
+		console.log(listener)
 		init()
 	}
 	// this whole portion needs to be refactored to also removeListener
 	const initlisteners = () => {
 		if (chrome.tabs) {
 			console.log('---initing---')
-			fire()
-			chrome.tabs.onUpdated.addListener(fire)
-			chrome.tabs.onRemoved.addListener(fire)
-			chrome.tabs.onMoved.addListener(fire)
-			chrome.tabs.onAttached.addListener(fire)
-			chrome.tabGroups.onCreated.addListener(fire)
-			chrome.tabGroups.onMoved.addListener(fire)
-			chrome.tabGroups.onRemoved.addListener(fire)
-			chrome.tabGroups.onUpdated.addListener(fire)
+			fire('first run')
+			chrome.tabs.onUpdated.addListener(() => fire('tabs.onUpdated'))
+			chrome.tabs.onRemoved.addListener(() => fire('tabs.onRemoved'))
+			chrome.tabs.onMoved.addListener(() => fire('tabs.onMoved'))
+			chrome.tabs.onAttached.addListener(() => fire('tabs.onAttached'))
+			chrome.tabGroups.onCreated.addListener(() => fire('tabGroups.onCreated'))
+			chrome.tabGroups.onMoved.addListener(() => fire('tabGroups.onMoved'))
+			chrome.tabGroups.onRemoved.addListener(() => fire('tabGroups.onRemoved'))
+			chrome.tabGroups.onUpdated.addListener(() => fire('tabGroups.onUpdated'))
 		}
 		onUnmounted(() => {
 			if (chrome.tabs) {
 				console.log('---killing---')
-				chrome.tabs.onUpdated.removeListener(fire)
-				chrome.tabs.onRemoved.removeListener(fire)
-				chrome.tabs.onMoved.removeListener(fire)
-				chrome.tabs.onAttached.removeListener(fire)
-				chrome.tabGroups.onCreated.removeListener(fire)
-				chrome.tabGroups.onMoved.removeListener(fire)
-				chrome.tabGroups.onRemoved.removeListener(fire)
-				chrome.tabGroups.onUpdated.removeListener(fire)
+				chrome.tabs.onUpdated.removeListener(() => fire('tabs.onUpdated'))
+				chrome.tabs.onRemoved.removeListener(() => fire('tabs.onRemoved'))
+				chrome.tabs.onMoved.removeListener(() => fire('tabs.onMoved'))
+				chrome.tabs.onAttached.removeListener(() => fire('tabs.onAttached'))
+				chrome.tabGroups.onCreated.removeListener(() => fire('tabGroups.onCreated'))
+				chrome.tabGroups.onMoved.removeListener(() => fire('tabGroups.onMoved'))
+				chrome.tabGroups.onRemoved.removeListener(() => fire('tabGroups.onRemoved'))
+				chrome.tabGroups.onUpdated.removeListener(() => fire('tabGroups.onUpdated'))
 			}
 		})
 	}

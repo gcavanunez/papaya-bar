@@ -28,6 +28,11 @@ const routes: RouteRecordRaw[] = [
 				],
 			},
 			{
+				path: 'history',
+				component: () => import('@/views/History.vue'),
+				name: 'history',
+			},
+			{
 				path: 'utilities',
 				component: () => import('@/views/Utilities.vue'),
 				name: 'utilities',

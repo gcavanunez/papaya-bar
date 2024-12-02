@@ -391,8 +391,8 @@ watchEffect(() => {
 						>
 							<button
 								:class="[
-									'flex w-full items-center rounded-md px-3 py-2 text-sm font-medium leading-5 ',
-									'group  ring-papaya-900 focus:outline-none focus-visible:ring-2',
+									'flex w-full items-center rounded-md px-3 py-2 text-sm font-medium leading-5',
+									'group ring-papaya-900 focus:outline-none focus-visible:ring-2',
 									selected
 										? 'bg-white text-slate-900 shadow dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5'
 										: 'text-slate-700 hover:bg-slate-50 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white',
@@ -402,7 +402,7 @@ watchEffect(() => {
 									:is="values.icon"
 									:class="[
 										selected
-											? 'text-slate-500  dark:text-white'
+											? 'text-slate-500 dark:text-white'
 											: 'text-slate-400 group-hover:text-slate-500 dark:text-vercel-accents-5 dark:group-hover:text-white',
 										'-ml-1 mr-3 h-6 w-6 flex-shrink-0',
 									]"
@@ -1067,18 +1067,18 @@ watchEffect(() => {
 				</div>
 			</div>
 		</section>
-		<aside class="hidden lg:col-span-2 lg:block">
+		<aside class="-mb-8 hidden lg:col-span-2 lg:block">
 			<div
 				v-if="Object.values(grouped).some((row) => row.length)"
 				class="sticky top-[88px] space-y-4"
 			>
-				<section aria-labelledby="who-to-follow-heading">
-					<div class="lg:h-screen lg:overflow-y-auto">
+				<section aria-labelledby="groupings">
+					<div class="pb-8 lg:h-[calc(100vh-88px)] lg:overflow-y-auto">
 						<div class="">
 							<!-- <div class="rounded-lg bg-white shadow lg:h-screen lg:overflow-y-auto">
               <div class="p-6"> -->
 							<h2
-								id="who-to-follow-heading"
+								id="groupings"
 								class="text-base font-medium text-slate-900 dark:text-white"
 							>
 								Groups

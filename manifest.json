@@ -53,6 +53,7 @@
 		{
 			"matches": [
 				"<all_urls>",
+				"*://*/*",
 				"https://*.google.com/*"
 			],
 			"js": [
