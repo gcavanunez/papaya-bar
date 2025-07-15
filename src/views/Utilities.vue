@@ -16,6 +16,7 @@ const openLinks = async () => {
 	const createdWindow = await chrome.windows.create({
 		url: parsedUrls.value[0],
 	})
+	if (!createdWindow) return
 	const openlinks = parsedUrls.value.slice(1)
 	openlinks.forEach((row) => {
 		chrome.tabs.create({
@@ -27,14 +28,16 @@ const openLinks = async () => {
 </script>
 <template>
 	<div class="relative">
-		<div class="container mx-auto max-w-5xl py-6 px-4 sm:px-2">
+		<div class="container mx-auto max-w-5xl px-4 py-6 sm:px-2">
 			<div class="flex w-full justify-end">
 				<AppBtn color="white" @click="openLinks">Open all links</AppBtn>
 			</div>
 			<div class="mt-6 grid grid-cols-2 gap-4">
 				<div>
-					<div class="shadow-sm ring-1 ring-black ring-opacity-5 sm:overflow-hidden sm:rounded-lg">
-						<div class="space-y-6 bg-white py-5 px-4 dark:bg-black sm:p-6">
+					<div
+						class="ring-opacity-5 shadow-sm ring-1 ring-black sm:overflow-hidden sm:rounded-lg"
+					>
+						<div class="space-y-6 bg-white px-4 py-5 sm:p-6 dark:bg-black">
 							<div>
 								<AppTextarea
 									id="input-links"
@@ -48,8 +51,10 @@ const openLinks = async () => {
 					</div>
 				</div>
 				<div>
-					<div class="shadow-sm ring-1 ring-black ring-opacity-5 sm:overflow-hidden sm:rounded-lg">
-						<div class="space-y-6 bg-white py-5 px-4 dark:bg-black sm:p-6">
+					<div
+						class="ring-opacity-5 shadow-sm ring-1 ring-black sm:overflow-hidden sm:rounded-lg"
+					>
+						<div class="space-y-6 bg-white px-4 py-5 sm:p-6 dark:bg-black">
 							<div>
 								<AppTextarea
 									id="output-links"

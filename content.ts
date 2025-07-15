@@ -146,3 +146,5 @@ async function getTextBlobFromUrl(url) {
 // 		},
 // 	})
 // 	.mount('#my-extension-root')
+
+console.log('here')

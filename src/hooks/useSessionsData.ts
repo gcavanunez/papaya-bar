@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { Tab, Group, SaveableTab } from '@/types'
 
 type ChromeTab = chrome.tabs.Tab
-const asyncGetTab = (tabId: number) =>
+export const asyncGetTab = (tabId: number) =>
 	new Promise<ChromeTab>((resolve) => {
 		chrome.tabs.get(tabId, (tab) => resolve(tab))
 	})
@@ -269,17 +269,13 @@ export const useSessionsData = () => {
 
 		const coolWindowData = windows.map((newChromeWindow, index) => {
 			const lilTabGroup = [...groupedTabs.entries()][index][1]
-			// this is wrong
-			// const lilGroups = [...groupedByGroups.entries()][index][1]
-			console.log({ new_tabs: newChromeWindow.tabs })
 			return {
 				newChromeWindow,
-				alreadyOpenedTabs: newChromeWindow.tabs || [],
+				alreadyOpenedTabs: newChromeWindow!.tabs || [],
 				tabs: lilTabGroup.map((row) => ({
 					...row,
-					newWindowId: newChromeWindow.id,
+					newWindowId: newChromeWindow!.id,
 				})),
-				// groups: lilGroups.map((row) => ({ ...row, newWindowId: newChromeWindow.id })),
 			}
 		})
 		console.log({ coolWindowData })
@@ -287,7 +283,7 @@ export const useSessionsData = () => {
 		const createdTabs = await Promise.all(
 			coolWindowData.flatMap((row) => {
 				// return row.tabs.map()
-				return row.tabs
+				return row!.tabs
 					.filter((row, index) => index !== 0)
 					.map((row) => {
 						// if (lilTabGroupIndex === 0)
@@ -322,7 +318,7 @@ export const useSessionsData = () => {
 		const upgradedSet = new Map<string, ChromeTab>()
 		const addBackIn = [
 			...createdTabs,
-			...coolWindowData.flatMap(({ alreadyOpenedTabs }) => alreadyOpenedTabs),
+			...coolWindowData.flatMap(({ alreadyOpenedTabs }: any) => alreadyOpenedTabs),
 		]
 		addBackIn.forEach((row) => {
 			if (row.status == 'loading') {
@@ -360,7 +356,7 @@ export const useSessionsData = () => {
 				const actualTabs = [...upgradedSet]
 					.filter(([key]) => groupableTabsSet.has(key))
 					.map(([, row]) => row)
-				const tabIds = actualTabs.map((row) => row.id!)
+				const tabIds = actualTabs.map((row) => row.id!) as any
 
 				console.log({ tabIds })
 

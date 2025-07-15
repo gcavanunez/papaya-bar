@@ -57,7 +57,7 @@
 				"https://*.google.com/*"
 			],
 			"js": [
-				"public/content.js"
+				"content.ts"
 			]
 		}
 	],

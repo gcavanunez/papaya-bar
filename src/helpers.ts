@@ -42,12 +42,12 @@ export const moveTabTo = (
 	if (type === 'group_container') {
 		chrome.tabs.group({
 			groupId: containerId,
-			tabIds: tabs.filter((row) => row.id).map((row) => row.id!),
+			tabIds: tabs.filter((row) => row.id).map((row) => row.id!) as any,
 		})
 	}
 }
 
-export const copyLink = (tab: Tab) => {
+export const copyLink = (tab: Pick<Tab, 'title' | 'url'>) => {
 	const text = `${tab.title}\n${tab.url}`
 	copyToClipboard(text)
 }
@@ -63,7 +63,7 @@ export const closeTab = (tabs: Tab[]) => {
 }
 
 export const goTo = (tab: Tab) => {
-	chrome.tabs.query({}, function (tabs) {
+	chrome.tabs.query({}, function(tabs) {
 		if (tabs.length) {
 			if (tab.id && tabs.find((row) => row.id == tab.id)) {
 				chrome.windows.update(tab.windowId, { focused: true })
@@ -76,6 +76,7 @@ export const goTo = (tab: Tab) => {
 }
 export const moveTabs = async (tabs: Tab[]) => {
 	const newWindow = await chrome.windows.create({})
+	if (!newWindow) return
 	const newTab = newWindow.tabs
 	tabs.forEach((row) => {
 		if (row.id) {

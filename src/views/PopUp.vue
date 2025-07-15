@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { copyLink } from '@/helpers'
-import { useChromeTabs } from '@/hooks/useChromeTabs'
 import {
 	ArrowTopRightOnSquareIcon,
 	CameraIcon,
 	DocumentDuplicateIcon,
 } from '@heroicons/vue/24/outline'
 import { useTimeoutFn } from '@vueuse/core'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useMotion } from '@vueuse/motion'
 
-const { loadedTabs, initlisteners } = useChromeTabs()
-initlisteners()
+const loadedTabs = ref(0)
+
+onMounted(() => {
+	chrome.tabs.query({}, (tabs) => {
+		loadedTabs.value = tabs.length
+	})
+})
 
 const copiedLink = ref<'link' | 'screen' | ''>('')
 
@@ -57,8 +61,7 @@ const copyOpenTab = async () => {
 	])
 
 	start()
-	const current = await chrome.windows.getCurrent()
-	const tab = loadedTabs.value.find((row) => row.active && row.windowId == current.id)
+	const tab = await getCurrentTab()
 	if (tab) {
 		copyLink(tab)
 	}
@@ -109,10 +112,11 @@ async function getImageBlobFromUrl(url: string) {
 	return blob
 }
 </script>
+
 <template>
 	<div class="h-[240px] w-[360px] bg-slate-100 antialiased">
 		<div class="relative flex h-full flex-col">
-			<div class="flex-shrink-0 bg-white shadow-sm">
+			<div class="z-0 flex-shrink-0 bg-white shadow-sm">
 				<div class="flex items-center justify-center pb-6 pt-8">
 					<div>
 						<img
@@ -124,12 +128,12 @@ async function getImageBlobFromUrl(url: string) {
 				</div>
 				<div class="px-3 pb-6">
 					<h1 class="text-center text-2xl font-bold leading-snug text-slate-700">
-						{{ loadedTabs.length }} tabs
+						{{ loadedTabs }} tabs
 					</h1>
 				</div>
 			</div>
 			<div class="flex-grow overflow-y-auto"></div>
-			<div class="flex flex-shrink-0 items-start p-1">
+			<div class="flex flex-shrink-0 items-start bg-slate-100 p-1">
 				<div class="w-1/3">
 					<button
 						class="relative inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"

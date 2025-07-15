@@ -6,6 +6,7 @@ import { useSessionsData } from '@/hooks/useSessionsData'
 import { computed, ref } from 'vue'
 import AppButton from '@/components/AppButton.vue'
 import AppInput from '@/components/forms/AppInput.vue'
+import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 const { loadedTabs } = useChromeTabs()
 const { state, storeSession, openAll, removeSavedSession, downloadSavedSession } = useSessionsData()
 
@@ -83,7 +84,7 @@ const parsedState = computed(() => {
 												scope="col"
 												class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-vercel-accents-6"
 											>
-												Tab count
+												Count
 											</th>
 											<th
 												scope="col"
@@ -162,18 +163,26 @@ const parsedState = computed(() => {
 												class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
 											>
 												<div class="space-x-2">
-													<AppBtn @click="openAll(value)"
-														>Open session</AppBtn
-													>
-													<AppBtn @click="removeSavedSession(value.key)"
-														>Remove session</AppBtn
-													>
 													<AppBtn
+														color="round-primary"
+														@click="openAll(value)"
+													>
+														<ArrowTopRightOnSquareIcon class="size-4" />
+													</AppBtn>
+													<AppBtn
+														color="round-primary"
+														@click="removeSavedSession(value.key)"
+													>
+														<XMarkIcon class="size-4" />
+													</AppBtn>
+													<AppBtn
+														color="round-primary"
 														@click="
 															downloadSavedSession(value.key, value)
 														"
-														>Download session</AppBtn
 													>
+														<ArrowDownTrayIcon class="size-4" />
+													</AppBtn>
 												</div>
 											</td>
 										</tr>

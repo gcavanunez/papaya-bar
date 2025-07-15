@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { crx } from '@crxjs/vite-plugin'
 
@@ -19,8 +20,8 @@ export default defineConfig({
 	define: {
 		__COMMIT_HASH__: JSON.stringify(lastCommitHash),
 	},
-	plugins: [vue(), crx({ manifest })],
 
+	plugins: [tailwindcss(), , vue(), crx({ manifest })],
 	resolve: {
 		alias: {
 			'@': fileURLToPath(new URL('./src', import.meta.url)),
