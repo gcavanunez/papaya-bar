@@ -340,138 +340,138 @@ watchEffect(() => {
 </script>
 
 <template>
-	<div
-		class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
-	>
-		<!-- Header Section -->
-		<div
-			class="sticky top-0 z-40 border-b border-slate-200/50 bg-white/80 backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-900/80"
-		>
-			<div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-				<!-- Navigation Pills -->
-				<div class="mb-6 flex items-center justify-between">
-					<TabGroup :selected-index="selectedTab" @change="changeTab">
-						<TabList
-							class="flex space-x-1 rounded-xl bg-slate-100/50 p-1 backdrop-blur-sm dark:bg-slate-800/50"
-						>
-							<AppTab
-								v-for="[category, values] in Object.entries(categories)"
-								:key="category"
-								v-slot="{ selected }"
-								as="template"
-							>
-								<button
-									:class="[
-										'flex items-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200',
-										'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
-										selected
-											? 'scale-105 bg-white text-slate-900 shadow-lg shadow-slate-200/50 dark:bg-slate-700 dark:text-white dark:shadow-slate-900/50'
-											: 'text-slate-600 hover:bg-white/50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-white',
-									]"
-								>
-									<component
-										:is="values.icon"
-										:class="[
-											'h-4 w-4 transition-colors',
-											selected
-												? 'text-blue-600 dark:text-blue-400'
-												: 'text-slate-500 dark:text-slate-400',
-										]"
-									/>
-									<span>{{ category }}</span>
-								</button>
-							</AppTab>
-						</TabList>
-					</TabGroup>
-
-					<!-- Mobile category selector -->
-					<div class="sm:hidden">
-						<select
-							v-model="selectedTab"
-							class="rounded-lg border-slate-300 bg-white/80 backdrop-blur-sm dark:border-slate-600 dark:bg-slate-800/80"
-						>
-							<option
-								v-for="(tab, index) in Object.keys(categories)"
-								:key="tab"
-								:value="index"
-							>
-								{{ tab }}
-							</option>
-						</select>
+	<div class="relative">
+		<div class="container mx-auto max-w-7xl px-4 py-6 sm:px-2">
+			<div class="px-4 sm:px-6 lg:px-8">
+				<!-- Header Section -->
+				<div class="sm:flex sm:items-center">
+					<div class="sm:flex-auto">
+						<h1 class="text-xl font-semibold text-slate-900 dark:text-white">
+							Tab Manager
+						</h1>
+						<p class="mt-2 text-sm text-slate-700 dark:text-vercel-accents-5">
+							Manage and organize your browser tabs
+						</p>
 					</div>
 				</div>
 
-				<!-- Search and Filter Bar -->
-				<div class="flex items-center space-x-4">
-					<div class="relative flex-1">
-						<div
-							class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-						>
-							<MagnifyingGlassIcon
-								class="h-5 w-5 text-slate-400 dark:text-slate-500"
-							/>
-						</div>
-						<input
-							id="search"
-							ref="inputRef"
-							v-model="searchTerm"
-							type="text"
-							autofocus
-							class="block w-full rounded-xl border border-slate-200/50 bg-white/80 py-3 pr-12 pl-10 text-slate-900 placeholder-slate-500 backdrop-blur-sm transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-white dark:placeholder-slate-400"
-							placeholder="Search tabs by title or URL..."
-						/>
+				<!-- Navigation and Search -->
+				<div class="mt-6 space-y-4">
+					<!-- Navigation Pills -->
+					<div class="flex items-center justify-between">
+						<TabGroup :selected-index="selectedTab" @change="changeTab">
+							<TabList class="flex space-x-1">
+								<AppTab
+									v-for="[category, values] in Object.entries(categories)"
+									:key="category"
+									v-slot="{ selected }"
+									as="template"
+								>
+									<button
+										:class="[
+											'flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+											'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+											selected
+												? 'bg-slate-100 text-slate-900 dark:bg-vercel-accents-2 dark:text-white'
+												: 'text-slate-700 hover:text-slate-900 dark:text-vercel-accents-5 dark:hover:text-white',
+										]"
+									>
+										<component
+											:is="values.icon"
+											:class="[
+												'h-4 w-4',
+												selected
+													? 'text-slate-900 dark:text-white'
+													: 'text-slate-500 dark:text-vercel-accents-4',
+											]"
+										/>
+										<span>{{ category }}</span>
+									</button>
+								</AppTab>
+							</TabList>
+						</TabGroup>
 
-						<!-- Search shortcut hint -->
-						<div
-							v-if="!searchTerm"
-							class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
-						>
-							<kbd
-								class="inline-flex items-center rounded border border-slate-200 px-2 py-1 font-sans text-xs text-slate-400 dark:border-slate-600 dark:text-slate-500"
+						<!-- Mobile category selector -->
+						<div class="sm:hidden">
+							<select
+								v-model="selectedTab"
+								class="rounded-md border-slate-300 bg-white dark:border-vercel-accents-2 dark:bg-black"
 							>
-								/
-							</kbd>
-						</div>
-
-						<!-- Search results counter and clear -->
-						<div
-							v-if="totalTabs > 0 && searchTerm"
-							class="absolute inset-y-0 right-0 flex items-center pr-3"
-						>
-							<div class="flex items-center space-x-1">
-								<span
-									class="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+								<option
+									v-for="(tab, index) in Object.keys(categories)"
+									:key="tab"
+									:value="index"
 								>
-									{{ totalTabs }} results
-								</span>
-								<button
-									@click="searchTerm = ''"
-									class="rounded-md p-1 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700"
-								>
-									<XMarkIcon class="h-4 w-4 text-slate-400 dark:text-slate-500" />
-								</button>
-							</div>
+									{{ tab }}
+								</option>
+							</select>
 						</div>
 					</div>
 
-					<!-- Filter Button -->
-					<Popover class="relative">
-						<PopoverButton as="template">
-							<button
-								type="button"
-								class="inline-flex items-center space-x-2 rounded-xl border border-slate-200/50 bg-white/80 px-4 py-3 text-slate-700 backdrop-blur-sm transition-all duration-200 hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700"
+					<!-- Search and Filter Bar -->
+					<div class="flex items-center space-x-4">
+						<div class="relative flex-1 lg:w-96">
+							<div
+								class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
 							>
-								<FunnelIcon class="h-4 w-4" />
-								<span class="hidden sm:inline">Filters</span>
-							</button>
-						</PopoverButton>
-						<!-- <PopoverPanel class="absolute z-10"> -->
-						<!-- <div class="grid grid-cols-2">
-                            <a href="/analytics">Analytics</a>
-                            <a href="/engagement">Engagement</a>
-                            <a href="/security">Security</a>
-                            <a href="/integrations">Integrations</a>
-                          </div> -->
+								<MagnifyingGlassIcon
+									class="h-5 w-5 text-slate-400 dark:text-slate-500"
+								/>
+							</div>
+							<input
+								id="search"
+								ref="inputRef"
+								v-model="searchTerm"
+								type="text"
+								autofocus
+								class="block w-full rounded-md border border-slate-300 bg-white py-2 pr-12 pl-10 text-slate-900 placeholder-slate-500 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-white dark:placeholder-slate-400"
+								placeholder="Search tabs by title or URL..."
+							/>
+
+							<!-- Search shortcut hint -->
+							<div
+								v-if="!searchTerm"
+								class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+							>
+								<kbd
+									class="inline-flex items-center rounded border border-slate-200 px-2 py-1 font-sans text-xs text-slate-400 dark:border-slate-600 dark:text-slate-500"
+								>
+									/
+								</kbd>
+							</div>
+
+							<!-- Search results counter and clear -->
+							<div
+								v-if="totalTabs > 0 && searchTerm"
+								class="absolute inset-y-0 right-0 flex items-center pr-3"
+							>
+								<div class="flex items-center space-x-1">
+									<span
+										class="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-500 dark:bg-vercel-accents-2 dark:text-vercel-accents-4"
+									>
+										{{ totalTabs }} results
+									</span>
+									<button
+										@click="searchTerm = ''"
+										class="rounded-md p-1 transition-colors hover:bg-slate-100 dark:hover:bg-vercel-accents-2"
+									>
+										<XMarkIcon class="h-4 w-4 text-slate-400 dark:text-slate-500" />
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<!-- Filter Button -->
+						<Popover class="relative">
+							<PopoverButton as="template">
+								<button
+									type="button"
+									class="inline-flex items-center space-x-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-1"
+								>
+									<FunnelIcon class="h-4 w-4" />
+									<span class="hidden sm:inline">Filters</span>
+								</button>
+							</PopoverButton>
 						<transition
 							enter-active-class="transition duration-200 ease-out"
 							enter-from-class="translate-y-1 opacity-0"
@@ -485,18 +485,18 @@ watchEffect(() => {
 								class="absolute top-full right-0 z-50 mt-2 w-80"
 							>
 								<div
-									class="space-y-6 rounded-xl border border-slate-200/50 bg-white/95 p-6 shadow-xl shadow-slate-200/20 backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-800/95 dark:shadow-slate-900/20"
+									class="space-y-6 rounded-lg border border-slate-200 bg-white p-6 shadow-lg ring-1 ring-black ring-opacity-5 dark:border-vercel-accents-2 dark:bg-black"
 								>
 									<button
 										@click="close"
-										class="absolute top-4 right-4 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+										class="absolute top-4 right-4 rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-slate-300"
 									>
 										<XMarkIcon class="h-4 w-4" />
 									</button>
 									<div class="space-y-6">
 										<div class="flex items-center justify-between">
 											<label
-												class="text-sm font-medium text-slate-700 dark:text-slate-300"
+												class="text-sm font-medium text-slate-700 dark:text-vercel-accents-5"
 											>
 												Date Range Filter
 											</label>
@@ -505,8 +505,8 @@ watchEffect(() => {
 												:class="[
 													filter.has_date_range
 														? 'bg-blue-600'
-														: 'bg-slate-200 dark:bg-slate-600',
-													'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
+														: 'bg-slate-200 dark:bg-vercel-accents-3',
+													'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
 												]"
 											>
 												<span
@@ -523,12 +523,12 @@ watchEffect(() => {
 											<div>
 												<RadioGroup v-model="filter.date_range_type">
 													<RadioGroupLabel
-														class="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300"
+														class="mb-3 text-sm font-medium text-slate-700 dark:text-vercel-accents-5"
 													>
 														Range Type
 													</RadioGroupLabel>
 													<div
-														class="grid grid-cols-5 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-700"
+														class="grid grid-cols-5 gap-1 rounded-md bg-slate-100 p-1 dark:bg-vercel-accents-2"
 													>
 														<RadioGroupOption
 															v-for="timeRange in ranges"
@@ -538,11 +538,11 @@ watchEffect(() => {
 														>
 															<button
 																:class="[
-																	'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium transition-all duration-200',
-																	'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
+																	'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
+																	'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
 																	checked
-																		? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-white'
-																		: 'text-slate-600 hover:bg-white/50 dark:text-slate-400 dark:hover:bg-slate-600/50',
+																		? 'bg-white text-slate-900 shadow-sm dark:bg-vercel-accents-3 dark:text-white'
+																		: 'text-slate-600 hover:bg-white/50 dark:text-vercel-accents-4 dark:hover:bg-vercel-accents-3/50',
 																]"
 															>
 																{{ timeRange.label }}
@@ -553,7 +553,7 @@ watchEffect(() => {
 											</div>
 											<div>
 												<label
-													class="mb-3 block text-sm font-medium text-slate-700 dark:text-slate-300"
+													class="mb-3 block text-sm font-medium text-slate-700 dark:text-vercel-accents-5"
 												>
 													Time Range
 												</label>
@@ -579,7 +579,7 @@ watchEffect(() => {
 																		class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400"
 																	/>
 																	<input
-																		class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-slate-900 transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+																		class="w-full rounded-md border border-slate-300 bg-white py-2 pr-3 pl-10 text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-white"
 																		type="text"
 																		:class="
 																			isDragging
@@ -613,7 +613,7 @@ watchEffect(() => {
 																		class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400"
 																	/>
 																	<input
-																		class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-slate-900 transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+																		class="w-full rounded-md border border-slate-300 bg-white py-2 pr-3 pl-10 text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-white"
 																		type="text"
 																		:class="
 																			isDragging
@@ -642,9 +642,8 @@ watchEffect(() => {
 																<CalendarDaysIcon
 																	class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400"
 																/>
-																<input
-																	class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-slate-900 transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-																	type="text"
+																	<input
+																		class="w-full rounded-md border border-slate-300 bg-white py-2 pr-3 pl-10 text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-white"																	type="text"
 																	:value="inputValue"
 																	v-on="inputEvents"
 																	placeholder="Select date"
@@ -662,159 +661,158 @@ watchEffect(() => {
 					</Popover>
 				</div>
 			</div>
-		</div>
 
-		<!-- Main Content Area -->
-		<div class="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-			<!-- Tab Groups Grid -->
-			<div v-if="Object.values(grouped).some((row) => row.length)" class="space-y-6 pt-8">
-				<transition-group
-					appear
-					enter-active-class="transition duration-300 ease-out"
-					enter-from-class="transform scale-95 opacity-0 translate-y-4"
-					enter-to-class="transform scale-100 opacity-100 translate-y-0"
-					leave-active-class="transition duration-200 ease-in"
-					leave-from-class="transform scale-100 opacity-100 translate-y-0"
-					leave-to-class="transform scale-95 opacity-0 translate-y-4"
-				>
-					<div
-						v-for="(group, index) in grouped"
-						:id="`section-${index}`"
-						:key="`section-${index}`"
-						class="relative"
-					>
-						<Disclosure v-slot="{ open }" :default-open="true">
-							<!-- Group Card -->
-							<div
-								class="overflow-hidden rounded-2xl border border-slate-200/50 bg-white/70 shadow-lg shadow-slate-200/20 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/30 dark:border-slate-700/50 dark:bg-slate-800/70 dark:shadow-slate-900/20 dark:hover:shadow-slate-900/30"
-							>
-								<!-- Group Header -->
-								<div
-									class="group border-b border-slate-200/50 bg-gradient-to-r from-slate-50/50 to-blue-50/50 px-6 py-4 dark:border-slate-700/50 dark:from-slate-800/50 dark:to-slate-700/50"
+				<!-- Main Content Area -->
+				<div class="mt-8 flex flex-col">
+					<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+						<div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+							<!-- Tab Groups -->
+							<div v-if="Object.values(grouped).some((row) => row.length)" class="space-y-6">
+								<transition-group
+									appear
+									enter-active-class="transition duration-300 ease-out"
+									enter-from-class="transform scale-95 opacity-0 translate-y-4"
+									enter-to-class="transform scale-100 opacity-100 translate-y-0"
+									leave-active-class="transition duration-200 ease-in"
+									leave-from-class="transform scale-100 opacity-100 translate-y-0"
+									leave-to-class="transform scale-95 opacity-0 translate-y-4"
 								>
-									<div class="flex items-center justify-between">
-										<div class="flex items-center space-x-3">
-											<DisclosureButton as="template">
-												<button
-													class="flex items-center space-x-2 rounded-xl border border-slate-200/50 bg-white/80 px-4 py-2 font-medium text-slate-900 backdrop-blur-sm transition-all duration-200 hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none dark:border-slate-600/50 dark:bg-slate-700/80 dark:text-white dark:hover:bg-slate-600"
+									<div
+										v-for="(group, index) in grouped"
+										:id="`section-${index}`"
+										:key="`section-${index}`"
+										class="relative"
+									>
+										<Disclosure v-slot="{ open }" :default-open="true">
+											<!-- Group Card -->
+											<div
+												class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:border dark:border-vercel-accents-2 md:rounded-lg"
+											>
+												<!-- Group Header -->
+												<div
+													class="group bg-slate-50 px-6 py-3.5 dark:bg-black"
 												>
-													<span class="text-sm">{{ index }}</span>
-													<div
-														class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
-													>
-														{{ group.length }}
+													<div class="flex items-center justify-between">
+														<div class="flex items-center space-x-3">
+															<DisclosureButton as="template">
+																<button
+																	class="flex items-center space-x-2 text-left text-sm font-semibold text-slate-900 dark:text-vercel-accents-6"
+																>
+																	<span>{{ index }}</span>
+																	<span class="text-slate-500 dark:text-vercel-accents-4">({{ group.length }})</span>
+																</button>
+															</DisclosureButton>
+
+															<AppBtn
+																v-if="
+																	selectedTabName === 'Grouped' &&
+																	index !== 'other'
+																"
+																color="round-primary"
+																type="button"
+																@click="onEditGroup({ tabs: group })"
+																class="opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+															>
+																<PencilSquareIcon class="h-4 w-4" />
+															</AppBtn>
+														</div>
+
+														<!-- Action Buttons -->
+														<div class="flex items-center space-x-2">
+															<AppBtn
+																color="primary"
+																@click="selectGroup(group)"
+															>
+																Select All
+															</AppBtn>
+															<AppBtn
+																color="primary"
+																@click="closeTabs(group)"
+															>
+																Close
+															</AppBtn>
+															<TabMoveToMenu
+																:tabs="group"
+																:windows-map="windowsMap"
+																:loaded-groups="loadedGroups"
+																@on-create-group="
+																	({ tabs: emitedTabs }) =>
+																		onCreateNewGroup({ tabs: emitedTabs })
+																"
+															>
+																<template #menu-trigger-label>
+																	Move
+																</template>
+															</TabMoveToMenu>
+															<AppBtn
+																color="primary"
+																@click="copyLinks(group)"
+															>
+																Copy
+															</AppBtn>
+															<DisclosureButton as="template">
+																<button
+																	class="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-slate-300"
+																>
+																	<ChevronDownIcon
+																		class="h-4 w-4 transition-transform duration-200"
+																		:class="{ 'rotate-180': open }"
+																	/>
+																</button>
+															</DisclosureButton>
+														</div>
 													</div>
-												</button>
-											</DisclosureButton>
+												</div>
 
-											<AppBtn
-												v-if="
-													selectedTabName === 'Grouped' &&
-													index !== 'other'
-												"
-												color="round-primary"
-												type="button"
-												@click="onEditGroup({ tabs: group })"
-												class="opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-											>
-												<PencilSquareIcon class="h-4 w-4" />
-											</AppBtn>
-										</div>
-
-										<!-- Action Buttons -->
-										<div class="flex items-center space-x-2">
-											<button
-												@click="selectGroup(group)"
-												class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-											>
-												Select All
-											</button>
-											<button
-												@click="closeTabs(group)"
-												class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-											>
-												Close
-											</button>
-											<TabMoveToMenu
-												:tabs="group"
-												:windows-map="windowsMap"
-												:loaded-groups="loadedGroups"
-												@on-create-group="
-													({ tabs: emitedTabs }) =>
-														onCreateNewGroup({ tabs: emitedTabs })
-												"
-											>
-												<template #menu-trigger-label>
-													<!-- <span -->
-													<!-- 	class="rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:bg-slate-600" -->
-													<!-- > -->
-													Move
-													<!-- </span> -->
-												</template>
-											</TabMoveToMenu>
-											<button
-												@click="copyLinks(group)"
-												class="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-											>
-												Copy
-											</button>
-											<DisclosureButton as="template">
-												<button
-													class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+												<!-- Tabs List -->
+												<transition
+													enter-active-class="transition duration-200 ease-out"
+													enter-from-class="opacity-0 -translate-y-2"
+													enter-to-class="opacity-100 translate-y-0"
+													leave-active-class="transition duration-150 ease-in"
+													leave-from-class="opacity-100 translate-y-0"
+													leave-to-class="opacity-0 -translate-y-2"
 												>
-													<ChevronDownIcon
-														class="h-4 w-4 transition-transform duration-200"
-														:class="{ 'rotate-180': open }"
-													/>
-												</button>
-											</DisclosureButton>
-										</div>
+													<DisclosurePanel>
+														<table class="min-w-full divide-y divide-slate-300 dark:divide-vercel-accents-2">
+															<tbody class="divide-y divide-slate-200 bg-white dark:divide-vercel-accents-2 dark:bg-black">
+																<TabRow
+																	v-for="tab in group"
+																	:key="`${tab.windowId}-${tab.stableId}`"
+																	:tab="tab"
+																	:windows-map="windowsMap"
+																	:loaded-groups="loadedGroups"
+																	:tabs-selected="tabsSelected"
+																	:history="loadedTabHistory"
+																	@toggle-selection="toggleSelection"
+																/>
+															</tbody>
+														</table>
+													</DisclosurePanel>
+												</transition>
+											</div>
+										</Disclosure>
 									</div>
-								</div>
-
-								<!-- Tabs List -->
-								<transition
-									enter-active-class="transition duration-200 ease-out"
-									enter-from-class="opacity-0 -translate-y-2"
-									enter-to-class="opacity-100 translate-y-0"
-									leave-active-class="transition duration-150 ease-in"
-									leave-from-class="opacity-100 translate-y-0"
-									leave-to-class="opacity-0 -translate-y-2"
-								>
-									<DisclosurePanel class="px-6 py-4">
-										<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-											<TabRow
-												v-for="tab in group"
-												:key="`${tab.windowId}-${tab.stableId}`"
-												:tab="tab"
-												:windows-map="windowsMap"
-												:loaded-groups="loadedGroups"
-												:tabs-selected="tabsSelected"
-												:history="loadedTabHistory"
-												@toggle-selection="toggleSelection"
-											/>
-										</div>
-									</DisclosurePanel>
-								</transition>
+								</transition-group>
 							</div>
-						</Disclosure>
+							<!-- Empty State -->
+							<div v-else-if="searchTerm" class="flex flex-col items-center justify-center py-20">
+								<div class="mb-6 rounded-full bg-slate-100 p-6 dark:bg-vercel-accents-2">
+									<XMarkIcon class="h-12 w-12 text-slate-400 dark:text-slate-500" />
+								</div>
+								<h3 class="mb-2 text-lg font-medium text-slate-900 dark:text-white">
+									No results found
+								</h3>
+								<p class="max-w-md text-center text-slate-600 dark:text-vercel-accents-4">
+									No tabs match your search for
+									<span class="font-semibold text-slate-900 dark:text-white"
+										>"{{ searchTerm }}"</span
+									>. Try adjusting your search terms or filters.
+								</p>
+							</div>
+						</div>
 					</div>
-				</transition-group>
-			</div>
-			<!-- Empty State -->
-			<div v-else-if="searchTerm" class="flex flex-col items-center justify-center py-20">
-				<div class="mb-6 rounded-full bg-slate-100 p-6 dark:bg-slate-800">
-					<XMarkIcon class="h-12 w-12 text-slate-400 dark:text-slate-500" />
 				</div>
-				<h3 class="mb-2 text-lg font-medium text-slate-900 dark:text-white">
-					No results found
-				</h3>
-				<p class="max-w-md text-center text-slate-600 dark:text-slate-400">
-					No tabs match your search for
-					<span class="font-semibold text-slate-900 dark:text-white"
-						>"{{ searchTerm }}"</span
-					>. Try adjusting your search terms or filters.
-				</p>
 			</div>
 		</div>
 	</div>
@@ -823,35 +821,35 @@ watchEffect(() => {
 	<div v-if="[...tabsSelected].length > 0" class="fixed right-0 bottom-0 left-0 z-50 p-4">
 		<div class="mx-auto max-w-7xl">
 			<div
-				class="rounded-2xl border border-slate-700/50 bg-slate-900/95 p-4 shadow-2xl shadow-slate-900/20 backdrop-blur-xl dark:bg-slate-800/95"
+				class="rounded-lg border border-slate-200 bg-white p-4 shadow-lg ring-1 ring-black ring-opacity-5 dark:border-vercel-accents-2 dark:bg-black"
 			>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center space-x-3">
 						<div
-							class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/20 text-blue-400"
+							class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-900 dark:bg-vercel-accents-2 dark:text-white"
 						>
 							<span class="text-sm font-semibold">{{
 								[...tabsSelected].length
 							}}</span>
 						</div>
-						<span class="font-medium text-white">
+						<span class="font-medium text-slate-900 dark:text-white">
 							{{ [...tabsSelected].length === 1 ? 'tab' : 'tabs' }} selected
 						</span>
 					</div>
 
 					<div class="flex items-center space-x-2">
-						<button
+						<AppBtn
+							color="primary"
 							@click="closeUnSelectedTabs"
-							class="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20"
 						>
 							Close others
-						</button>
-						<button
+						</AppBtn>
+						<AppBtn
+							color="primary"
 							@click="closeSelectedTabs"
-							class="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20"
 						>
 							Close selected
-						</button>
+						</AppBtn>
 						<TabMoveToMenu
 							:tabs="selectedGroup"
 							:loaded-groups="loadedGroups"
@@ -861,7 +859,8 @@ watchEffect(() => {
 							"
 						>
 							<template #button-trigger="{ trigger }">
-								<button
+								<AppBtn
+									color="primary"
 									:ref="
 										(el) =>
 											trigger(
@@ -870,32 +869,31 @@ watchEffect(() => {
 													: (el as HTMLElement),
 											)
 									"
-									class="rounded-lg bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
 								>
 									Move to
-								</button>
+								</AppBtn>
 							</template>
 						</TabMoveToMenu>
-						<button
+						<AppBtn
+							color="primary"
 							@click="
 								() => {
 									storeSession(selectedGroup)
 									toast('Session saved')
 								}
 							"
-							class="rounded-lg bg-green-500/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-500/20"
 						>
 							Save session
-						</button>
-						<button
+						</AppBtn>
+						<AppBtn
+							color="primary"
 							@click="copyLinks(selectedGroup)"
-							class="rounded-lg bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-400 transition-colors hover:bg-purple-500/20"
 						>
 							Copy links
-						</button>
+						</AppBtn>
 						<button
 							@click="tabsSelected.clear()"
-							class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
+							class="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
 						>
 							<XMarkIcon class="h-4 w-4" />
 						</button>

@@ -53,7 +53,7 @@ const onGroupTrigger = () => {
 						<button
 							ref="trigger"
 							type="button"
-							class="inline-flex items-center space-x-2 rounded-md border border-slate-200/50 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none dark:border-slate-600/50 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700"
+							class="inline-flex items-center space-x-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-1"
 						>
 							<slot name="menu-trigger-label">
 								<span class="inline-flex items-center space-x-1">
@@ -99,12 +99,12 @@ const onGroupTrigger = () => {
 						leave-to-class="transform scale-95 opacity-0 translate-y-1"
 					>
 						<MenuItems
-							class="z-40 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200/50 bg-white/95 shadow-xl shadow-slate-200/20 backdrop-blur-xl outline-none dark:border-slate-700/50 dark:bg-slate-800/95 dark:shadow-slate-900/20"
+							class="z-40 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 outline-none dark:border-vercel-accents-2 dark:bg-black"
 						>
 							<div class="p-2">
 								<div class="mb-2">
 									<h3
-										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-vercel-accents-4"
 									>
 										Windows
 									</h3>
@@ -122,10 +122,10 @@ const onGroupTrigger = () => {
 								>
 									<button
 										:class="[
-											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+											'group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
 											active
-												? 'bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20 dark:text-blue-400'
-												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+												? 'bg-slate-100 text-slate-900 dark:bg-vercel-accents-2 dark:text-white'
+												: 'text-slate-700 hover:bg-slate-100 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2',
 											disabled
 												? 'cursor-not-allowed opacity-50'
 												: 'cursor-pointer',
@@ -140,11 +140,11 @@ const onGroupTrigger = () => {
 							</div>
 							<div
 								v-if="loadedGroups.length"
-								class="border-t border-slate-200/50 p-2 dark:border-slate-700/50"
+								class="border-t border-slate-200 p-2 dark:border-vercel-accents-2"
 							>
 								<div class="mb-2">
 									<h3
-										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-vercel-accents-4"
 									>
 										Groups
 									</h3>
@@ -162,10 +162,10 @@ const onGroupTrigger = () => {
 								>
 									<button
 										:class="[
-											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+											'group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
 											active
-												? 'bg-purple-500/10 text-purple-600 ring-1 ring-purple-500/20 dark:text-purple-400'
-												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+												? 'bg-slate-100 text-slate-900 dark:bg-vercel-accents-2 dark:text-white'
+												: 'text-slate-700 hover:bg-slate-100 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2',
 											disabled
 												? 'cursor-not-allowed opacity-50'
 												: 'cursor-pointer',
@@ -183,11 +183,11 @@ const onGroupTrigger = () => {
 							</div>
 							<div
 								v-if="canCreateGroup"
-								class="border-t border-slate-200/50 p-2 dark:border-slate-700/50"
+								class="border-t border-slate-200 p-2 dark:border-vercel-accents-2"
 							>
 								<div class="mb-2">
 									<h3
-										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-vercel-accents-4"
 									>
 										Actions
 									</h3>
@@ -195,10 +195,10 @@ const onGroupTrigger = () => {
 								<MenuItem v-slot="{ active, disabled }" @click="onGroupTrigger">
 									<button
 										:class="[
-											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+											'group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
 											active
-												? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400'
-												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+												? 'bg-slate-100 text-slate-900 dark:bg-vercel-accents-2 dark:text-white'
+												: 'text-slate-700 hover:bg-slate-100 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2',
 											disabled
 												? 'cursor-not-allowed opacity-50'
 												: 'cursor-pointer',
@@ -219,10 +219,10 @@ const onGroupTrigger = () => {
 								<MenuItem v-slot="{ active, disabled }" @click="moveTabs(tabs)">
 									<button
 										:class="[
-											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+											'group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
 											active
-												? 'bg-orange-500/10 text-orange-600 ring-1 ring-orange-500/20 dark:text-orange-400'
-												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+												? 'bg-slate-100 text-slate-900 dark:bg-vercel-accents-2 dark:text-white'
+												: 'text-slate-700 hover:bg-slate-100 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2',
 											disabled
 												? 'cursor-not-allowed opacity-50'
 												: 'cursor-pointer',
