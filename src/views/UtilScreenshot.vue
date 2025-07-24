@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { copyImageToClipboard } from '@/utils'
 
 const isLoading = ref(true)
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request, _sender, sendResponse) {
 	if (request.name === 'stream' && request.dataURI) {
 		copyImageToClipboard(request.dataURI)
 			.then(() => {
@@ -24,21 +25,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 	}
 })
 
-async function copyImageToClipboard(img: string) {
-	const blob = await getImageBlobFromUrl(img)
 
-	await navigator.clipboard.write([
-		new ClipboardItem({
-			[blob.type]: blob,
-		}),
-	])
-}
-
-async function getImageBlobFromUrl(url: string) {
-	const fetchedImageData = await fetch(url)
-	const blob = await fetchedImageData.blob()
-	return blob
-}
 </script>
 
 <template>

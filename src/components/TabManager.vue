@@ -23,10 +23,8 @@ import TabMoveToMenu from './TabMoveToMenu.vue'
 import { useGlobalModals } from '@/hooks/useGlobalModals'
 
 const { onEditGroup, onCreateNewGroup } = useGlobalModals()
-
-// composable end
-
 const { storeSession } = useSessionsData()
+
 const ranges: Record<string, { value: string; label: string; is_range: boolean }> = {
 	'<>': {
 		value: '<>',
@@ -75,19 +73,16 @@ const focusOnInput = () => {
 	}
 }
 
-onMounted(() => {
-	watchEffect((onInvalidate) => {
-		const focusSearch = (e: KeyboardEvent) => {
-			if (e.key == '/' && document.activeElement !== inputRef.value) {
-				// console.log('focusSearch hi')
-				e.preventDefault()
-				focusOnInput()
-			}
+watchEffect((onInvalidate) => {
+	const focusSearch = (e: KeyboardEvent) => {
+		if (e.key == '/' && document.activeElement !== inputRef.value) {
+			e.preventDefault()
+			focusOnInput()
 		}
-		document.addEventListener('keydown', focusSearch)
-		onInvalidate(() => {
-			document.removeEventListener('keydown', focusSearch)
-		})
+	}
+	document.addEventListener('keydown', focusSearch)
+	onInvalidate(() => {
+		document.removeEventListener('keydown', focusSearch)
 	})
 })
 
@@ -159,14 +154,7 @@ const based = computed(() => {
 				[domain]: [curr],
 			}
 		}
-		// other case
-		// if (!curr.windowId) {
-		//   return acc
-		// }
 
-		// const domain =
-		//   curr.groupId !== -1 ? groupMap.value.get(curr.groupId) : 'other'
-		// const domain = `${curr.windowId}` windowsMap.value
 		if (selectedTab.value === 2) {
 			const windowName = props.windowsMap.get(curr.windowId)
 			const domain = windowName ? windowName : 'Other'
@@ -185,22 +173,15 @@ const based = computed(() => {
 		// const windowName = windowsMap.value.get(curr.windowId)
 		// if(!curr.url){ return }
 		const tabLog = props.lookUpTab[curr.url!]
-		// const tabLog = Object.fromEntries(loadedTabHistory.value.entries())[curr.url!]
-		// const tabLog = loadedTabHistory.value.get(curr.url!)
-		// const tabLog = curr.lastestHistory
 		let latestDateAccessed
 		if (!tabLog) {
 			latestDateAccessed = 'Other'
 		} else {
 			const latestFromTab = tabLog![0]
-			// const latestFromTab = tabLog
-			console.log('----Matching group----')
 			latestDateAccessed = latestFromTab?.visitTime
 				? format(new Date(latestFromTab.visitTime), 'MM/dd/yyyy')
 				: 'Other'
 		}
-
-		// const domain = windowName ? windowName : 'Other'
 		if (acc[latestDateAccessed]) {
 			return {
 				...acc,
@@ -215,14 +196,7 @@ const based = computed(() => {
 })
 const historySet = computed(() => {
 	const checkSet = new Set<string>()
-	// loadedTabHistory.value.forEach((historyRecent,index) =>{
-	//   historyRecent.map(row=>{
-	//     row.
-	//   })
-	// })
 	for (const [key, value] of props.loadedTabHistory) {
-		// Using the default iterator (could be `map.entries()` instead)
-		// console.log(`The value for key ${key} is ${value}`);
 		const bool = value.some((row) => {
 			if ([ranges['<>'].value, ranges['><'].value].includes(filter.date_range_type)) {
 				return isWithinInterval(row.visitTime!, {
@@ -652,14 +626,6 @@ watchEffect(() => {
 																								masks
 																							"
 																							is-range
-																							:columns="
-																								$screens(
-																									{
-																										default: 1,
-																										lg: 2,
-																									},
-																								)
-																							"
 																						>
 																							<template
 																								#default="{
@@ -1166,7 +1132,14 @@ watchEffect(() => {
 					>
 						<template #button-trigger="{ trigger }">
 							<AppButton
-								:ref="(el) => trigger(el)"
+								:ref="
+									(el) =>
+										trigger(
+											el && '$el' in el
+												? (el.$el as HTMLElement)
+												: (el as HTMLElement),
+										)
+								"
 								intent="primary"
 								size="small"
 								type="button"

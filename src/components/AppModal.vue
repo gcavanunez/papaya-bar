@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 
 const initialFocus = ref<HTMLElement | null>(null)
-const setSlotRef = (el: any) => {
+const setSlotRef = (el: HTMLElement | null) => {
 	initialFocus.value = el
 }
 
@@ -20,9 +20,7 @@ const emit = defineEmits<{
 function closeModal() {
 	emit('update:modelValue', false)
 }
-function openModal() {
-	emit('update:modelValue', false)
-}
+
 function afterEnter() {
 	emit('after-enter')
 }

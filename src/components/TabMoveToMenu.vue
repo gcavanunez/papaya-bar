@@ -27,7 +27,7 @@ const { x, y, strategy } = useFloating(trigger, container, {
 	whileElementsMounted: autoUpdate,
 })
 // https://stackoverflow.com/questions/71425980/how-get-ref-from-slot-in-vue-3
-const setSlotRef = (el: any) => {
+const setSlotRef = (el: HTMLElement | null) => {
 	trigger.value = el
 }
 
@@ -45,7 +45,7 @@ const onGroupTrigger = () => {
 </script>
 <template>
 	<div class="relative">
-		<Menu v-slot="{ open }">
+		<Menu>
 			<span class="pointer-events-auto relative inline-flex text-left">
 				<!-- class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5" -->
 				<!-- <MenuButton ref="trigger"> -->

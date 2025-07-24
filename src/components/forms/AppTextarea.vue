@@ -26,9 +26,6 @@ const value = computed({
 
 <template>
 	<div class="relative rounded-sm shadow-sm dark:bg-black">
-		<!-- <ResizeAuto>
-			<template v-slot:default="{ resize }"> -->
-		<!-- @input="resize" -->
 		<textarea
 			:id="id"
 			v-bind="$attrs"
@@ -44,8 +41,6 @@ const value = computed({
 		>
 			{{ label }}
 		</label>
-		<!-- </template>
-</ResizeAuto> -->
 	</div>
 </template>
 

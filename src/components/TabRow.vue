@@ -30,7 +30,7 @@ const tabHistory = computed(() => {
 	if (!props.tab.url) {
 		return []
 	}
-	let hasHistory = props.history.get(props.tab.url)
+	const hasHistory = props.history.get(props.tab.url)
 	if (!hasHistory) {
 		return []
 	}

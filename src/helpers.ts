@@ -42,7 +42,7 @@ export const moveTabTo = (
 	if (type === 'group_container') {
 		chrome.tabs.group({
 			groupId: containerId,
-			tabIds: tabs.filter((row) => row.id).map((row) => row.id!) as any,
+			tabIds: tabs.filter((row) => row.id).map((row) => row.id!) as [number, ...number[]],
 		})
 	}
 }

@@ -29,7 +29,7 @@ async function getHistory(query: chrome.history.HistoryQuery) {
 		maxResults: 0, // Retrieve as much history data as possible
 	})
 
-	let allVisits: VisitResultDTO[] = []
+	const allVisits: VisitResultDTO[] = []
 
 	for (let i = 0; i < results.length; i++) {
 		const element = results[i]
@@ -63,7 +63,7 @@ onMounted(() => {
 })
 watch(
 	() => debouncedSearch.value,
-	(newVal, oldVal) => {
+	(newVal, _oldVal) => {
 		getHistory({ text: newVal, startTime: oneYearAgo, maxResults: 0 }).then((matches) => {
 			historyMatches.value = matches.map((row) => matchDTO(row))
 		})

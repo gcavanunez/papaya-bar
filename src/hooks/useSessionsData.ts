@@ -284,7 +284,7 @@ export const useSessionsData = () => {
 			coolWindowData.flatMap((row) => {
 				// return row.tabs.map()
 				return row!.tabs
-					.filter((row, index) => index !== 0)
+					.filter((_row, index) => index !== 0)
 					.map((row) => {
 						// if (lilTabGroupIndex === 0)
 						if (row.groupId) {
@@ -318,7 +318,7 @@ export const useSessionsData = () => {
 		const upgradedSet = new Map<string, ChromeTab>()
 		const addBackIn = [
 			...createdTabs,
-			...coolWindowData.flatMap(({ alreadyOpenedTabs }: any) => alreadyOpenedTabs),
+			...coolWindowData.flatMap(({ alreadyOpenedTabs }) => alreadyOpenedTabs),
 		]
 		addBackIn.forEach((row) => {
 			if (row.status == 'loading') {
@@ -356,7 +356,7 @@ export const useSessionsData = () => {
 				const actualTabs = [...upgradedSet]
 					.filter(([key]) => groupableTabsSet.has(key))
 					.map(([, row]) => row)
-				const tabIds = actualTabs.map((row) => row.id!) as any
+				const tabIds = actualTabs.map((row) => row.id!)
 
 				console.log({ tabIds })
 
@@ -367,7 +367,7 @@ export const useSessionsData = () => {
 							createProperties: {
 								windowId: actualTabs[0].windowId,
 							},
-							tabIds,
+							tabIds: tabIds as [number, ...number[]],
 						})
 						.then((group) => {
 							chrome.tabGroups.update(group, {
@@ -383,7 +383,7 @@ export const useSessionsData = () => {
 	const removeSavedSession = (key: string) => {
 		state.value.delete(key)
 	}
-	const downloadSavedSession = (key: string, session: SavedData) => {
+	const downloadSavedSession = (_key: string, session: SavedData) => {
 		const json = JSON.stringify(session)
 
 		const a = document.createElement('a')

@@ -4,15 +4,9 @@ const getCurrentTab = async () => {
 	const [tab] = await chrome.tabs.query(queryOptions)
 	return tab
 }
-// chrome.history.onVisited.addListener(async () => {
-// 	// 	console.log(historyItem)
-// 	// 	console.log(historyItem.url)
-// 	// chrome.tabs.query({ url: historyItem.url }, function (tab) {
-// 	// 		console.log('tab', tab)
-// 	// })
-// 	// const tabs = await chrome.tabs.query({})
-// 	// console.log(tabs)
-// })
+let pendingPopupData = null
+// Debounced badge update to avoid excessive API calls
+let badgeUpdateTimeout = null
 
 async function updateBadget() {
 	const tabs = await chrome.tabs.query({})
@@ -35,155 +29,127 @@ async function updateBadget() {
 	chrome.action.setBadgeText({ text: ' ' })
 }
 
-chrome.tabs.onCreated.addListener(async () => {
-	await updateBadget()
-})
-chrome.tabs.onRemoved.addListener(async () => {
-	await updateBadget()
-})
+function debouncedUpdateBadge() {
+	if (badgeUpdateTimeout) {
+		clearTimeout(badgeUpdateTimeout)
+	}
+	badgeUpdateTimeout = setTimeout(updateBadget, 100)
+}
 
-chrome.commands.onCommand.addListener((command, openedTab) => {
-	console.log(`Command "${command}" triggered`)
-	if (command == 'open-page') {
-		// chrome.tabs.create({
-		// 	url: 'chrome-extension://' + chrome.runtime.id + '/index.html',
-		// })
-		let url = 'chrome-extension://' + chrome.runtime.id + '/index.html'
-		chrome.tabs.query({ url }, function (tabs) {
-			if (tabs.length) {
-				if (tabs[0].id) {
-					chrome.windows.update(tabs[0].windowId, { focused: true })
-					chrome.tabs.update(tabs[0].id, { active: true })
-				}
-			} else {
-				chrome.tabs.create({ url })
+chrome.tabs.onCreated.addListener(debouncedUpdateBadge)
+chrome.tabs.onRemoved.addListener(debouncedUpdateBadge)
+
+// Command handlers
+function handleOpenPage() {
+	const url = 'chrome-extension://' + chrome.runtime.id + '/index.html'
+	chrome.tabs.query({ url }, function (tabs) {
+		if (tabs.length && tabs[0].id) {
+			chrome.windows.update(tabs[0].windowId, { focused: true })
+			chrome.tabs.update(tabs[0].id, { active: true })
+		} else {
+			chrome.tabs.create({ url })
+		}
+	})
+}
+
+function handleCopyLink() {
+	// chrome.action.openPopup()
+	chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+		const tab = tabs[0]
+		const text = `${tab.title}\n${tab.url}`
+		chrome.tabs.sendMessage(
+			tab.id,
+			{
+				message: 'copyText',
+				textToCopy: text,
+			},
+			function (_response) {},
+		)
+	})
+}
+
+function handleScreenshotArea() {
+	getCurrentTab().then((tab) => {
+		chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataURI) => {
+			pendingPopupData = {
+				type: 'copy-data-to-clipboard',
+				dataURI,
 			}
-		})
-	}
-	if (command == 'copy-link') {
-		chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-			const tab = tabs[0]
-			const text = `${tab.title}\n${tab.url}`
-			chrome.tabs.sendMessage(
-				tab.id,
-				{
-					message: 'copyText',
-					textToCopy: text,
-				},
-				function (response) {},
-			)
-			// window.navigator.clipboard.writeText(text)
-		})
-	}
-
-	if (command == 'screenshot-area') {
-		console.log({ openedTab })
-		getCurrentTab().then((tab) => {
-			// console.log({ tab });
-
-			// chrome.windows.create({
-			// 	url: chrome.runtime.getURL("index.html#/about"),
-			// 	type: "popup",
-			// });
-			// chrome.action.openPopup().then(() => {
-			// 	console.log("opened");
-			// });
-			chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataURI) => {
-				// console.log(dataURI);
-				// addToClipboard(dataURI);
-				chrome.windows
-					.create({
-						url: chrome.runtime.getURL('index.html#/util-screenshot'),
-						type: 'popup',
-						top: 0,
-						left: 0,
-						height: 100,
-						width: 200,
-						focused: true,
-					})
-					.then((res) => {
-						const poptab = res.tabs[0]
-						// const views = chrome.extension.getViews({ type: 'popup' })
-						// console.log('view', views)
-						setTimeout(() => {
-							chrome.tabs.sendMessage(
-								poptab.id,
-								{ name: 'stream', dataURI },
-								(response) => console.log(response),
-							)
-						}, 500)
-					})
-			})
-			// chrome.action.openPopup
-			// chrome.action.setPopup({ popup: 'index.html#/popup', tabId: tab.id })
-
-			// chrome.runtime.openOptionsPage().then(() => {
-			// 	console.log('opened')
+			// await chrome.storage.local.set({
+			// 	type: 'copy-data-to-clipboard',
+			// 	dataURI,
 			// })
-
-			// chrome.runtime
-			// 	.openOptionsPage()
-			// 	.then(() => {
-			// 		// sendResponse('OPENED')
+			chrome.action.openPopup({
+				data,
+			})
+			// .then(() => {
+			// const poptab = res.tabs[0]
+			// setTimeout(() => {
+			// 	chrome.tabs.sendMessage(
+			// 		poptab.id,
+			// 		{ name: 'stream', dataURI },
+			// 		(_response) => {},
+			// 	)
+			// }, 500)
+			// })
+			// chrome.windows
+			// 	.create({
+			// 		url: chrome.runtime.getURL('index.html#/util-screenshot'),
+			// 		type: 'popup',
+			// 		top: 0,
+			// 		left: 0,
+			// 		height: 100,
+			// 		width: 200,
+			// 		focused: true,
 			// 	})
-			// 	.catch(() => {
-			// 		// sendResponse('FAILED_TO_OPEN', e)
+			// 	.then((res) => {
+			// 		const poptab = res.tabs[0]
+			// 		setTimeout(() => {
+			// 			chrome.tabs.sendMessage(
+			// 				poptab.id,
+			// 				{ name: 'stream', dataURI },
+			// 				(_response) => {},
+			// 			)
+			// 		}, 500)
 			// 	})
 		})
-		// chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-		// 	const tab = tabs[0]
-		// 	// chrome.tabCapture.capture({ video: true }, (stream) => {
-		// 	// 	console.log({ stream })
-		// 	// 	if (stream.id) {
-		// 	// 		setTimeout(() => {
-		// 	// 			chrome.tabs.sendMessage(tab.id, { name: 'stream', streamId: stream.id }, (response) =>
-		// 	// 				console.log(response)
-		// 	// 			)
-		// 	// 		}, 200)
-		// 	// 	}
-		// 	// })
-		// 	chrome.desktopCapture.chooseDesktopMedia(['screen', 'window', 'tab'], tab, (streamId) => {
-		// 		//check whether the user canceled the request or not
-		// 		if (streamId && streamId.length) {
-		// 			console.log({ name: 'stream', streamId })
-		// 			setTimeout(() => {
-		// 				chrome.tabs.sendMessage(tab.id, { name: 'stream', streamId }, (response) =>
-		// 					console.log(response)
-		// 				)
-		// 			}, 200)
-		// 		}
-		// 	})
-		// })
+	})
+}
+
+chrome.commands.onCommand.addListener((command, _openedTab) => {
+	switch (command) {
+		case 'open-page':
+			handleOpenPage()
+			break
+		case 'copy-link':
+			handleCopyLink()
+			break
+		case 'screenshot-area':
+			handleScreenshotArea()
+			break
 	}
 })
 
-// chrome.action.onClicked.addListener(function (tab) {
-// 	chrome.desktopCapture.chooseDesktopMedia(['screen', 'window', 'tab'], tab, (streamId) => {
-// 		//check whether the user canceled the request or not
-// 		if (streamId && streamId.length) {
-// 			setTimeout(() => {
-// 				chrome.tabs.sendMessage(tab.id, { name: 'stream', streamId }, (response) =>
-// 					console.log(response)
-// 				)
-// 			}, 200)
-// 		}
-// 	})
-// })
-
-chrome.runtime.onMessage.addListener((message, sender, senderResponse) => {
-	console.log({ message })
+chrome.runtime.onMessage.addListener((message, _sender, senderResponse) => {
 	if (message?.name === 'download' && message.url) {
 		chrome.downloads.download(
 			{
 				filename: 'screenshot.png',
 				url: message.url,
 			},
-			(downloadId) => {
+			(_downloadId) => {
 				senderResponse({ success: true })
 			},
 		)
 
 		return true
+	}
+
+	if (message.type === 'popup-ready') {
+		if (pendingPopupData) {
+			senderResponse(pendingPopupData)
+			pendingPopupData = null
+		}
 	}
 
 	if (message == 'screenshot-area') {
@@ -246,12 +212,7 @@ async function setupOffscreenDocument(path) {
 }
 
 // https://github.com/GoogleChrome/chrome-extensions-samples/blob/main/functional-samples/cookbook.offscreen-clipboard-write/manifest.json
-async function addToClipboard(value) {
-	// await chrome.offscreen.createDocument({
-	// 	url: "offscreen.html",
-	// 	reasons: [chrome.offscreen.Reason.CLIPBOARD],
-	// 	justification: "Write text to the clipboard.",
-	// });
+async function _addToClipboard(value) {
 	await setupOffscreenDocument('offscreen.html')
 
 	// Now that we have an offscreen document, we can dispatch the
@@ -265,21 +226,6 @@ async function addToClipboard(value) {
 
 // Solution 2 – Once extension service workers can use the Clipboard API,
 // replace the offscreen document based implementation with something like this.
-async function addToClipboardV2(value) {
+async function _addToClipboardV2(value) {
 	navigator.clipboard.writeText(value)
 }
-// const getTabCount = async () => {
-// 	const tabs = await chrome.tabs.query({})
-// 	console.log(tabs.length.toString())
-// 	// chrome.action.setBadgeText({ text: tabs.length.toString() })
-// 	chrome.action.setBadgeText({ text: '' })
-// 	chrome.action.setBadgeBackgroundColor({ color: '#9688F1' })
-// }
-// // listen to event for changes from saved data in storage
-// chrome.tabs.onUpdated.addListener(getTabCount)
-// chrome.tabs.onRemoved.addListener(getTabCount)
-// Chrome Extensions: Adding a badge - DEV Community
-// https://dev.to/paulasantamaria/chrome-extensions-adding-a-badge-644
-
-// Chrome extension — How to add a badge on your extension’s icon | by Anna Ikoki | extensions development | Medium
-// https://medium.com/extensions-development/chrome-extension-how-to-add-a-badge-on-your-extensions-icon-c3385b00932b

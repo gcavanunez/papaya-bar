@@ -5,8 +5,8 @@ function updateMode() {
 	const isDarkMode = window.localStorage.getItem('vueuse-color-scheme') === 'dark'
 	const isSystem = window.localStorage.getItem('vueuse-color-scheme') === 'auto'
 	const settingExists = 'vueuse-color-scheme' in window.localStorage
-	const apply = isDarkMode || (!settingExists && isSystemDarkMode) || (isSystem && isSystemDarkMode)
-	console.log('isDark', apply)
+	const apply =
+		isDarkMode || (!settingExists && isSystemDarkMode) || (isSystem && isSystemDarkMode)
 	if (apply) {
 		document.documentElement.classList.add('dark')
 	}

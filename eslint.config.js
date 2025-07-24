@@ -1,28 +1,3 @@
-// require('@rushstack/eslint-patch/modern-module-resolution')
-
-// /** @type {import("eslint").Linter.Config} */
-// module.exports = {
-// 	root: true,
-// 	env: {
-// 		node: true,
-// 		webextensions: true,
-// 	},
-// 	parserOptions: {
-// 		ecmaVersion: 'latest',
-// 	},
-// 	extends: [
-// 		'plugin:vue/vue3-recommended',
-// 		'eslint:recommended',
-// 		// '@vue/typescript/recommended',
-// 		'@vue/eslint-config-typescript',
-// 		'@vue/eslint-config-prettier/skip-formatting',
-// 	],
-// 	rules: {
-// 		quotes: ['warn', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
-// 		semi: ['warn', 'never'],
-// 	},
-// }
-
 import prettier from 'eslint-config-prettier'
 import vue from 'eslint-plugin-vue'
 
@@ -32,7 +7,7 @@ export default defineConfigWithVueTs(
 	vue.configs['flat/essential'],
 	vueTsConfigs.recommended,
 	{
-		ignores: ['node_modules', 'public', 'tailwind.config.js'],
+		ignores: ['node_modules', 'public', 'dist', 'tailwind.config.js', 'tailwind.config.cjs'],
 	},
 	{
 		rules: {

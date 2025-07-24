@@ -28,7 +28,6 @@ export const useChromeTabs = () => {
 				chrome.tabGroups.query({}, (group) => resolve(group))
 			}),
 		])
-		console.log(tabs.length, currentWindowId, groups.length)
 		loadedCurrentWindowId.value = currentWindowId
 
 		loadedTabs.value = tabs.map((row) => ({
@@ -79,14 +78,12 @@ export const useChromeTabs = () => {
 	}
 	// onMounted(() => {
 	// To be able to load in dev environment
-	const fire = (listener: string) => {
-		console.log(listener)
+	const fire = (_listener: string) => {
 		init()
 	}
 	// this whole portion needs to be refactored to also removeListener
 	const initlisteners = () => {
 		if (chrome.tabs) {
-			console.log('---initing---')
 			fire('first run')
 			chrome.tabs.onUpdated.addListener(() => fire('tabs.onUpdated'))
 			chrome.tabs.onRemoved.addListener(() => fire('tabs.onRemoved'))
@@ -99,7 +96,6 @@ export const useChromeTabs = () => {
 		}
 		onUnmounted(() => {
 			if (chrome.tabs) {
-				console.log('---killing---')
 				chrome.tabs.onUpdated.removeListener(() => fire('tabs.onUpdated'))
 				chrome.tabs.onRemoved.removeListener(() => fire('tabs.onRemoved'))
 				chrome.tabs.onMoved.removeListener(() => fire('tabs.onMoved'))

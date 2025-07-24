@@ -87,7 +87,7 @@
 	</TransitionRoot>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { UsersIcon } from '@heroicons/vue/24/outline'
 import {
@@ -116,7 +116,7 @@ const filteredPeople = computed(() =>
 		  })
 )
 
-function onSelect(person) {
+function onSelect(person: any) {
 	window.location = person.url
 }
 onMounted(() => {

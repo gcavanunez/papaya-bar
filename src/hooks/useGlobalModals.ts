@@ -96,7 +96,8 @@ export const useGlobalModals = () => {
 				ids.push(tab.id)
 			}
 		}
-		const groupId = await chrome.tabs.group({ tabIds: ids as any })
+		if (ids.length === 0) return
+		const groupId = await chrome.tabs.group({ tabIds: ids as [number, ...number[]] })
 		return chrome.tabGroups.update(groupId, { ...form, collapsed: true })
 	}
 
@@ -117,11 +118,11 @@ export const useGlobalModals = () => {
 		if (groupId) {
 			editingGroupId.value = groupId
 			const groupData = await chrome.tabGroups.get(groupId)
-			const editState = { color: groupData.color, title: '' }
-			if (groupData.title) {
-				editState['title'] = groupData.title
+			const editState: typeof groupModalForm.value = { 
+				color: groupData.color as chrome.tabGroups.Color, 
+				title: groupData.title || '' 
 			}
-			groupModalForm.value = editState as any
+			groupModalForm.value = editState
 			mode.value = 'edit'
 			groupModalToggle.value = true
 		}

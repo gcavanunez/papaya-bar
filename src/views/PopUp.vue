@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { copyLink } from '@/helpers'
+import { copyImageToClipboard } from '@/utils'
 import {
 	ArrowTopRightOnSquareIcon,
 	CameraIcon,
@@ -10,12 +11,6 @@ import { onMounted, ref } from 'vue'
 import { useMotion } from '@vueuse/motion'
 
 const loadedTabs = ref(0)
-
-onMounted(() => {
-	chrome.tabs.query({}, (tabs) => {
-		loadedTabs.value = tabs.length
-	})
-})
 
 const copiedLink = ref<'link' | 'screen' | ''>('')
 
@@ -39,6 +34,20 @@ const { start } = useTimeoutFn(() => {
 	apply('initial')
 	itemMovedApply('initial')
 }, 700)
+
+onMounted(async () => {
+	chrome.tabs.query({}, (tabs) => {
+		loadedTabs.value = tabs.length
+	})
+
+	const response = await chrome.runtime.sendMessage({ type: 'popup-ready' })
+
+	if (response) {
+		copiedLink.value = 'screen'
+		start()
+		copyImageToClipboard(response.dataURI)
+	}
+})
 
 const copyOpenTab = async () => {
 	copiedLink.value = 'link'
@@ -67,7 +76,7 @@ const copyOpenTab = async () => {
 	}
 }
 const openTabs = () => {
-	let url = 'chrome-extension://' + chrome.runtime.id + '/index.html'
+	const url = 'chrome-extension://' + chrome.runtime.id + '/index.html'
 	chrome.tabs.query({ url }, function (tabs) {
 		if (tabs.length) {
 			if (tabs[0].id) {
@@ -96,28 +105,13 @@ async function getCurrentTab() {
 	const [tab] = await chrome.tabs.query(queryOptions)
 	return tab
 }
-async function copyImageToClipboard(img: string) {
-	const blob = await getImageBlobFromUrl(img)
-	console.log({ blob })
-	await navigator.clipboard.write([
-		new ClipboardItem({
-			[blob.type]: blob,
-		}),
-	])
-}
-
-async function getImageBlobFromUrl(url: string) {
-	const fetchedImageData = await fetch(url)
-	const blob = await fetchedImageData.blob()
-	return blob
-}
 </script>
 
 <template>
 	<div class="h-[240px] w-[360px] bg-slate-100 antialiased">
 		<div class="relative flex h-full flex-col">
 			<div class="z-0 shrink-0 bg-white shadow-sm">
-				<div class="flex items-center justify-center pb-6 pt-8">
+				<div class="flex items-center justify-center pt-8 pb-6">
 					<div>
 						<img
 							class="block h-16 w-auto"
@@ -127,7 +121,7 @@ async function getImageBlobFromUrl(url: string) {
 					</div>
 				</div>
 				<div class="px-3 pb-6">
-					<h1 class="text-center text-2xl font-bold leading-snug text-slate-700">
+					<h1 class="text-center text-2xl leading-snug font-bold text-slate-700">
 						{{ loadedTabs }} tabs
 					</h1>
 				</div>
@@ -136,7 +130,7 @@ async function getImageBlobFromUrl(url: string) {
 			<div class="flex shrink-0 items-start bg-slate-100 p-1">
 				<div class="w-1/3">
 					<button
-						class="relative inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						class="relative inline-flex h-16 w-full items-center justify-center rounded-md transition-all select-none hover:bg-white"
 						@click="copyOpenTab"
 					>
 						<div
@@ -154,7 +148,7 @@ async function getImageBlobFromUrl(url: string) {
 				</div>
 				<div class="w-1/3">
 					<button
-						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						class="inline-flex h-16 w-full items-center justify-center rounded-md transition-all select-none hover:bg-white"
 						@click="screenshotArea"
 					>
 						<div class="w-full text-gray-600">
@@ -182,7 +176,7 @@ async function getImageBlobFromUrl(url: string) {
 				</div>
 				<div class="w-1/3">
 					<button
-						class="inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"
+						class="inline-flex h-16 w-full items-center justify-center rounded-md transition-all select-none hover:bg-white"
 						@click="openTabs"
 					>
 						<div class="w-full text-gray-600">

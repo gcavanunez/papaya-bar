@@ -7,7 +7,7 @@
 		"serve": "vite --host",
 		"dev": "vite",
 		"build": "vue-tsc --noEmit && vite build",
-		"lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+		"lint": "eslint . --fix",
 		"format": "prettier --write src/",
 		"preview": "vite preview"
 	},
@@ -34,6 +34,7 @@
 		"v-calendar": "3.1.2",
 		"vue": "3.5.17",
 		"vue-router": "4.5.1",
+		"vue-screen-utils": "1.0.0-beta.13",
 		"vue-sonner": "^2.0.2",
 		"vuedraggable": "^4.1.0"
 	},

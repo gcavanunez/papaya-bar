@@ -389,7 +389,7 @@ useTitle(title)
 						Confirm
 					</AppButton>
 					<AppButton
-						:ref="(el) => slotProps.trigger(el)"
+						:ref="(el) => slotProps.trigger((el && '$el' in el) ? el.$el as HTMLElement : el as HTMLElement)"
 						intent="secondary"
 						size="medium"
 						type="button"

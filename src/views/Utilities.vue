@@ -5,8 +5,8 @@ import { computed, ref } from 'vue'
 const textWithUrls = ref('')
 // const parsedUrls = ref<string[]>([])
 const parsedUrls = computed(() => {
-	let urlRegex = /(https?:\/\/[^\s]+)/g
-	let matches = Array.from(textWithUrls.value.matchAll(urlRegex), (m) => m[0])
+	const urlRegex = /(https?:\/\/[^\s]+)/g
+	const matches = Array.from(textWithUrls.value.matchAll(urlRegex), (m) => m[0])
 	return matches
 })
 const openLinks = async () => {
