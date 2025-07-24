@@ -62,24 +62,24 @@ const updateSession = () => {
 							class="order-first flex space-x-2 text-sm font-semibold"
 						>
 							<router-link
-								class="text-slate-500 hover:text-slate-600 dark:text-vercel-accents-5 dark:hover:text-white"
+								class="dark:text-vercel-accents-5 text-slate-500 hover:text-slate-600 dark:hover:text-white"
 								:to="{ name: 'sessions' }"
 							>
 								Sessions
 							</router-link>
-							<div aria-hidden="true" class="select-none text-slate-400">/</div>
+							<div aria-hidden="true" class="text-slate-400 select-none">/</div>
 							<a
-								class="text-slate-500 hover:text-slate-600 dark:text-vercel-accents-5 dark:hover:text-white"
+								class="dark:text-vercel-accents-5 text-slate-500 hover:text-slate-600 dark:hover:text-white"
 								href="#"
 							>
 								{{ uid }}
 							</a>
 						</nav>
 					</div>
-					<div class="mt-4 space-x-2 sm:ml-16 sm:mt-0 sm:flex-none">
-						<AppButton intent="primary" size="medium" @click="toggleEdit"
-							>Edit</AppButton
-						>
+					<div class="mt-4 space-x-2 sm:mt-0 sm:ml-16 sm:flex-none">
+						<AppButton intent="primary" size="medium" @click="toggleEdit">
+							Edit
+						</AppButton>
 						<AppModal v-model="openEdit" title="Edit Session">
 							<form @submit.prevent="updateSession">
 								<div class="mt-8 grid grid-cols-1 gap-6">

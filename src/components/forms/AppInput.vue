@@ -34,7 +34,7 @@ const value = computed({
 			v-bind="$attrs"
 			v-model="value"
 			:type="type"
-			class="peer w-full rounded-md border border-gray-300 bg-transparent px-3 pb-1 pt-[1.375rem] text-gray-900 placeholder-transparent ring-1 ring-black ring-opacity-5 transition focus:border-gray-600 focus:outline-none focus:ring-0 dark:border-vercel-accents-2 dark:bg-black dark:text-white dark:focus:border-white sm:text-sm"
+			class="peer w-full rounded-md border border-gray-300 bg-transparent px-3 pb-1 pt-5.5 text-gray-900 placeholder-transparent ring-1 ring-black ring-opacity-5 transition focus:border-gray-600 focus:outline-none focus:ring-0 dark:border-vercel-accents-2 dark:bg-black dark:text-white dark:focus:border-white sm:text-sm"
 			:placeholder="placeholder"
 		/>
 		<label

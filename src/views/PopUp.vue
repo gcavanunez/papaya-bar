@@ -116,7 +116,7 @@ async function getImageBlobFromUrl(url: string) {
 <template>
 	<div class="h-[240px] w-[360px] bg-slate-100 antialiased">
 		<div class="relative flex h-full flex-col">
-			<div class="z-0 flex-shrink-0 bg-white shadow-sm">
+			<div class="z-0 shrink-0 bg-white shadow-sm">
 				<div class="flex items-center justify-center pb-6 pt-8">
 					<div>
 						<img
@@ -132,8 +132,8 @@ async function getImageBlobFromUrl(url: string) {
 					</h1>
 				</div>
 			</div>
-			<div class="flex-grow overflow-y-auto"></div>
-			<div class="flex flex-shrink-0 items-start bg-slate-100 p-1">
+			<div class="grow overflow-y-auto"></div>
+			<div class="flex shrink-0 items-start bg-slate-100 p-1">
 				<div class="w-1/3">
 					<button
 						class="relative inline-flex h-16 w-full select-none items-center justify-center rounded-md transition-all hover:bg-white"

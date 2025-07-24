@@ -16,13 +16,11 @@ import { Tab, Grouped } from '@/types'
 import { closeTab, moveTabTo, moveTabs } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
 import { useChromeTabs } from '@/hooks/useChromeTabs'
-import autoAnimate from '@formkit/auto-animate'
+import { useAutoAnimate } from '@formkit/auto-animate/vue'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
 
 const { storeSession } = useSessionsData()
-const groupContainer = ref<HTMLElement | null>(null)
-const groupHeaders = ref<HTMLElement | null>(null)
 const ranges: Record<string, { value: string; label: string; is_range: boolean }> = {
 	'<>': {
 		value: '<>',
@@ -63,14 +61,9 @@ const filter = reactive({
 const masks = {
 	input: 'YYYY-MM-DD h:mm A',
 }
-onMounted(() => {
-	if (groupContainer.value) {
-		autoAnimate(groupContainer.value, { duration: 150 })
-	}
-	if (groupHeaders.value) {
-		autoAnimate(groupHeaders.value, { duration: 150 })
-	}
-})
+
+const [groupHeaders] = useAutoAnimate()
+const [groupContainer] = useAutoAnimate()
 const changeTab = (index: number) => {
 	selectedTab.value = index
 }
@@ -122,7 +115,7 @@ initlisteners()
 
 const tabsSelected = ref<Set<string>>(new Set())
 const groupMap = computed(() => {
-	let computedMap = new Map()
+	const computedMap = new Map()
 	loadedGroups.value.forEach((row) => {
 		computedMap.set(row.id, row.title)
 	})
@@ -215,7 +208,7 @@ const based = computed(() => {
 	}, {} as Grouped)
 })
 const historySet = computed(() => {
-	let checkSet = new Set<string>()
+	const checkSet = new Set<string>()
 	// loadedTabHistory.value.forEach((historyRecent,index) =>{
 	//   historyRecent.map(row=>{
 	//     row.
@@ -224,7 +217,7 @@ const historySet = computed(() => {
 	for (const [key, value] of loadedTabHistory.value) {
 		// Using the default iterator (could be `map.entries()` instead)
 		// console.log(`The value for key ${key} is ${value}`);
-		let bool = value.some((row) => {
+		const bool = value.some((row) => {
 			if ([ranges['<>'].value, ranges['><'].value].includes(filter.date_range_type)) {
 				return isWithinInterval(row.visitTime!, {
 					end: filter.range.end,
@@ -252,7 +245,7 @@ const historySet = computed(() => {
 const grouped = computed<Grouped>(() => {
 	// const based
 	const actualGroup = Object.entries(based.value).reduce((acc, [index, values]) => {
-		let checkedValues = values.filter((row) => {
+		const checkedValues = values.filter((row) => {
 			if (!row.title || !row.url) {
 				return false
 			}
@@ -321,7 +314,7 @@ const selectGroup = (tabs: Tab[]) => {
 }
 const closeDuplicates = () => {
 	const duplicates = loadedTabs.value.filter(
-		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index
+		(item, index, allTabs) => allTabs.findIndex((withIn) => withIn.url === item.url) != index,
 	)
 
 	closeTab(duplicates)
@@ -331,7 +324,7 @@ const closeDuplicates = () => {
 <template>
 	<div class="relative bg-slate-100">
 		<header
-			class="firefox:bg-opacity-90 sticky top-0 z-30 flex h-[72px] items-center bg-slate-100 bg-opacity-50 backdrop-blur backdrop-filter"
+			class="firefox:bg-opacity-90 bg-opacity-50 sticky top-0 z-30 flex h-[72px] items-center bg-slate-100 backdrop-blur backdrop-filter"
 		>
 			<div class="container mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-2">
 				<div class="">
@@ -344,7 +337,7 @@ const closeDuplicates = () => {
 					</div>
 				</div>
 				<div class="flex w-full max-w-3xl justify-end divide-x divide-slate-300">
-					<div class="flex w-full max-w-md flex-shrink items-center gap-2 px-4">
+					<div class="flex w-full max-w-md shrink items-center gap-2 px-4">
 						<div class="w-full">
 							<label for="search" class="sr-only">Search tabs</label>
 							<div class="relative w-full">
@@ -423,7 +416,7 @@ const closeDuplicates = () => {
 										<button
 											title="Close"
 											type="button"
-											class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-500/5 focus:bg-gray-500/10 focus:outline-none rtl:left-3 rtl:right-auto dark:hover:bg-gray-300/5"
+											class="filament-icon-button absolute top-3 right-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-500/5 focus:bg-gray-500/10 focus:outline-none rtl:right-auto rtl:left-3 dark:hover:bg-gray-300/5"
 											@click="close"
 										>
 											<span class="sr-only"> Close </span>
@@ -457,24 +450,32 @@ const closeDuplicates = () => {
 																? 'bg-blue-700'
 																: 'bg-slate-300 dark:bg-gray-700'
 														"
-														class="relative inline-flex h-[38px] w-[74px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75"
+														class="focus-visible:ring-opacity-75 relative inline-flex h-[38px] w-[74px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
 													>
 														<span class="sr-only">Use setting</span>
 														<span
 															aria-hidden="true"
-															:class="filter.has_date_range ? 'translate-x-9' : 'translate-x-0'"
+															:class="
+																filter.has_date_range
+																	? 'translate-x-9'
+																	: 'translate-x-0'
+															"
 															class="pointer-events-none inline-block h-[34px] w-[34px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
 														/>
 													</Switch>
 												</div>
 												<div class="col-span-1">
-													<div class="filament-forms-component-container grid grid-cols-1 gap-6">
+													<div
+														class="filament-forms-component-container grid grid-cols-1 gap-6"
+													>
 														<div>
-															<RadioGroup v-model="filter.date_range_type">
+															<RadioGroup
+																v-model="filter.date_range_type"
+															>
 																<div class="space-y-2">
 																	<RadioGroupLabel>
 																		<span
-																			class="text-sm font-medium leading-4 text-gray-700 dark:text-gray-300"
+																			class="text-sm leading-4 font-medium text-gray-700 dark:text-gray-300"
 																		>
 																			Range type
 																		</span>
@@ -490,14 +491,16 @@ const closeDuplicates = () => {
 																		>
 																			<button
 																				:class="[
-																					'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium leading-5 text-slate-700',
-																					'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
+																					'flex w-full justify-center rounded-md px-3 py-2 text-sm leading-5 font-medium text-slate-700',
+																					'ring-opacity-60 ring-white ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
 																					checked
 																						? 'bg-white shadow'
-																						: 'text-blue-50 hover:bg-white/[0.12] hover:text-white',
+																						: 'text-blue-50 hover:bg-white/12 hover:text-white',
 																				]"
 																			>
-																				{{ timeRange.label }}
+																				{{
+																					timeRange.label
+																				}}
 																			</button>
 																		</RadioGroupOption>
 																	</div>
@@ -505,38 +508,64 @@ const closeDuplicates = () => {
 															</RadioGroup>
 														</div>
 														<div class="col-span-1">
-															<div class="filament-forms-field-wrapper">
+															<div
+																class="filament-forms-field-wrapper"
+															>
 																<div class="space-y-2">
-																	<div class="flex items-center justify-between space-x-2">
+																	<div
+																		class="flex items-center justify-between space-x-2"
+																	>
 																		<label
 																			class="filament-forms-field-wrapper-label inline-flex items-center space-x-3"
 																			for="time-range"
 																		>
 																			<span
-																				class="text-sm font-medium leading-4 text-gray-700 dark:text-gray-300"
+																				class="text-sm leading-4 font-medium text-gray-700 dark:text-gray-300"
 																			>
 																				Time Range
 																			</span>
 																		</label>
 																	</div>
 
-																	<div class="flex items-center space-x-1">
+																	<div
+																		class="flex items-center space-x-1"
+																	>
 																		<div
-																			v-if="ranges[filter.date_range_type].is_range"
+																			v-if="
+																				ranges[
+																					filter
+																						.date_range_type
+																				].is_range
+																			"
 																			class="min-w-0 flex-1"
 																		>
 																			<v-date-picker
-																				v-model="filter.range"
+																				v-model="
+																					filter.range
+																				"
 																				mode="dateTime"
 																				:masks="masks"
 																				is-range
-																				:columns="$screens({ default: 1, lg: 2 })"
+																				:columns="
+																					$screens({
+																						default: 1,
+																						lg: 2,
+																					})
+																				"
 																			>
-																				<template #default="{ inputValue, inputEvents, isDragging }">
+																				<template
+																					#default="{
+																						inputValue,
+																						inputEvents,
+																						isDragging,
+																					}"
+																				>
 																					<div
 																						class="flex flex-col items-center justify-start sm:flex-row"
 																					>
-																						<div class="relative flex-grow">
+																						<div
+																							class="relative grow"
+																						>
 																							<svg
 																								class="pointer-events-none absolute mx-2 h-full w-4 text-gray-600"
 																								fill="none"
@@ -551,16 +580,24 @@ const closeDuplicates = () => {
 																								></path>
 																							</svg>
 																							<input
-																								class="w-full flex-grow rounded-md border-slate-300 pl-8 pr-2 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+																								class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 																								type="text"
 																								:class="
-																									isDragging ? 'text-gray-600' : 'text-gray-900'
+																									isDragging
+																										? 'text-gray-600'
+																										: 'text-gray-900'
 																								"
-																								:value="inputValue.start"
-																								v-on="inputEvents.start"
+																								:value="
+																									inputValue.start
+																								"
+																								v-on="
+																									inputEvents.start
+																								"
 																							/>
 																						</div>
-																						<span class="m-2 flex-shrink-0">
+																						<span
+																							class="m-2 shrink-0"
+																						>
 																							<svg
 																								class="h-4 w-4 stroke-current text-gray-600"
 																								viewBox="0 0 24 24"
@@ -573,7 +610,9 @@ const closeDuplicates = () => {
 																								/>
 																							</svg>
 																						</span>
-																						<div class="relative flex-grow">
+																						<div
+																							class="relative grow"
+																						>
 																							<svg
 																								class="pointer-events-none absolute mx-2 h-full w-4 text-gray-600"
 																								fill="none"
@@ -588,30 +627,48 @@ const closeDuplicates = () => {
 																								></path>
 																							</svg>
 																							<input
-																								class="w-full flex-grow rounded-md border-slate-300 pl-8 pr-2 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+																								class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 																								type="text"
 																								:class="
-																									isDragging ? 'text-gray-600' : 'text-gray-900'
+																									isDragging
+																										? 'text-gray-600'
+																										: 'text-gray-900'
 																								"
-																								:value="inputValue.end"
-																								v-on="inputEvents.end"
+																								:value="
+																									inputValue.end
+																								"
+																								v-on="
+																									inputEvents.end
+																								"
 																							/>
 																						</div>
 																					</div>
 																				</template>
 																			</v-date-picker>
 																		</div>
-																		<div v-else class="min-w-0 flex-1">
+																		<div
+																			v-else
+																			class="min-w-0 flex-1"
+																		>
 																			<v-date-picker
-																				v-model="filter.date"
+																				v-model="
+																					filter.date
+																				"
 																				mode="dateTime"
 																				:masks="masks"
 																			>
-																				<template #default="{ inputValue, inputEvents }">
+																				<template
+																					#default="{
+																						inputValue,
+																						inputEvents,
+																					}"
+																				>
 																					<div
 																						class="flex flex-col items-center justify-start sm:flex-row"
 																					>
-																						<div class="relative flex-grow">
+																						<div
+																							class="relative grow"
+																						>
 																							<svg
 																								class="pointer-events-none absolute mx-2 h-full w-4 text-gray-600"
 																								fill="none"
@@ -627,10 +684,14 @@ const closeDuplicates = () => {
 																							</svg>
 																							<input
 																								id="date"
-																								class="w-full flex-grow rounded-md border-slate-300 pl-8 pr-2 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+																								class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 																								type="text"
-																								:value="inputValue"
-																								v-on="inputEvents"
+																								:value="
+																									inputValue
+																								"
+																								v-on="
+																									inputEvents
+																								"
 																							/>
 																						</div>
 																					</div>
@@ -697,7 +758,7 @@ const closeDuplicates = () => {
 							<!-- </PopoverPanel> -->
 						</Popover>
 					</div>
-					<div class="w-full max-w-md flex-grow px-4">
+					<div class="w-full max-w-md grow px-4">
 						<TabGroup :selected-index="selectedTab" @change="changeTab">
 							<TabList class="flex space-x-1 rounded-lg bg-blue-900/20 p-1">
 								<AppTab
@@ -708,11 +769,11 @@ const closeDuplicates = () => {
 								>
 									<button
 										:class="[
-											'w-full rounded-md px-3 py-2 text-sm font-medium leading-5 ',
-											'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
+											'w-full rounded-md px-3 py-2 text-sm leading-5 font-medium',
+											'ring-opacity-60 ring-white ring-offset-2 ring-offset-blue-400 focus:outline-none focus-visible:ring-2',
 											selected
 												? 'bg-white text-blue-700 shadow'
-												: 'text-blue-50 hover:bg-white/[0.12] hover:text-white',
+												: 'text-blue-50 hover:bg-white/12 hover:text-white',
 										]"
 									>
 										{{ category }}
@@ -730,7 +791,7 @@ const closeDuplicates = () => {
 					<ul
 						ref="groupHeaders"
 						role="list"
-						class="space-y-6 pl-2 text-sm leading-6 text-slate-700 lg:sticky lg:top-0 lg:-mt-16 lg:h-screen lg:w-72 lg:overflow-y-auto lg:py-16 lg:pr-8 lg:[mask-image:linear-gradient(to_bottom,transparent,white_4rem,white)]"
+						class="space-y-6 pl-2 text-sm leading-6 text-slate-700 lg:sticky lg:top-0 lg:-mt-16 lg:h-screen lg:w-72 lg:overflow-y-auto lg:mask-[linear-gradient(to_bottom,transparent,white_4rem,white)] lg:py-16 lg:pr-8"
 					>
 						<li>
 							<div class="rounded-lg bg-white shadow-md">
@@ -743,7 +804,7 @@ const closeDuplicates = () => {
 						<li v-for="(group, index) in grouped" :key="`list-${index}`">
 							<Disclosure v-slot="{ open }">
 								<DisclosureButton
-									class="flex w-full items-center justify-between space-x-2 rounded-lg bg-blue-100 px-4 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring focus-visible:ring-blue-500 focus-visible:ring-opacity-75"
+									class="focus-visible:ring-opacity-75 flex w-full items-center justify-between space-x-2 rounded-lg bg-blue-100 px-4 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring focus-visible:ring-blue-500"
 								>
 									<router-link
 										:to="{ name: 'index', hash: `#section-${index}` }"
@@ -762,15 +823,22 @@ const closeDuplicates = () => {
 									/>
 								</DisclosureButton>
 								<DisclosurePanel class="px-4 text-sm text-slate-500">
-									<ul role="list" class="mt-2 space-y-4 border-l border-slate-200 pl-6">
+									<ul
+										role="list"
+										class="mt-2 space-y-4 border-l border-slate-200 pl-6"
+									>
 										<li>
-											<button @click="moveTabs(group)">Move to new window</button>
+											<button @click="moveTabs(group)">
+												Move to new window
+											</button>
 										</li>
 										<li>
 											<button @click="closeTabs(group)">Close all</button>
 										</li>
 										<li>
-											<button @click="copyLinks(group)">Copy all links</button>
+											<button @click="copyLinks(group)">
+												Copy all links
+											</button>
 										</li>
 									</ul>
 								</DisclosurePanel>
@@ -792,10 +860,16 @@ const closeDuplicates = () => {
 									{{ index }}
 								</AppBtn>
 								<div class="flex items-center space-x-2">
-									<AppBtn type="button" @click="selectGroup(group)"> Select </AppBtn>
+									<AppBtn type="button" @click="selectGroup(group)">
+										Select
+									</AppBtn>
 									<AppBtn type="button" @click="moveTabs(group)"> Move </AppBtn>
 									<AppBtn type="button" @click="copyLinks(group)"> Copy </AppBtn>
-									<AppBtn type="button" color="round-primary" @click="closeTabs(group)">
+									<AppBtn
+										type="button"
+										color="round-primary"
+										@click="closeTabs(group)"
+									>
 										<XMarkIcon class="h-3 w-3" />
 									</AppBtn>
 								</div>
@@ -819,20 +893,29 @@ const closeDuplicates = () => {
 		</div>
 		<footer
 			v-if="[...tabsSelected].length > 0"
-			class="sticky bottom-0 left-0 right-0 z-10 w-full bg-slate-900 shadow-lg"
+			class="sticky right-0 bottom-0 left-0 z-10 w-full bg-slate-900 shadow-lg"
 		>
 			<div class="mx-auto w-full max-w-7xl px-4 sm:px-2">
-				<div class="flex w-full items-center justify-between rounded-lg px-4 py-4 text-lg md:px-6">
+				<div
+					class="flex w-full items-center justify-between rounded-lg px-4 py-4 text-lg md:px-6"
+				>
 					<div class="text-slate-300">{{ [...tabsSelected].length }} Tabs selected</div>
 					<div class="flex items-center space-x-2">
-						<AppBtn type="button" color="primary-dark" @click="closeTabs(selectedGroup)">
+						<AppBtn
+							type="button"
+							color="primary-dark"
+							@click="closeTabs(selectedGroup)"
+						>
 							Close all
 						</AppBtn>
 						<Menu as="div" class="pointer-events-auto relative inline-flex text-left">
 							<MenuButton as="template">
 								<AppBtn color="primary-dark">
 									Move to
-									<ChevronDownIcon class="-mr-1 ml-2 h-3 w-3 text-slate-200" aria-hidden="true" />
+									<ChevronDownIcon
+										class="-mr-1 ml-2 h-3 w-3 text-slate-200"
+										aria-hidden="true"
+									/>
 								</AppBtn>
 							</MenuButton>
 
@@ -845,7 +928,7 @@ const closeDuplicates = () => {
 								leave-to-class="transform scale-95 opacity-0"
 							>
 								<MenuItems
-									class="absolute bottom-0 right-0 z-10 mt-2 w-56 origin-bottom-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+									class="ring-opacity-5 absolute right-0 bottom-0 z-10 mt-2 w-56 origin-bottom-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black focus:outline-none"
 								>
 									<div class="px-1 py-1">
 										<MenuItem
@@ -861,7 +944,9 @@ const closeDuplicates = () => {
 										>
 											<button
 												:class="[
-													active ? 'bg-blue-500 text-white' : 'text-slate-700',
+													active
+														? 'bg-blue-500 text-white'
+														: 'text-slate-700',
 													'group flex w-full items-center rounded-md px-2 py-2 text-sm',
 													disabled ? 'opacity-50' : 'opacity-100',
 												]"
@@ -884,7 +969,9 @@ const closeDuplicates = () => {
 										>
 											<button
 												:class="[
-													active ? 'bg-blue-500 text-white' : 'text-slate-700',
+													active
+														? 'bg-blue-500 text-white'
+														: 'text-slate-700',
 													'group flex w-full items-center rounded-md px-2 py-2 text-sm',
 													disabled ? 'opacity-50' : 'opacity-100',
 												]"
@@ -899,13 +986,25 @@ const closeDuplicates = () => {
 						<AppBtn color="primary-dark" type="button" @click="moveTabs(selectedGroup)">
 							Move
 						</AppBtn>
-						<AppBtn color="primary-dark" type="button" @click="storeSession(selectedGroup)">
+						<AppBtn
+							color="primary-dark"
+							type="button"
+							@click="storeSession(selectedGroup)"
+						>
 							Save as session
 						</AppBtn>
-						<AppBtn color="primary-dark" type="button" @click="copyLinks(selectedGroup)">
+						<AppBtn
+							color="primary-dark"
+							type="button"
+							@click="copyLinks(selectedGroup)"
+						>
 							Copy
 						</AppBtn>
-						<AppBtn color="round-dark-primary" type="button" @click="tabsSelected.clear()">
+						<AppBtn
+							color="round-dark-primary"
+							type="button"
+							@click="tabsSelected.clear()"
+						>
 							<XMarkIcon class="h-3 w-3" />
 						</AppBtn>
 					</div>

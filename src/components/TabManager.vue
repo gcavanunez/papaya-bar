@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid'
+import { ChevronDownIcon, MagnifyingGlassIcon, PencilSquareIcon } from '@heroicons/vue/20/solid'
 import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
 import { XMarkIcon, FunnelIcon } from '@heroicons/vue/20/solid'
@@ -15,7 +15,7 @@ import { Tab, Grouped, WindowsMap, Group, HistoryMap, LookUpTab } from '@/types'
 import { closeTab, moveTabs } from '@/helpers'
 import TabRow from '@/components/TabRow.vue'
 
-import autoAnimate from '@formkit/auto-animate'
+import { useAutoAnimate } from '@formkit/auto-animate/vue'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import AppButton from './AppButton.vue'
@@ -27,8 +27,6 @@ const { onEditGroup, onCreateNewGroup } = useGlobalModals()
 // composable end
 
 const { storeSession } = useSessionsData()
-const groupContainer = ref<HTMLElement | null>(null)
-const groupHeaders = ref<HTMLElement | null>(null)
 const ranges: Record<string, { value: string; label: string; is_range: boolean }> = {
 	'<>': {
 		value: '<>',
@@ -69,14 +67,7 @@ const filter = reactive({
 const masks = {
 	input: 'YYYY-MM-DD h:mm A',
 }
-onMounted(() => {
-	if (groupContainer.value) {
-		autoAnimate(groupContainer.value, { duration: 150 })
-	}
-	if (groupHeaders.value) {
-		autoAnimate(groupHeaders.value, { duration: 150 })
-	}
-})
+const [groupHeaders] = useAutoAnimate()
 const inputRef = ref<HTMLInputElement | null>(null)
 const focusOnInput = () => {
 	if (inputRef.value) {
@@ -127,7 +118,7 @@ type Props = {
 const props = defineProps<Props>()
 
 const groupMap = computed(() => {
-	let computedMap = new Map()
+	const computedMap = new Map()
 	props.loadedGroups.forEach((row) => {
 		computedMap.set(row.id, row.title)
 	})
@@ -223,7 +214,7 @@ const based = computed(() => {
 	}, {} as Grouped)
 })
 const historySet = computed(() => {
-	let checkSet = new Set<string>()
+	const checkSet = new Set<string>()
 	// loadedTabHistory.value.forEach((historyRecent,index) =>{
 	//   historyRecent.map(row=>{
 	//     row.
@@ -232,7 +223,7 @@ const historySet = computed(() => {
 	for (const [key, value] of props.loadedTabHistory) {
 		// Using the default iterator (could be `map.entries()` instead)
 		// console.log(`The value for key ${key} is ${value}`);
-		let bool = value.some((row) => {
+		const bool = value.some((row) => {
 			if ([ranges['<>'].value, ranges['><'].value].includes(filter.date_range_type)) {
 				return isWithinInterval(row.visitTime!, {
 					end: filter.range.end,
@@ -260,7 +251,7 @@ const historySet = computed(() => {
 const grouped = computed<Grouped>(() => {
 	// const based
 	const actualGroup = Object.entries(based.value).reduce((acc, [index, values]) => {
-		let checkedValues = values.filter((row) => {
+		const checkedValues = values.filter((row) => {
 			if (!row.title || !row.url) {
 				return false
 			}
@@ -327,6 +318,8 @@ const copyLinks = (tabs: Tab[]) => {
 		}, '')
 	if (urls) {
 		copyToClipboard(urls)
+
+		toast('Links copied to clipboard')
 	}
 }
 
@@ -343,6 +336,7 @@ const selectGroup = (tabs: Tab[]) => {
 	})
 }
 import { useActiveElement, useMagicKeys } from '@vueuse/core'
+import { toast } from 'vue-sonner'
 
 const activeElement = useActiveElement()
 const notUsingInput = computed(
@@ -379,7 +373,7 @@ watchEffect(() => {
 		<div class="hidden lg:col-span-2 lg:block">
 			<nav
 				aria-label="Tab viewing styles"
-				class="sticky top-[88px] divide-y divide-slate-300 dark:divide-vercel-accents-2"
+				class="dark:divide-vercel-accents-2 sticky top-[88px] divide-y divide-slate-300"
 			>
 				<TabGroup :selected-index="selectedTab" vertical @change="changeTab">
 					<TabList class="flex flex-col space-y-1 rounded-lg pb-8">
@@ -391,11 +385,11 @@ watchEffect(() => {
 						>
 							<button
 								:class="[
-									'flex w-full items-center rounded-md px-3 py-2 text-sm font-medium leading-5',
+									'flex w-full items-center rounded-md px-3 py-2 text-sm leading-5 font-medium',
 									'group ring-papaya-900 focus:outline-none focus-visible:ring-2',
 									selected
-										? 'bg-white text-slate-900 shadow dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5'
-										: 'text-slate-700 hover:bg-slate-50 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white',
+										? 'dark:bg-vercel-accents-2 dark:highlight-white/5 bg-white text-slate-900 shadow dark:text-white dark:ring-0'
+										: 'dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 text-slate-700 hover:bg-slate-50 dark:hover:text-white',
 								]"
 							>
 								<component
@@ -403,43 +397,19 @@ watchEffect(() => {
 									:class="[
 										selected
 											? 'text-slate-500 dark:text-white'
-											: 'text-slate-400 group-hover:text-slate-500 dark:text-vercel-accents-5 dark:group-hover:text-white',
-										'-ml-1 mr-3 h-6 w-6 flex-shrink-0',
+											: 'dark:text-vercel-accents-5 text-slate-400 group-hover:text-slate-500 dark:group-hover:text-white',
+										'mr-3 -ml-1 h-6 w-6 shrink-0',
 									]"
 									aria-hidden="true"
 								/>
 								<span class="truncate">
 									{{ category }}
 								</span>
-								<!-- {{ category }} -->
 							</button>
 						</AppTab>
 					</TabList>
 				</TabGroup>
-				<slot name="left-section">
-					<!-- <div class="pt-10">
-						<p
-							class="px-3 text-sm font-medium text-slate-500 dark:text-white"
-							id="quick-actions-headline"
-						>
-							Quick Actions
-						</p>
-						<div class="mt-3 space-y-2" aria-labelledby="quick-actions-headline">
-							<button
-								class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
-								@click="storeSession(loadedTabs)"
-							>
-								<span class="truncate"> Save session </span>
-							</button>
-							<button
-								class="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-papaya-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
-								@click="closeDuplicates(loadedTabs)"
-							>
-								<span class="truncate"> Close duplicates </span>
-							</button>
-						</div>
-					</div> -->
-				</slot>
+				<slot name="left-section" />
 			</nav>
 		</div>
 		<section class="lg:col-span-8">
@@ -450,16 +420,14 @@ watchEffect(() => {
 							<div class="">
 								<label for="search" class="sr-only">Search tabs</label>
 								<div
-									class="flex rounded-md shadow-sm ring-1 ring-black ring-opacity-5"
+									class="ring-opacity-5 flex rounded-md shadow-sm ring-1 ring-black"
 								>
-									<div
-										class="relative flex flex-grow items-stretch focus-within:z-10"
-									>
+									<div class="relative flex grow items-stretch focus-within:z-10">
 										<div
 											class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
 										>
 											<MagnifyingGlassIcon
-												class="h-5 w-5 text-slate-400 dark:text-vercel-accents-4"
+												class="dark:text-vercel-accents-4 h-5 w-5 text-slate-400"
 											/>
 										</div>
 										<input
@@ -468,14 +436,14 @@ watchEffect(() => {
 											v-model="searchTerm"
 											type="text"
 											autofocus
-											class="peer block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm focus-visible:border-papaya-900 focus-visible:ring-papaya-900 dark:border-vercel-accents-2 dark:bg-black dark:placeholder-vercel-accents-4 sm:text-sm"
+											class="peer focus-visible:border-papaya-900 focus-visible:ring-papaya-900 dark:border-vercel-accents-2 dark:placeholder-vercel-accents-4 block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm sm:text-sm dark:bg-black"
 											placeholder="Search"
 										/>
 										<div
 											class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 peer-focus:hidden"
 										>
 											<p
-												class="inline-flex items-center rounded border border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400 dark:border-vercel-accents-2 dark:text-vercel-accents-4"
+												class="dark:border-vercel-accents-2 dark:text-vercel-accents-4 inline-flex items-center rounded border border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400"
 											>
 												/
 											</p>
@@ -486,12 +454,12 @@ watchEffect(() => {
 										>
 											<div class="flex">
 												<p
-													class="inline-flex items-center rounded-l border border-r-0 border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400 dark:border-vercel-accents-2 dark:text-white"
+													class="dark:border-vercel-accents-2 inline-flex items-center rounded-l border border-r-0 border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400 dark:text-white"
 												>
 													{{ totalTabs }}
 												</p>
 												<button
-													class="pointer-events-auto rounded-r border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-400 dark:border-vercel-accents-2 dark:bg-vercel-accents-2 dark:text-white"
+													class="dark:border-vercel-accents-2 dark:bg-vercel-accents-2 pointer-events-auto rounded-r border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-400 dark:text-white"
 													@click="searchTerm = ''"
 												>
 													<XMarkIcon class="h-3 w-3 fill-current" />
@@ -504,7 +472,7 @@ watchEffect(() => {
 										<PopoverButton as="template">
 											<button
 												type="button"
-												class="group relative -ml-px inline-flex items-center space-x-2 rounded-none rounded-r-md border border-transparent bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus-visible:border-papaya-900 focus-visible:ring-1 focus-visible:ring-papaya-900 dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white"
+												class="group focus-visible:border-papaya-900 focus-visible:ring-papaya-900 relative -ml-px inline-flex items-center space-x-2 rounded-none rounded-r-md border border-transparent bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus-visible:ring-1 dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white"
 											>
 												<FunnelIcon
 													title="Add a Filter"
@@ -541,7 +509,7 @@ watchEffect(() => {
 													<button
 														title="Close"
 														type="button"
-														class="filament-icon-button absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none dark:hover:bg-slate-300/5 rtl:left-3 rtl:right-auto"
+														class="filament-icon-button absolute top-3 right-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none rtl:right-auto rtl:left-3 dark:hover:bg-slate-300/5"
 														@click="close"
 													>
 														<span class="sr-only"> Close </span>
@@ -575,7 +543,7 @@ watchEffect(() => {
 																			? 'bg-blue-700'
 																			: 'bg-slate-300 dark:bg-slate-700'
 																	"
-																	class="relative inline-flex h-[38px] w-[74px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75"
+																	class="focus-visible:ring-opacity-75 relative inline-flex h-[38px] w-[74px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
 																>
 																	<span class="sr-only"
 																		>Use setting</span
@@ -604,7 +572,7 @@ watchEffect(() => {
 																			<div class="space-y-2">
 																				<RadioGroupLabel>
 																					<span
-																						class="text-sm font-medium leading-4 text-slate-700 dark:text-slate-300"
+																						class="text-sm leading-4 font-medium text-slate-700 dark:text-slate-300"
 																					>
 																						Range type
 																					</span>
@@ -626,11 +594,11 @@ watchEffect(() => {
 																					>
 																						<button
 																							:class="[
-																								'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium leading-5 text-slate-700',
-																								'ring-white ring-opacity-60 ring-offset-2 ring-offset-papaya-900 focus:outline-none focus-visible:ring-2',
+																								'flex w-full justify-center rounded-md px-3 py-2 text-sm leading-5 font-medium text-slate-700',
+																								'ring-opacity-60 ring-offset-papaya-900 ring-white ring-offset-2 focus:outline-none focus-visible:ring-2',
 																								checked
 																									? 'bg-white shadow'
-																									: 'text-papaya-500 hover:bg-white/[0.12] hover:text-white',
+																									: 'text-papaya-500 hover:bg-white/12 hover:text-white',
 																							]"
 																						>
 																							{{
@@ -655,7 +623,7 @@ watchEffect(() => {
 																						for="time-range"
 																					>
 																						<span
-																							class="text-sm font-medium leading-4 text-slate-700 dark:text-slate-300"
+																							class="text-sm leading-4 font-medium text-slate-700 dark:text-slate-300"
 																						>
 																							Time
 																							Range
@@ -704,7 +672,7 @@ watchEffect(() => {
 																									class="flex flex-col items-center justify-start sm:flex-row"
 																								>
 																									<div
-																										class="relative flex-grow"
+																										class="relative grow"
 																									>
 																										<svg
 																											class="pointer-events-none absolute mx-2 h-full w-4 text-slate-600"
@@ -720,7 +688,7 @@ watchEffect(() => {
 																											></path>
 																										</svg>
 																										<input
-																											class="w-full flex-grow rounded-md border-slate-300 pl-8 pr-2 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+																											class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 																											type="text"
 																											:class="
 																												isDragging
@@ -736,7 +704,7 @@ watchEffect(() => {
 																										/>
 																									</div>
 																									<span
-																										class="m-2 flex-shrink-0"
+																										class="m-2 shrink-0"
 																									>
 																										<svg
 																											class="h-4 w-4 stroke-current text-slate-600"
@@ -751,7 +719,7 @@ watchEffect(() => {
 																										</svg>
 																									</span>
 																									<div
-																										class="relative flex-grow"
+																										class="relative grow"
 																									>
 																										<svg
 																											class="pointer-events-none absolute mx-2 h-full w-4 text-slate-600"
@@ -767,7 +735,7 @@ watchEffect(() => {
 																											></path>
 																										</svg>
 																										<input
-																											class="w-full flex-grow rounded-md border-slate-300 pl-8 pr-2 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+																											class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 																											type="text"
 																											:class="
 																												isDragging
@@ -809,7 +777,7 @@ watchEffect(() => {
 																									class="flex flex-col items-center justify-start sm:flex-row"
 																								>
 																									<div
-																										class="relative flex-grow"
+																										class="relative grow"
 																									>
 																										<svg
 																											class="pointer-events-none absolute mx-2 h-full w-4 text-slate-600"
@@ -826,7 +794,7 @@ watchEffect(() => {
 																										</svg>
 																										<input
 																											id="date"
-																											class="w-full flex-grow rounded-md border-slate-300 pl-8 pr-2 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
+																											class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
 																											type="text"
 																											:value="
 																												inputValue
@@ -945,11 +913,12 @@ watchEffect(() => {
 								leave-to-class="transform scale-95 opacity-0"
 							>
 								<Disclosure
+									v-slot="{ open }"
 									v-for="(group, index) in grouped"
 									:id="`section-${index}`"
 									:key="`section-${index}`"
 									as="li"
-									class="divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black ring-opacity-5 dark:divide-vercel-accents-2 dark:bg-black"
+									class="ring-opacity-5 dark:divide-vercel-accents-2 divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black dark:bg-black"
 									:default-open="true"
 								>
 									<div class="px-4 py-4 md:px-6">
@@ -966,15 +935,11 @@ watchEffect(() => {
 														selectedTabName === 'Grouped' &&
 														index !== 'other'
 													"
+													color="round-primary"
 													type="button"
-													@click="
-														() =>
-															onEditGroup({
-																tabs: group,
-															})
-													"
+													@click="onEditGroup({ tabs: group })"
 												>
-													Edit
+													<PencilSquareIcon class="h-4 w-4" />
 												</AppBtn>
 											</div>
 
@@ -995,7 +960,6 @@ watchEffect(() => {
 												>
 													Close tabs
 												</AppButton>
-												<!-- <AppBtn @click="moveTabs(group)" type="button"> Move </AppBtn> -->
 												<TabMoveToMenu
 													:tabs="group"
 													:windows-map="windowsMap"
@@ -1020,7 +984,10 @@ watchEffect(() => {
 												</AppButton>
 												<DisclosureButton as="template">
 													<AppBtn type="button" color="round-primary">
-														<XMarkIcon class="h-3 w-3" />
+														<ChevronDownIcon
+															class="h-4 w-4"
+															:class="open && 'rotate-180 transform'"
+														/>
 													</AppBtn>
 												</DisclosureButton>
 											</div>
@@ -1055,7 +1022,7 @@ watchEffect(() => {
 			</div>
 			<div v-else-if="searchTerm" class="mt-6">
 				<div
-					class="flex flex-col items-center py-20 text-sm leading-6 text-slate-600 dark:text-vercel-accents-5 md:py-32"
+					class="dark:text-vercel-accents-5 flex flex-col items-center py-20 text-sm leading-6 text-slate-600 md:py-32"
 				>
 					<XMarkIcon class="h-8 w-8" />
 					<p class="mt-6">
@@ -1086,7 +1053,7 @@ watchEffect(() => {
 							<ul
 								ref="groupHeaders"
 								role="list"
-								class="mt-4 space-y-4 py-1 text-sm leading-6 text-slate-700 dark:text-vercel-accents-5 dark:hover:text-white"
+								class="dark:text-vercel-accents-5 mt-4 space-y-4 py-1 text-sm leading-6 text-slate-700 dark:hover:text-white"
 							>
 								<li
 									v-for="(group, index) in grouped"
@@ -1099,11 +1066,11 @@ watchEffect(() => {
 
 									<Disclosure v-slot="{ open }">
 										<DisclosureButton
-											class="group relative flex w-full items-center justify-between space-x-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 focus:outline-none focus-visible:ring focus-visible:ring-papaya-900 focus-visible:ring-opacity-75"
+											class="group focus-visible:ring-papaya-900 focus-visible:ring-opacity-75 relative flex w-full items-center justify-between space-x-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 focus:outline-none focus-visible:ring"
 											:class="
 												open
-													? 'bg-white text-slate-900 shadow dark:bg-vercel-accents-2 dark:text-white dark:ring-0 dark:highlight-white/5'
-													: 'hover:bg-slate-50 hover:text-slate-900 dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 dark:hover:text-white'
+													? 'dark:bg-vercel-accents-2 dark:highlight-white/5 bg-white text-slate-900 shadow dark:text-white dark:ring-0'
+													: 'dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 hover:bg-slate-50 hover:text-slate-900 dark:hover:text-white'
 											"
 										>
 											<!-- <div
@@ -1120,17 +1087,17 @@ watchEffect(() => {
 												</span>
 											</router-link>
 											<div
-												class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-800 dark:bg-vercel-accents-4 dark:text-white"
+												class="dark:bg-vercel-accents-4 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-800 dark:text-white"
 											>
 												{{ group.length }}
 											</div>
 										</DisclosureButton>
 										<DisclosurePanel
-											class="px-4 text-sm text-slate-500 dark:text-vercel-accents-5"
+											class="dark:text-vercel-accents-5 px-4 text-sm text-slate-500"
 										>
 											<ul
 												role="list"
-												class="mt-2 space-y-4 border-l border-slate-200 pl-6 dark:border-vercel-accents-2"
+												class="dark:border-vercel-accents-2 mt-2 space-y-4 border-l border-slate-200 pl-6"
 											>
 												<li>
 													<button @click="moveTabs(group)">
@@ -1161,7 +1128,7 @@ watchEffect(() => {
 
 	<footer
 		v-if="[...tabsSelected].length > 0"
-		class="sticky bottom-0 left-0 right-0 z-50 w-full bg-slate-900 shadow-lg dark:bg-papaya-500"
+		class="dark:bg-papaya-500 sticky right-0 bottom-0 left-0 z-50 w-full bg-slate-900 shadow-lg"
 	>
 		<div class="mx-auto w-full max-w-7xl px-4 sm:px-2">
 			<div
@@ -1212,7 +1179,12 @@ watchEffect(() => {
 						intent="primary"
 						size="small"
 						type="button"
-						@click="storeSession(selectedGroup)"
+						@click="
+							() => {
+								storeSession(selectedGroup)
+								toast('Session saved')
+							}
+						"
 					>
 						Save as session
 					</AppButton>

@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@config '../tailwind.config.cjs';
+
 /* html{
   @apply bg-slate-100;
 } */

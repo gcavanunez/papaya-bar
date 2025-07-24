@@ -160,7 +160,7 @@ const onGroupTrigger = () => {
 											active
 												? 'text-white'
 												: 'text-slate-400 group-hover:text-white dark:text-vercel-accents-5',
-											'-ml-1 mr-1.5 h-4 w-4 flex-shrink-0',
+											'-ml-1 mr-1.5 h-4 w-4 shrink-0',
 										]"
 										aria-hidden="true"
 									/>
@@ -180,7 +180,7 @@ const onGroupTrigger = () => {
 											active
 												? 'text-white'
 												: 'text-slate-400 group-hover:text-white dark:text-vercel-accents-5',
-											'-ml-1 mr-1.5 h-4 w-4 flex-shrink-0',
+											'-ml-1 mr-1.5 h-4 w-4 shrink-0',
 										]"
 										aria-hidden="true"
 									/>

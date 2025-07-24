@@ -13,7 +13,7 @@
 	},
 	"dependencies": {
 		"@floating-ui/vue": "^1.1.7",
-		"@formkit/auto-animate": "1.0.0-beta.5",
+		"@formkit/auto-animate": "0.8.2",
 		"@headlessui/vue": "^1.7.23",
 		"@heroicons/vue": "^2.2.0",
 		"@popperjs/core": "^2.11.8",
@@ -31,13 +31,14 @@
 		"postcss-focus-visible": "^10.0.1",
 		"postcss-nested": "^7.0.2",
 		"posthtml-minify-classnames": "1.0.0-alpha.0",
-		"v-calendar": "3.0.0-alpha.8",
+		"v-calendar": "3.1.2",
 		"vue": "3.5.17",
 		"vue-router": "4.5.1",
+		"vue-sonner": "^2.0.2",
 		"vuedraggable": "^4.1.0"
 	},
 	"devDependencies": {
-		"@crxjs/vite-plugin": "2.0.0-beta.26",
+		"@crxjs/vite-plugin": "2.0.3",
 		"@eslint/js": "^9.19.0",
 		"@tailwindcss/forms": "^0.5.10",
 		"@types/chrome": "^0.1.0",

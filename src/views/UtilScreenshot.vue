@@ -2,33 +2,31 @@
 import { ref } from 'vue'
 
 const isLoading = ref(true)
-chrome.runtime.onMessage.addListener(
-	// this is the message listener
-	function (request, sender, sendResponse) {
-		if (request.name === 'stream' && request.dataURI) {
-			copyImageToClipboard(request.dataURI)
-				.then(() => {
-					sendResponse({ success: true })
-				})
-				.catch((err) => {
-					alert('Could not take screenshot')
-					sendResponse({ success: false, message: err })
-				})
-				.finally(() => {
-					isLoading.value = false
-					setTimeout(() => {
-						window.close()
-					}, 1000)
-				})
 
-			return true
-		}
-	},
-)
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+	if (request.name === 'stream' && request.dataURI) {
+		copyImageToClipboard(request.dataURI)
+			.then(() => {
+				sendResponse({ success: true })
+			})
+			.catch((err) => {
+				alert('Could not take screenshot')
+				sendResponse({ success: false, message: err })
+			})
+			.finally(() => {
+				isLoading.value = false
+				setTimeout(() => {
+					window.close()
+				}, 1000)
+			})
+
+		return true
+	}
+})
 
 async function copyImageToClipboard(img: string) {
 	const blob = await getImageBlobFromUrl(img)
-	console.log({ blob })
+
 	await navigator.clipboard.write([
 		new ClipboardItem({
 			[blob.type]: blob,
@@ -50,10 +48,10 @@ async function getImageBlobFromUrl(url: string) {
 				<button
 					v-if="isLoading"
 					type="button"
-					class="inline-flex cursor-not-allowed items-center rounded-md bg-indigo-500 px-4 py-2 text-sm font-semibold leading-6 text-white shadow transition duration-150 ease-in-out hover:bg-indigo-400"
+					class="inline-flex cursor-not-allowed items-center rounded-md bg-indigo-500 px-4 py-2 text-sm leading-6 font-semibold text-white shadow transition duration-150 ease-in-out hover:bg-indigo-400"
 				>
 					<svg
-						class="-ml-1 mr-3 h-5 w-5 animate-spin text-white"
+						class="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 24 24"

@@ -92,7 +92,7 @@ useTitle(title)
 						<div
 							class="flex md:absolute md:inset-y-0 md:left-0 lg:static xl:col-span-2"
 						>
-							<div class="flex flex-shrink-0 items-center">
+							<div class="flex shrink-0 items-center">
 								<a href="#">
 									<!-- src="https://tailwindui.com/img/logos/workflow-mark.svg?color=rose&shade=500" -->
 									<img
@@ -165,7 +165,7 @@ useTitle(title)
 							</a>
 							<!-- <a
 								href="#"
-								class="ml-5 flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+								class="ml-5 shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
 							>
 								<span class="sr-only">View notifications</span>
 								<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />
@@ -173,7 +173,7 @@ useTitle(title)
 							<DarkModeSwitch />
 
 							<!-- Profile dropdown -->
-							<Menu as="div" class="relative ml-5 flex-shrink-0">
+							<Menu as="div" class="relative ml-5 shrink-0">
 								<div>
 									<MenuButton
 										class="flex items-center rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-papaya-900 focus:ring-offset-2 dark:text-vercel-accents-5 dark:hover:text-white dark:focus:ring-offset-black"
@@ -262,7 +262,7 @@ useTitle(title)
 					</div>
 					<div class="border-t border-gray-200 pt-4">
 						<div class="mx-auto flex max-w-3xl items-center px-4 sm:px-6">
-							<div class="flex-shrink-0">
+							<div class="shrink-0">
 								<img class="h-10 w-10 rounded-full" :src="user.imageUrl" alt="" />
 							</div>
 							<div class="ml-3">
@@ -275,7 +275,7 @@ useTitle(title)
 							</div>
 							<button
 								type="button"
-								class="ml-auto flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+								class="ml-auto shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
 							>
 								<span class="sr-only">View notifications</span>
 								<RectangleStackIcon class="h-6 w-6" aria-hidden="true" />

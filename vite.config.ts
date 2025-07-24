@@ -2,10 +2,10 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
-import { crx } from '@crxjs/vite-plugin'
+import { crx, ManifestV3Export } from '@crxjs/vite-plugin'
 
-//@ts-ignore
-import manifest from './manifest.json' // Node 14 & 16
+import manifestData from './manifest.json' assert { type: 'json' }
+const manifest = manifestData as ManifestV3Export
 
 import { execSync } from 'child_process'
 let lastCommitHash = ''
@@ -14,7 +14,6 @@ try {
 } catch (e) {
 	console.error(e)
 }
-console.log({ lastCommitHash })
 
 export default defineConfig({
 	define: {
@@ -25,6 +24,11 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			'@': fileURLToPath(new URL('./src', import.meta.url)),
+		},
+	},
+	server: {
+		cors: {
+			origin: [/chrome-extension:\/\//],
 		},
 	},
 })

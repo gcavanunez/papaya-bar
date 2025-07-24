@@ -34,7 +34,7 @@ const value = computed({
 			v-bind="$attrs"
 			v-model="value"
 			v-autogrow
-			class="focus:border-gatopolis-light peer w-full rounded-md border border-gray-300 bg-transparent px-3 pb-0.5 pt-[1.375rem] text-gray-900 placeholder-transparent focus:outline-none focus:ring-0 dark:bg-black dark:text-white sm:text-sm"
+			class="focus:border-gatopolis-light peer w-full rounded-md border border-gray-300 bg-transparent px-3 pb-0.5 pt-5.5 text-gray-900 placeholder-transparent focus:outline-none focus:ring-0 dark:bg-black dark:text-white sm:text-sm"
 			:placeholder="placeholder"
 		/>
 		<label

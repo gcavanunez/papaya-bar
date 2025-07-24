@@ -25,7 +25,7 @@ import { ButtonHTMLAttributes } from 'vue'
 // inline-flex
 // items-center
 // rounded-md
-// flex-shrink-0
+// shrink-0
 const button = cva('transition   border focus:outline-none dark:focus-visible:ring ', {
 	variants: {
 		intent: {
