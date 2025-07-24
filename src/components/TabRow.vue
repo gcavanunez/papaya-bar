@@ -4,7 +4,8 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { PlusIcon, XMarkIcon, MinusIcon, ChevronUpIcon } from '@heroicons/vue/20/solid'
 import { closeTab, copyLink, goTo } from '@/helpers'
 import { Tab, HistoryMap, Group } from '@/types'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useSettings } from '@/hooks/useSettings'
 
 import TabMoveToMenu from './TabMoveToMenu.vue'
 
@@ -20,7 +21,17 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
 	(e: 'toggleSelection', tab: Tab): void
 }>()
+
+const { settings, loadSettings } = useSettings()
 const hasImageError = ref(false)
+
+const copyTabLink = (tab: Tab) => {
+	copyLink(tab, settings.value.copyLinksInMarkdownFormat)
+}
+
+onMounted(() => {
+	loadSettings()
+})
 const onImageLoadError = () => {
 	hasImageError.value = true
 }
@@ -118,7 +129,7 @@ const tabHistory = computed(() => {
 							</template>
 						</TabMoveToMenu>
 						<button
-							@click="copyLink(tab)"
+							@click="copyTabLink(tab)"
 							class="rounded-md bg-green-50/90 px-2 py-1 text-xs font-medium text-green-600 shadow-sm transition-colors hover:bg-green-100 dark:bg-green-900/50 dark:text-green-400 dark:hover:bg-green-900/70"
 						>
 							Copy

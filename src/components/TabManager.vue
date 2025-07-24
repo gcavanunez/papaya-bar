@@ -8,7 +8,7 @@ import {
 	Squares2X2Icon,
 	ListBulletIcon,
 } from '@heroicons/vue/24/outline'
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
 import { XMarkIcon, FunnelIcon } from '@heroicons/vue/20/solid'
 import { Switch } from '@headlessui/vue'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
@@ -16,7 +16,8 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { TabGroup, TabList, Tab as AppTab } from '@headlessui/vue'
 import { RadioGroup, RadioGroupLabel, RadioGroupOption } from '@headlessui/vue'
 
-import { copyToClipboard } from '../utils'
+import { copyToClipboard, formatTabAsMarkdown } from '../utils'
+import { useSettings } from '@/hooks/useSettings'
 import AppBtn from '@/components/AppBtn.vue'
 import { Tab, Grouped, WindowsMap, Group, HistoryMap, LookUpTab } from '@/types'
 import { closeTab, moveTabs } from '@/helpers'
@@ -30,6 +31,7 @@ import { useGlobalModals } from '@/hooks/useGlobalModals'
 
 const { onEditGroup, onCreateNewGroup } = useGlobalModals()
 const { storeSession } = useSessionsData()
+const { settings, loadSettings } = useSettings()
 
 const ranges: Record<string, { value: string; label: string; is_range: boolean }> = {
 	'<>': {
@@ -301,14 +303,23 @@ const closeUnSelectedTabs = () => {
 }
 
 const copyLinks = (tabs: Tab[]) => {
-	const urls = tabs
-		.map((row) => [row.url, row.title])
-		.reduce((acc, curr) => {
-			return `${acc}\n\n${curr[1]}\n${curr[0]}`
-		}, '')
-	if (urls) {
-		copyToClipboard(urls)
-
+	let content: string
+	
+	if (settings.value.copyLinksInMarkdownFormat) {
+		content = tabs
+			.map(tab => formatTabAsMarkdown(tab))
+			.filter(link => link.length > 0)
+			.join('\n\n')
+	} else {
+		content = tabs
+			.map((row) => [row.url, row.title])
+			.reduce((acc, curr) => {
+				return `${acc}\n\n${curr[1]}\n${curr[0]}`
+			}, '')
+	}
+	
+	if (content) {
+		copyToClipboard(content)
 		toast('Links copied to clipboard')
 	}
 }
@@ -333,7 +344,7 @@ const notUsingInput = computed(
 	() => activeElement.value?.tagName !== 'INPUT' && activeElement.value?.tagName !== 'TEXTAREA',
 )
 const isInputFocused = computed(() => activeElement.value === inputRef.value)
-const { shift, ctrl, escape, a, m, w, g, j, k, n, p, enter } = useMagicKeys()
+const { shift, ctrl, escape, a, m, w, g, j, k, n, p, enter, space } = useMagicKeys()
 
 // Get flattened tabs for navigation
 const flatTabs = computed(() => {
@@ -441,6 +452,14 @@ watchEffect(() => {
 			goToTab(selectedTab)
 		}
 	}
+	
+	// Toggle selection of current tab with Ctrl+Space
+	if (ctrl.value && space.value && flatTabs.value[selectedTabIndex.value]) {
+		const selectedTab = flatTabs.value[selectedTabIndex.value]
+		if (selectedTab) {
+			toggleSelection(selectedTab)
+		}
+	}
 })
 
 // Clean up intervals and timeouts on component unmount
@@ -453,6 +472,11 @@ watchEffect((onInvalidate) => {
 // Reset selected tab index when switching views or search changes
 watchEffect(() => {
 	selectedTabIndex.value = 0
+})
+
+// Load settings on component mount
+onMounted(() => {
+	loadSettings()
 })
 </script>
 
@@ -578,7 +602,7 @@ watchEffect(() => {
 								class="dark:border-vercel-accents-2 block w-full rounded-md border border-slate-300 bg-white py-2 pr-12 pl-10 text-slate-900 placeholder-slate-500 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-black dark:text-white dark:placeholder-slate-400"
 								:placeholder="
 									isListView
-										? 'Search tabs... (Ctrl+J/K to navigate, Enter to open)'
+										? 'Search tabs... (Ctrl+J/K to navigate, Ctrl+Space to select, Enter to open)'
 										: 'Search tabs by title or URL...'
 								"
 							/>

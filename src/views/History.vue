@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import AppInput from '@/components/forms/AppInput.vue'
+import AppBtn from '@/components/AppBtn.vue'
 import { debouncedRef } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
+import { ClockIcon, DocumentDuplicateIcon, ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/outline'
+import { useSettings } from '@/hooks/useSettings'
+import { formatUrlAsMarkdown, copyToClipboard } from '@/utils'
+import { toast } from 'vue-sonner'
 
 const search = ref('')
 const debouncedSearch = debouncedRef(search, 500)
@@ -56,7 +61,27 @@ const now = Date.now()
 const oneDay = now - 24 * 60 * 60 * 1000
 const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000
 
+const { settings, loadSettings } = useSettings()
+
+const copyHistoryItem = (item: MatchDTO) => {
+	let content: string
+	
+	if (settings.value.copyLinksInMarkdownFormat) {
+		content = formatUrlAsMarkdown(item.url, item.title)
+	} else {
+		content = `${item.title}\n${item.url}`
+	}
+	
+	copyToClipboard(content)
+	toast('History item copied to clipboard')
+}
+
+const openHistoryItem = (url: string) => {
+	chrome.tabs.create({ url })
+}
+
 onMounted(() => {
+	loadSettings()
 	getHistory({ text: '', startTime: oneDay }).then((matches) => {
 		historyMatches.value = matches.map((row) => matchDTO(row))
 	})
@@ -72,31 +97,93 @@ watch(
 </script>
 <template>
 	<div class="relative">
-		<div class="container mx-auto max-w-5xl px-4 py-6 sm:px-2">
-			<AppInput v-model="search" label="Search" />
-
-			<ul class="mt-8 flex flex-col gap-2">
-				<li
-					v-for="historyItem in historyMatches"
-					:key="historyItem.id"
-					class="group w-full py-2"
-				>
-					<div
-						class="relative overflow-hidden rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5 transition dark:ring-vercel-accents-2"
-					>
-						<div class="flex w-full flex-col px-2 py-2">
-							<div class="inline-flex gap-2">
-								<span class="shrink-0">{{ historyItem.title }}</span>
-								<span>-</span>
-								<span class="text-sm">{{ historyItem.url }}</span>
-							</div>
-							<div class="text-xs">
-								{{ historyItem.visitTime }}
-							</div>
+		<div class="container mx-auto max-w-7xl px-4 py-6 sm:px-2">
+			<div class="px-4 sm:px-6 lg:px-8">
+				<!-- Header Section -->
+				<div class="sm:flex sm:items-center">
+					<div class="sm:flex-auto">
+						<div class="flex items-center gap-3 mb-2">
+							<ClockIcon class="h-6 w-6 text-slate-600 dark:text-vercel-accents-5" />
+							<h1 class="text-xl font-semibold text-slate-900 dark:text-white">
+								Browser History
+							</h1>
 						</div>
+						<p class="mt-2 text-sm text-slate-700 dark:text-vercel-accents-5">
+							Search and manage your browsing history from the last 24 hours
+						</p>
 					</div>
-				</li>
-			</ul>
+				</div>
+
+				<!-- Search Section -->
+				<div class="mt-6 flex">
+					<div class="lg:w-96">
+						<AppInput v-model="search" label="Search history" placeholder="Search by title or URL..." />
+					</div>
+				</div>
+
+				<!-- Results Stats -->
+				<div v-if="historyMatches.length > 0" class="mt-4 text-sm text-slate-700 dark:text-vercel-accents-5">
+					{{ historyMatches.length }} {{ historyMatches.length === 1 ? 'item' : 'items' }} found
+				</div>
+
+				<!-- History Items -->
+				<div class="mt-6">
+					<div v-if="historyMatches.length === 0" class="text-center py-12">
+						<ClockIcon class="mx-auto h-12 w-12 text-slate-400 dark:text-vercel-accents-4" />
+						<h3 class="mt-2 text-sm font-medium text-slate-900 dark:text-white">No history found</h3>
+						<p class="mt-1 text-sm text-slate-500 dark:text-vercel-accents-4">
+							{{ search ? 'Try adjusting your search terms.' : 'No browsing history from the last 24 hours.' }}
+						</p>
+					</div>
+
+					<div v-else class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:border dark:border-vercel-accents-2 md:rounded-lg">
+						<ul class="divide-y divide-slate-200 bg-white dark:divide-vercel-accents-2 dark:bg-black">
+							<li
+								v-for="historyItem in historyMatches"
+								:key="historyItem.id"
+								class="group hover:bg-slate-50 dark:hover:bg-vercel-accents-1 transition-colors"
+							>
+								<div class="flex items-center justify-between px-4 py-4 sm:px-6">
+									<div class="flex min-w-0 flex-1 items-center">
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center">
+												<div class="min-w-0 flex-1">
+													<p class="truncate text-sm font-medium text-slate-900 dark:text-white">
+														{{ historyItem.title || 'Untitled' }}
+													</p>
+													<p class="truncate text-sm text-slate-500 dark:text-vercel-accents-4">
+														{{ historyItem.url }}
+													</p>
+												</div>
+											</div>
+											<div class="mt-2 flex items-center text-xs text-slate-500 dark:text-vercel-accents-4">
+												<ClockIcon class="mr-1.5 h-3 w-3 flex-shrink-0" />
+												{{ historyItem.visitTime }}
+											</div>
+										</div>
+									</div>
+									<div class="ml-4 flex items-center space-x-2">
+										<AppBtn
+											color="round-primary"
+											@click="copyHistoryItem(historyItem)"
+											title="Copy link"
+										>
+											<DocumentDuplicateIcon class="size-4" />
+										</AppBtn>
+										<AppBtn
+											color="round-primary"
+											@click="openHistoryItem(historyItem.url)"
+											title="Open in new tab"
+										>
+											<ArrowTopRightOnSquareIcon class="size-4" />
+										</AppBtn>
+									</div>
+								</div>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>

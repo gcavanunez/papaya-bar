@@ -2,6 +2,25 @@ export const copyToClipboard = (text: string) => {
   copyTextToClipboard(text)
 }
 
+export const formatTabAsMarkdown = (tab: { title?: string; url?: string }): string => {
+  if (!tab.url) return ''
+  if (!tab.title || tab.title.trim() === '') {
+    return tab.url
+  }
+  // Escape markdown special characters in title
+  const escapedTitle = tab.title.replace(/[\[\]]/g, '\\$&')
+  return `[${escapedTitle}](${tab.url})`
+}
+
+export const formatUrlAsMarkdown = (url: string, title?: string): string => {
+  if (!title || title.trim() === '') {
+    return url
+  }
+  // Escape markdown special characters in title
+  const escapedTitle = title.replace(/[\[\]]/g, '\\$&')
+  return `[${escapedTitle}](${url})`
+}
+
 export const copyImageToClipboard = async (imageUrl: string): Promise<void> => {
   const blob = await getImageBlobFromUrl(imageUrl)
   await navigator.clipboard.write([

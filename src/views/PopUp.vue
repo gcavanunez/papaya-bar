@@ -9,8 +9,10 @@ import {
 import { useTimeoutFn } from '@vueuse/core'
 import { onMounted, ref } from 'vue'
 import { useMotion } from '@vueuse/motion'
+import { useSettings } from '@/hooks/useSettings'
 
 const loadedTabs = ref(0)
+const { settings, loadSettings } = useSettings()
 
 const copiedLink = ref<'link' | 'screen' | ''>('')
 
@@ -36,6 +38,8 @@ const { start } = useTimeoutFn(() => {
 }, 700)
 
 onMounted(async () => {
+	loadSettings()
+	
 	chrome.tabs.query({}, (tabs) => {
 		loadedTabs.value = tabs.length
 	})
@@ -72,7 +76,7 @@ const copyOpenTab = async () => {
 	start()
 	const tab = await getCurrentTab()
 	if (tab) {
-		copyLink(tab)
+		copyLink(tab, settings.value.copyLinksInMarkdownFormat)
 	}
 }
 const openTabs = () => {

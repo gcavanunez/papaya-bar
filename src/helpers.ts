@@ -1,5 +1,5 @@
 import { Tab, LookUpTab, SaveableTab } from './types'
-import { copyToClipboard } from './utils'
+import { copyToClipboard, formatTabAsMarkdown } from './utils'
 
 type moveToTypes = 'window_container' | 'group_container'
 
@@ -47,8 +47,15 @@ export const moveTabTo = (
 	}
 }
 
-export const copyLink = (tab: Pick<Tab, 'title' | 'url'>) => {
-	const text = `${tab.title}\n${tab.url}`
+export const copyLink = (tab: Pick<Tab, 'title' | 'url'>, useMarkdown = false) => {
+	let text: string
+	
+	if (useMarkdown) {
+		text = formatTabAsMarkdown(tab)
+	} else {
+		text = `${tab.title}\n${tab.url}`
+	}
+	
 	copyToClipboard(text)
 }
 
