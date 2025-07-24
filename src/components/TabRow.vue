@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format, formatDistance } from 'date-fns'
-import { Disclosure, DisclosureButton } from '@headlessui/vue'
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { PlusIcon, XMarkIcon, MinusIcon, ChevronUpIcon } from '@heroicons/vue/20/solid'
 import { closeTab, copyLink, goTo } from '@/helpers'
 import { Tab, HistoryMap, Group } from '@/types'
@@ -52,47 +52,105 @@ const tabHistory = computed(() => {
 </script>
 
 <template>
-	<Disclosure v-slot="{ open }">
-		<tr
-			:class="{
-				'bg-vercel-accents-2': tabsSelected.has(tab.stableId),
-			}"
-		>
-			<!-- Tab Info Column -->
-			<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-				<div class="flex items-center">
-					<div class="flex items-center space-x-3">
-						<!-- Selection Checkbox -->
+	<div class="relative">
+		<Disclosure v-slot="{ open }">
+			<div
+				class="group relative overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md dark:border-vercel-accents-2 dark:bg-black"
+				:class="{
+					'border-blue-500 ring-2 ring-blue-500/20': tabsSelected.has(tab.stableId),
+					'hover:border-slate-300 dark:hover:border-vercel-accents-3': !tabsSelected.has(
+						tab.stableId,
+					),
+				}"
+			>
+				<!-- Action Overlay -->
+				<div
+					class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-t from-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+				>
+					<div class="pointer-events-auto absolute top-2 left-2">
 						<button
 							@click="emit('toggleSelection', tab)"
-							class="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 transition-colors hover:bg-slate-50 dark:border-vercel-accents-2 dark:bg-black dark:text-slate-300 dark:hover:bg-vercel-accents-1"
-							:class="{
-								'bg-blue-600 border-blue-600 text-white dark:bg-blue-600 dark:border-blue-600': tabsSelected.has(tab.stableId),
-							}"
+							class="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition-colors hover:bg-white dark:border-vercel-accents-2 dark:bg-black/90 dark:text-slate-300 dark:hover:bg-vercel-accents-1"
 						>
 							<PlusIcon v-if="!tabsSelected.has(tab.stableId)" class="h-3 w-3" />
 							<MinusIcon v-else class="h-3 w-3" />
 						</button>
+					</div>
 
-						<!-- Favicon -->
+					<div
+						class="pointer-events-auto absolute top-2 right-2 flex items-center space-x-1"
+					>
+						<DisclosureButton as="template">
+							<button
+								class="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition-colors hover:bg-white dark:border-vercel-accents-2 dark:bg-black/90 dark:text-slate-300 dark:hover:bg-vercel-accents-1"
+								:class="{
+									'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400':
+										open,
+								}"
+							>
+								<ChevronUpIcon
+									class="h-3 w-3 transition-transform duration-200"
+									:class="{ 'rotate-180': !open }"
+								/>
+							</button>
+						</DisclosureButton>
+						<button
+							@click="closeTab([tab])"
+							class="flex h-6 w-6 items-center justify-center rounded-full border border-red-200 bg-red-50/90 text-red-600 shadow-sm transition-colors hover:bg-red-100 dark:border-red-800/50 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-900/70"
+						>
+							<XMarkIcon class="h-3 w-3" />
+						</button>
+					</div>
+
+					<div
+						class="pointer-events-auto absolute right-2 bottom-2 left-2 flex items-center justify-between"
+					>
+						<TabMoveToMenu
+							:tabs="[tab]"
+							:loaded-groups="loadedGroups"
+							:windows-map="windowsMap"
+							:can-create-group="false"
+						>
+							<template #menu-trigger-label>
+								<span class="rounded-md bg-purple-50/90 px-2 py-1 text-xs font-medium text-purple-600 shadow-sm transition-colors hover:bg-purple-100 dark:bg-purple-900/50 dark:text-purple-400 dark:hover:bg-purple-900/70">
+									Move
+								</span>
+							</template>
+						</TabMoveToMenu>
+						<button
+							@click="copyLink(tab)"
+							class="rounded-md bg-green-50/90 px-2 py-1 text-xs font-medium text-green-600 shadow-sm transition-colors hover:bg-green-100 dark:bg-green-900/50 dark:text-green-400 dark:hover:bg-green-900/70"
+						>
+							Copy
+						</button>
+					</div>
+				</div>
+
+				<!-- Tab Content -->
+				<button
+					@click="goTo(tab)"
+					class="w-full p-4 text-left transition-colors duration-200"
+					:title="tab.url"
+				>
+					<div class="flex items-start space-x-3">
 						<div class="shrink-0">
 							<div class="relative">
 								<img
 									v-if="!hasImageError && tab.favIconUrl"
-									class="h-6 w-6 rounded"
+									class="h-8 w-8 rounded-lg shadow-sm"
 									:src="tab.favIconUrl"
 									alt=""
 									@error="onImageLoadError"
 								/>
 								<div
 									v-else
-									class="h-6 w-6 rounded bg-slate-300 dark:bg-vercel-accents-3"
+									class="h-8 w-8 rounded-lg bg-slate-300 dark:bg-vercel-accents-3"
 								></div>
 
 								<!-- Group Color Indicator -->
 								<div
 									v-if="loadedGroups.find((row) => row.id === tab.groupId)?.color"
-									class="absolute -top-1 -right-1 h-2 w-2 rounded-full border border-white dark:border-black"
+									class="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-black"
 									:style="{
 										backgroundColor: loadedGroups.find(
 											(row) => row.id === tab.groupId,
@@ -102,72 +160,28 @@ const tabHistory = computed(() => {
 							</div>
 						</div>
 
-						<!-- Tab Info -->
 						<div class="min-w-0 flex-1">
-							<button
-								@click="goTo(tab)"
-								class="text-left"
-								:title="tab.url"
+							<h3
+								class="mb-1 truncate text-sm font-medium text-slate-900 dark:text-white"
 							>
-								<div class="font-medium text-slate-900 dark:text-white truncate">
-									{{ tab.title }}
-								</div>
-								<div class="text-slate-500 dark:text-vercel-accents-4 truncate">
-									{{ getHostname(tab.url) }}
-								</div>
-							</button>
+								{{ tab.title }}
+							</h3>
+							<p class="truncate text-xs text-slate-500 dark:text-vercel-accents-4">
+								{{ getHostname(tab.url) }}
+							</p>
 						</div>
 					</div>
-				</div>
-			</td>
+				</button>
+			</div>
 
-			<!-- Actions Column -->
-			<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-				<div class="flex items-center justify-end space-x-2">
-					<DisclosureButton as="template">
-						<button
-							class="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-slate-300"
-							:class="{
-								'bg-slate-100 text-slate-600 dark:bg-vercel-accents-2 dark:text-slate-300': open,
-							}"
-						>
-							<ChevronUpIcon
-								class="h-4 w-4 transition-transform duration-200"
-								:class="{ 'rotate-180': !open }"
-							/>
-						</button>
-					</DisclosureButton>
-					<TabMoveToMenu
-						:tabs="[tab]"
-						:loaded-groups="loadedGroups"
-						:windows-map="windowsMap"
-						:can-create-group="false"
-					>
-						<template #menu-trigger-label>
-							Move
-						</template>
-					</TabMoveToMenu>
-					<button
-						@click="copyLink(tab)"
-						class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-vercel-accents-2 dark:bg-black dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-1"
-					>
-						Copy
-					</button>
-					<button
-						@click="closeTab([tab])"
-						class="rounded-full p-1 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-					>
-						<XMarkIcon class="h-4 w-4" />
-					</button>
-				</div>
-			</td>
-		</tr>
-
-		<!-- History Panel -->
-		<tr v-if="open">
-			<td colspan="2" class="px-6 py-4 bg-slate-50 dark:bg-vercel-accents-1">
+			<!-- History Panel -->
+			<DisclosurePanel
+				class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-vercel-accents-2 dark:bg-vercel-accents-1"
+			>
 				<div class="space-y-3">
-					<h4 class="text-xs font-semibold text-slate-700 dark:text-vercel-accents-5 uppercase tracking-wide">
+					<h4
+						class="text-xs font-semibold tracking-wide text-slate-700 uppercase dark:text-vercel-accents-5"
+					>
 						Visit History
 					</h4>
 					<div class="max-h-32 space-y-2 overflow-y-auto">
@@ -177,7 +191,9 @@ const tabHistory = computed(() => {
 							class="flex items-center justify-between py-1"
 						>
 							<div class="flex items-center space-x-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-vercel-accents-4"></div>
+								<div
+									class="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-vercel-accents-4"
+								></div>
 								<span class="text-xs text-slate-600 dark:text-vercel-accents-4">
 									{{ historyEvent.humanDistance }} ago
 								</span>
@@ -200,7 +216,7 @@ const tabHistory = computed(() => {
 						</div>
 					</div>
 				</div>
-			</td>
-		</tr>
-	</Disclosure>
+			</DisclosurePanel>
+		</Disclosure>
+	</div>
 </template>

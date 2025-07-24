@@ -53,13 +53,13 @@ const onGroupTrigger = () => {
 						<button
 							ref="trigger"
 							type="button"
-							class="inline-flex items-center space-x-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-1"
+							class="inline-flex items-center space-x-1 rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-600 shadow-sm transition-colors hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50"
 						>
 							<slot name="menu-trigger-label">
 								<span class="inline-flex items-center space-x-1">
 									<span>Move</span>
 									<ChevronDownIcon
-										class="h-3 w-3 text-slate-400 dark:text-slate-500"
+										class="h-3 w-3 text-purple-400 dark:text-purple-500"
 										aria-hidden="true"
 									/>
 								</span>

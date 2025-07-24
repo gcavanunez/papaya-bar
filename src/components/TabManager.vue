@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronDownIcon, MagnifyingGlassIcon, PencilSquareIcon } from '@heroicons/vue/20/solid'
-import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/vue/24/outline'
 import { computed, reactive, ref, watchEffect } from 'vue'
 import { XMarkIcon, FunnelIcon } from '@heroicons/vue/20/solid'
 import { Switch } from '@headlessui/vue'
@@ -66,9 +66,19 @@ const masks = {
 }
 const [_groupHeaders] = useAutoAnimate()
 const inputRef = ref<HTMLInputElement | null>(null)
+const isListView = ref(false)
+const selectedTabIndex = ref(0)
+
 const focusOnInput = () => {
 	if (inputRef.value) {
 		inputRef.value.focus()
+	}
+}
+
+const goToTab = (tab: Tab) => {
+	if (tab.id && typeof chrome !== 'undefined') {
+		chrome.tabs.update(tab.id, { active: true })
+		chrome.windows.update(tab.windowId, { focused: true })
 	}
 }
 
@@ -315,7 +325,13 @@ const activeElement = useActiveElement()
 const notUsingInput = computed(
 	() => activeElement.value?.tagName !== 'INPUT' && activeElement.value?.tagName !== 'TEXTAREA',
 )
-const { shift, ctrl, escape, a, m, w, g } = useMagicKeys()
+const isInputFocused = computed(() => activeElement.value === inputRef.value)
+const { shift, ctrl, escape, a, m, w, g, j, k, n, p, enter } = useMagicKeys()
+
+// Get flattened tabs for navigation
+const flatTabs = computed(() => {
+	return Object.values(grouped.value).flatMap((group) => group)
+})
 
 watchEffect(() => {
 	if (!notUsingInput.value) {
@@ -337,6 +353,48 @@ watchEffect(() => {
 		})
 	}
 })
+
+// Scroll selected item into view
+const scrollToSelectedTab = () => {
+	if (isListView.value && selectedTabIndex.value >= 0) {
+		const selectedElement = document.querySelector(`[data-tab-index="${selectedTabIndex.value}"]`)
+		if (selectedElement) {
+			selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+		}
+	}
+}
+
+// Keyboard navigation for list view
+watchEffect(() => {
+	if (!isInputFocused.value || !isListView.value || flatTabs.value.length === 0) {
+		return
+	}
+	
+	// Navigate down with Ctrl+J or Ctrl+N
+	if (ctrl.value && (j.value || n.value)) {
+		selectedTabIndex.value = Math.min(selectedTabIndex.value + 1, flatTabs.value.length - 1)
+		scrollToSelectedTab()
+	}
+	
+	// Navigate up with Ctrl+K or Ctrl+P
+	if (ctrl.value && (k.value || p.value)) {
+		selectedTabIndex.value = Math.max(selectedTabIndex.value - 1, 0)
+		scrollToSelectedTab()
+	}
+	
+	// Navigate to selected tab with Enter
+	if (enter.value && flatTabs.value[selectedTabIndex.value]) {
+		const selectedTab = flatTabs.value[selectedTabIndex.value]
+		if (selectedTab) {
+			goToTab(selectedTab)
+		}
+	}
+})
+
+// Reset selected tab index when switching views or search changes
+watchEffect(() => {
+	selectedTabIndex.value = 0
+})
 </script>
 
 <template>
@@ -355,7 +413,7 @@ watchEffect(() => {
 					</div>
 				</div>
 
-				<!-- Navigation and Search -->
+					<!-- Navigation and Search -->
 				<div class="mt-6 space-y-4">
 					<!-- Navigation Pills -->
 					<div class="flex items-center justify-between">
@@ -391,6 +449,35 @@ watchEffect(() => {
 							</TabList>
 						</TabGroup>
 
+						<!-- View Toggle -->
+						<div class="flex items-center space-x-1 rounded-md bg-slate-100 p-1 dark:bg-vercel-accents-2">
+							<button
+								@click="isListView = false"
+								:class="[
+									'flex items-center space-x-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+									'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+									!isListView
+										? 'bg-white text-slate-900 shadow-sm dark:bg-vercel-accents-3 dark:text-white'
+										: 'text-slate-600 hover:bg-white/50 dark:text-vercel-accents-4 dark:hover:bg-vercel-accents-3/50',
+								]"
+							>
+								<Squares2X2Icon class="h-4 w-4" />
+								<span class="hidden sm:inline">Grid</span>
+							</button>
+							<button
+								@click="isListView = true"
+								:class="[
+									'flex items-center space-x-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+									'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+									isListView
+										? 'bg-white text-slate-900 shadow-sm dark:bg-vercel-accents-3 dark:text-white'
+										: 'text-slate-600 hover:bg-white/50 dark:text-vercel-accents-4 dark:hover:bg-vercel-accents-3/50',
+								]"
+							>
+								<ListBulletIcon class="h-4 w-4" />
+								<span class="hidden sm:inline">List</span>
+							</button>
+						</div>
 						<!-- Mobile category selector -->
 						<div class="sm:hidden">
 							<select
@@ -425,12 +512,12 @@ watchEffect(() => {
 								type="text"
 								autofocus
 								class="block w-full rounded-md border border-slate-300 bg-white py-2 pr-12 pl-10 text-slate-900 placeholder-slate-500 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-vercel-accents-2 dark:bg-black dark:text-white dark:placeholder-slate-400"
-								placeholder="Search tabs by title or URL..."
+								:placeholder="isListView ? 'Search tabs... (Ctrl+J/K to navigate, Enter to open)' : 'Search tabs by title or URL...'"
 							/>
 
 							<!-- Search shortcut hint -->
 							<div
-								v-if="!searchTerm"
+								v-if="!searchTerm && !isListView"
 								class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
 							>
 								<kbd
@@ -438,6 +525,21 @@ watchEffect(() => {
 								>
 									/
 								</kbd>
+							</div>
+
+							<!-- Navigation hint for list view -->
+							<div
+								v-if="!searchTerm && isListView"
+								class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+							>
+								<div class="flex items-center space-x-1">
+									<kbd
+										class="inline-flex items-center rounded border border-slate-200 px-1.5 py-0.5 font-sans text-xs text-slate-400 dark:border-slate-600 dark:text-slate-500"
+									>
+										Ctrl+J/K
+									</kbd>
+									<span class="text-xs text-slate-400 dark:text-slate-500">navigate</span>
+								</div>
 							</div>
 
 							<!-- Search results counter and clear -->
@@ -666,8 +768,8 @@ watchEffect(() => {
 				<div class="mt-8 flex flex-col">
 					<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
 						<div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-							<!-- Tab Groups -->
-							<div v-if="Object.values(grouped).some((row) => row.length)" class="space-y-6">
+							<!-- Grid View -->
+							<div v-if="!isListView && Object.values(grouped).some((row) => row.length)" class="space-y-6">
 								<transition-group
 									appear
 									enter-active-class="transition duration-300 ease-out"
@@ -717,83 +819,164 @@ watchEffect(() => {
 															</AppBtn>
 														</div>
 
-														<!-- Action Buttons -->
-														<div class="flex items-center space-x-2">
-															<AppBtn
-																color="primary"
-																@click="selectGroup(group)"
-															>
-																Select All
-															</AppBtn>
-															<AppBtn
-																color="primary"
-																@click="closeTabs(group)"
-															>
-																Close
-															</AppBtn>
-															<TabMoveToMenu
-																:tabs="group"
-																:windows-map="windowsMap"
-																:loaded-groups="loadedGroups"
-																@on-create-group="
-																	({ tabs: emitedTabs }) =>
-																		onCreateNewGroup({ tabs: emitedTabs })
-																"
-															>
-																<template #menu-trigger-label>
-																	Move
-																</template>
-															</TabMoveToMenu>
-															<AppBtn
-																color="primary"
-																@click="copyLinks(group)"
-															>
-																Copy
-															</AppBtn>
-															<DisclosureButton as="template">
-																<button
-																	class="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-slate-300"
-																>
-																	<ChevronDownIcon
-																		class="h-4 w-4 transition-transform duration-200"
-																		:class="{ 'rotate-180': open }"
-																	/>
-																</button>
-															</DisclosureButton>
-														</div>
-													</div>
+										<!-- Action Buttons -->
+										<div class="flex items-center space-x-2">
+											<button
+												@click="selectGroup(group)"
+												class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+											>
+												Select All
+											</button>
+											<button
+												@click="closeTabs(group)"
+												class="rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+											>
+												Close
+											</button>
+											<TabMoveToMenu
+												:tabs="group"
+												:windows-map="windowsMap"
+												:loaded-groups="loadedGroups"
+												@on-create-group="
+													({ tabs: emitedTabs }) =>
+														onCreateNewGroup({ tabs: emitedTabs })
+												"
+											>
+												<template #menu-trigger-label>
+													<span class="rounded-md bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-600 transition-colors hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50">
+														Move
+													</span>
+												</template>
+											</TabMoveToMenu>
+											<button
+												@click="copyLinks(group)"
+												class="rounded-md bg-green-50 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+											>
+												Copy
+											</button>
+											<DisclosureButton as="template">
+												<button
+													class="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-slate-300"
+												>
+													<ChevronDownIcon
+														class="h-4 w-4 transition-transform duration-200"
+														:class="{ 'rotate-180': open }"
+													/>
+												</button>
+											</DisclosureButton>
+										</div>													</div>
 												</div>
 
-												<!-- Tabs List -->
-												<transition
-													enter-active-class="transition duration-200 ease-out"
-													enter-from-class="opacity-0 -translate-y-2"
-													enter-to-class="opacity-100 translate-y-0"
-													leave-active-class="transition duration-150 ease-in"
-													leave-from-class="opacity-100 translate-y-0"
-													leave-to-class="opacity-0 -translate-y-2"
-												>
-													<DisclosurePanel>
-														<table class="min-w-full divide-y divide-slate-300 dark:divide-vercel-accents-2">
-															<tbody class="divide-y divide-slate-200 bg-white dark:divide-vercel-accents-2 dark:bg-black">
-																<TabRow
-																	v-for="tab in group"
-																	:key="`${tab.windowId}-${tab.stableId}`"
-																	:tab="tab"
-																	:windows-map="windowsMap"
-																	:loaded-groups="loadedGroups"
-																	:tabs-selected="tabsSelected"
-																	:history="loadedTabHistory"
-																	@toggle-selection="toggleSelection"
-																/>
-															</tbody>
-														</table>
-													</DisclosurePanel>
-												</transition>
-											</div>
+								<!-- Tabs List -->
+								<transition
+									enter-active-class="transition duration-200 ease-out"
+									enter-from-class="opacity-0 -translate-y-2"
+									enter-to-class="opacity-100 translate-y-0"
+									leave-active-class="transition duration-150 ease-in"
+									leave-from-class="opacity-100 translate-y-0"
+									leave-to-class="opacity-0 -translate-y-2"
+								>
+									<DisclosurePanel class="px-6 py-4">
+										<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+											<TabRow
+												v-for="tab in group"
+												:key="`${tab.windowId}-${tab.stableId}`"
+												:tab="tab"
+												:windows-map="windowsMap"
+												:loaded-groups="loadedGroups"
+												:tabs-selected="tabsSelected"
+												:history="loadedTabHistory"
+												@toggle-selection="toggleSelection"
+											/>
+										</div>
+									</DisclosurePanel>
+								</transition>											</div>
 										</Disclosure>
 									</div>
 								</transition-group>
+							</div>
+
+							<!-- List View -->
+							<div v-else-if="isListView && Object.values(grouped).some((row) => row.length)" class="space-y-4">
+								<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:border dark:border-vercel-accents-2 md:rounded-lg">
+									<div class="bg-white dark:bg-black">
+										<div class="space-y-0">
+											<div
+												v-for="(tab, tabIndex) in flatTabs"
+												:key="`${tab.windowId}-${tab.stableId}`"
+												:data-tab-index="tabIndex"
+												:class="[
+													'group relative flex items-center space-x-4 border-b border-slate-200 px-6 py-4 transition-colors dark:border-vercel-accents-2',
+													tabIndex === selectedTabIndex && isInputFocused
+														? 'bg-blue-50 ring-2 ring-blue-500 ring-inset dark:bg-blue-900/20 dark:ring-blue-400'
+														: 'hover:bg-slate-50 dark:hover:bg-vercel-accents-1',
+													tabsSelected.has(tab.stableId)
+														? 'bg-slate-100 dark:bg-vercel-accents-2'
+														: '',
+												]"
+											>
+												<!-- Selection Checkbox -->
+												<div class="flex-shrink-0">
+													<input
+														type="checkbox"
+														:checked="tabsSelected.has(tab.stableId)"
+														@change="toggleSelection(tab)"
+														class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-vercel-accents-3 dark:bg-black"
+													/>
+												</div>
+
+												<!-- Tab Favicon -->
+												<div class="flex-shrink-0">
+													<img
+														v-if="tab.favIconUrl"
+														:src="tab.favIconUrl"
+														:alt="tab.title"
+														class="h-4 w-4"
+														@error="($event.target as HTMLImageElement).style.display = 'none'"
+													/>
+													<div
+														v-else
+														class="h-4 w-4 rounded bg-slate-200 dark:bg-vercel-accents-3"
+													></div>
+												</div>
+
+												<!-- Tab Info -->
+												<div class="min-w-0 flex-1">
+													<div class="flex items-center space-x-2">
+														<h3 class="truncate text-sm font-medium text-slate-900 dark:text-white">
+															{{ tab.title || 'Untitled' }}
+														</h3>
+														<span
+															v-if="tab.groupId && tab.groupId !== -1"
+															class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-vercel-accents-2 dark:text-vercel-accents-5"
+														>
+															{{ groupMap.get(tab.groupId) || 'Unknown Group' }}
+														</span>
+													</div>
+													<p class="truncate text-sm text-slate-500 dark:text-vercel-accents-4">
+														{{ tab.url }}
+													</p>
+												</div>
+
+												<!-- Actions -->
+												<div class="flex items-center space-x-2 opacity-0 transition-opacity group-hover:opacity-100">
+													<button
+														@click="goToTab(tab)"
+														class="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+													>
+														Go to
+													</button>
+													<button
+														@click="closeTabs([tab])"
+														class="rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+													>
+														Close
+													</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
 							</div>
 							<!-- Empty State -->
 							<div v-else-if="searchTerm" class="flex flex-col items-center justify-center py-20">
@@ -838,18 +1021,18 @@ watchEffect(() => {
 					</div>
 
 					<div class="flex items-center space-x-2">
-						<AppBtn
-							color="primary"
+						<button
 							@click="closeUnSelectedTabs"
+							class="rounded-md bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-500/20 dark:text-orange-400"
 						>
 							Close others
-						</AppBtn>
-						<AppBtn
-							color="primary"
+						</button>
+						<button
 							@click="closeSelectedTabs"
+							class="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
 						>
 							Close selected
-						</AppBtn>
+						</button>
 						<TabMoveToMenu
 							:tabs="selectedGroup"
 							:loaded-groups="loadedGroups"
@@ -859,8 +1042,7 @@ watchEffect(() => {
 							"
 						>
 							<template #button-trigger="{ trigger }">
-								<AppBtn
-									color="primary"
+								<button
 									:ref="
 										(el) =>
 											trigger(
@@ -869,28 +1051,29 @@ watchEffect(() => {
 													: (el as HTMLElement),
 											)
 									"
+									class="rounded-md bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-600 transition-colors hover:bg-purple-500/20 dark:text-purple-400"
 								>
 									Move to
-								</AppBtn>
+								</button>
 							</template>
 						</TabMoveToMenu>
-						<AppBtn
-							color="primary"
+						<button
 							@click="
 								() => {
 									storeSession(selectedGroup)
 									toast('Session saved')
 								}
 							"
+							class="rounded-md bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
 						>
 							Save session
-						</AppBtn>
-						<AppBtn
-							color="primary"
+						</button>
+						<button
 							@click="copyLinks(selectedGroup)"
+							class="rounded-md bg-green-500/10 px-3 py-2 text-sm font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
 						>
 							Copy links
-						</AppBtn>
+						</button>
 						<button
 							@click="tabsSelected.clear()"
 							class="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-vercel-accents-2 dark:hover:text-white"
