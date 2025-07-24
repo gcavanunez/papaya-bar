@@ -6,7 +6,7 @@ const routes: RouteRecordRaw[] = [
 		children: [
 			{
 				path: '',
-				component: () => import('@/views/NextView.vue'),
+				component: () => import('@/views/Index.vue'),
 				name: 'index',
 			},
 			{
@@ -42,12 +42,6 @@ const routes: RouteRecordRaw[] = [
 				name: 'settings',
 			},
 		],
-	},
-
-	{
-		path: '/oldie',
-		component: () => import('@/views/Index.vue'),
-		name: 'oldie',
 	},
 	{
 		path: '/popup',
