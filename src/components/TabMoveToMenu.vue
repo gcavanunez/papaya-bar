@@ -6,7 +6,6 @@ import { ChevronDownIcon } from '@heroicons/vue/20/solid'
 import { autoUpdate, autoPlacement, offset, shift, useFloating } from '@floating-ui/vue'
 import { PlusIcon, ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/outline'
 import { ref } from 'vue'
-import AppButton from './AppButton.vue'
 
 type Props = {
 	tabs: Tab[]
@@ -51,17 +50,21 @@ const onGroupTrigger = () => {
 				<!-- <MenuButton ref="trigger"> -->
 				<MenuButton as="div">
 					<slot name="button-trigger" :trigger="setSlotRef">
-						<AppButton ref="trigger" type="button" size="x-small" intent="common">
+						<button
+							ref="trigger"
+							type="button"
+							class="inline-flex items-center space-x-2 rounded-md border border-slate-200/50 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none dark:border-slate-600/50 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700"
+						>
 							<slot name="menu-trigger-label">
-								<span class="inline-flex items-center">
-									Move to
+								<span class="inline-flex items-center space-x-1">
+									<span>Move</span>
 									<ChevronDownIcon
-										class="-mr-1 ml-1 h-2.5 w-2.5 text-slate-800 dark:text-white"
+										class="h-3 w-3 text-slate-400 dark:text-slate-500"
 										aria-hidden="true"
 									/>
 								</span>
 							</slot>
-						</AppButton>
+						</button>
 					</slot>
 				</MenuButton>
 			</span>
@@ -76,121 +79,172 @@ const onGroupTrigger = () => {
 					width: 'max-content',
 				}"
 			> -->
-			<div
-				ref="container"
-				class="z-30 w-56"
-				:style="{
-					position: strategy,
-					transform: `translate3d(${Math.round(x ?? 0)}px,${Math.round(y ?? 0)}px,0)`,
-					top: '0',
-					left: '0',
-				}"
-			>
-				<transition
-					enter-active-class="transition duration-100 ease-out"
-					enter-from-class="transform scale-95 opacity-0"
-					enter-to-class="transform scale-100 opacity-100"
-					leave-active-class="transition duration-75 ease-in"
-					leave-from-class="transform scale-100 opacity-100"
-					leave-to-class="transform z-30 scale-95 opacity-0"
+			<Teleport to="body">
+				<div
+					ref="container"
+					class="z-30 w-56"
+					:style="{
+						position: strategy,
+						transform: `translate3d(${Math.round(x ?? 0)}px,${Math.round(y ?? 0)}px,0)`,
+						top: '0',
+						left: '0',
+					}"
 				>
-					<!-- origin-top-right -->
-					<!-- class="absolute right-0 mt-2 divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" -->
-					<MenuItems
-						class="z-40 max-h-56 w-full divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg outline-none"
+					<transition
+						enter-active-class="transition duration-200 ease-out"
+						enter-from-class="transform scale-95 opacity-0 translate-y-1"
+						enter-to-class="transform scale-100 opacity-100 translate-y-0"
+						leave-active-class="transition duration-150 ease-in"
+						leave-from-class="transform scale-100 opacity-100 translate-y-0"
+						leave-to-class="transform scale-95 opacity-0 translate-y-1"
 					>
-						<div class="px-1 py-1">
-							<!-- :disabled="windowId === tab.windowId" -->
-							<MenuItem
-								v-for="[windowId, value] in [...windowsMap]"
-								v-slot="{ active, disabled }"
-								:key="`${windowId}-enabled-windows`"
-								@click="
-									moveTabTo(tabs, {
-										containerId: windowId,
-										type: 'window_container',
-									})
-								"
-							>
-								<button
-									:class="[
-										active ? 'bg-blue-500 text-white' : 'text-slate-700',
-										'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-										disabled ? 'opacity-50' : 'opacity-100',
-									]"
+						<MenuItems
+							class="z-40 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200/50 bg-white/95 shadow-xl shadow-slate-200/20 backdrop-blur-xl outline-none dark:border-slate-700/50 dark:bg-slate-800/95 dark:shadow-slate-900/20"
+						>
+							<div class="p-2">
+								<div class="mb-2">
+									<h3
+										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+									>
+										Windows
+									</h3>
+								</div>
+								<MenuItem
+									v-for="[windowId, value] in [...windowsMap]"
+									v-slot="{ active, disabled }"
+									:key="`${windowId}-enabled-windows`"
+									@click="
+										moveTabTo(tabs, {
+											containerId: windowId,
+											type: 'window_container',
+										})
+									"
 								>
-									{{ value }}
-								</button>
-							</MenuItem>
-						</div>
-						<div v-if="loadedGroups.length" class="px-1 py-1">
-							<MenuItem
-								v-for="loadedGroup in loadedGroups"
-								v-slot="{ active, disabled }"
-								:key="`${loadedGroup.id}-custom-selected`"
-								@click="
-									moveTabTo(tabs, {
-										containerId: loadedGroup.id,
-										type: 'group_container',
-									})
-								"
-							>
-								<button
-									:class="[
-										active ? 'bg-blue-500 text-white' : 'text-slate-700',
-										'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-										disabled ? 'opacity-50' : 'opacity-100',
-									]"
-								>
-									{{ loadedGroup.title }}
-								</button>
-							</MenuItem>
-						</div>
-						<div v-if="canCreateGroup" class="px-1 py-1">
-							<MenuItem v-slot="{ active, disabled }" @click="onGroupTrigger">
-								<button
-									:class="[
-										active ? 'bg-blue-500 text-white' : 'text-slate-700',
-										'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-										disabled ? 'opacity-50' : 'opacity-100',
-									]"
-								>
-									<PlusIcon
+									<button
 										:class="[
+											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
 											active
-												? 'text-white'
-												: 'text-slate-400 group-hover:text-white dark:text-vercel-accents-5',
-											'-ml-1 mr-1.5 h-4 w-4 shrink-0',
+												? 'bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20 dark:text-blue-400'
+												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+											disabled
+												? 'cursor-not-allowed opacity-50'
+												: 'cursor-pointer',
 										]"
-										aria-hidden="true"
-									/>
-									Group tabs
-								</button>
-							</MenuItem>
-							<MenuItem v-slot="{ active, disabled }" @click="moveTabs(tabs)">
-								<button
-									:class="[
-										active ? 'bg-blue-500 text-white' : 'text-slate-700',
-										'group flex w-full items-center rounded-md px-2 py-2 text-sm',
-										disabled ? 'opacity-50' : 'opacity-100',
-									]"
+									>
+										<div
+											class="mr-3 h-2 w-2 flex-shrink-0 rounded-full bg-green-400"
+										></div>
+										{{ value }}
+									</button>
+								</MenuItem>
+							</div>
+							<div
+								v-if="loadedGroups.length"
+								class="border-t border-slate-200/50 p-2 dark:border-slate-700/50"
+							>
+								<div class="mb-2">
+									<h3
+										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+									>
+										Groups
+									</h3>
+								</div>
+								<MenuItem
+									v-for="loadedGroup in loadedGroups"
+									v-slot="{ active, disabled }"
+									:key="`${loadedGroup.id}-custom-selected`"
+									@click="
+										moveTabTo(tabs, {
+											containerId: loadedGroup.id,
+											type: 'group_container',
+										})
+									"
 								>
-									<ArrowTopRightOnSquareIcon
+									<button
 										:class="[
+											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
 											active
-												? 'text-white'
-												: 'text-slate-400 group-hover:text-white dark:text-vercel-accents-5',
-											'-ml-1 mr-1.5 h-4 w-4 shrink-0',
+												? 'bg-purple-500/10 text-purple-600 ring-1 ring-purple-500/20 dark:text-purple-400'
+												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+											disabled
+												? 'cursor-not-allowed opacity-50'
+												: 'cursor-pointer',
 										]"
-										aria-hidden="true"
-									/>
-									New window
-								</button>
-							</MenuItem>
-						</div>
-					</MenuItems>
-				</transition>
-			</div>
+									>
+										<div
+											class="mr-3 h-2 w-2 flex-shrink-0 rounded-full"
+											:style="{
+												backgroundColor: loadedGroup.color || '#8b5cf6',
+											}"
+										></div>
+										{{ loadedGroup.title }}
+									</button>
+								</MenuItem>
+							</div>
+							<div
+								v-if="canCreateGroup"
+								class="border-t border-slate-200/50 p-2 dark:border-slate-700/50"
+							>
+								<div class="mb-2">
+									<h3
+										class="px-2 py-1 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+									>
+										Actions
+									</h3>
+								</div>
+								<MenuItem v-slot="{ active, disabled }" @click="onGroupTrigger">
+									<button
+										:class="[
+											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+											active
+												? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400'
+												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+											disabled
+												? 'cursor-not-allowed opacity-50'
+												: 'cursor-pointer',
+										]"
+									>
+										<PlusIcon
+											:class="[
+												'mr-3 h-4 w-4 flex-shrink-0',
+												active
+													? 'text-emerald-600 dark:text-emerald-400'
+													: 'text-slate-400 dark:text-slate-500',
+											]"
+											aria-hidden="true"
+										/>
+										Create new group
+									</button>
+								</MenuItem>
+								<MenuItem v-slot="{ active, disabled }" @click="moveTabs(tabs)">
+									<button
+										:class="[
+											'group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+											active
+												? 'bg-orange-500/10 text-orange-600 ring-1 ring-orange-500/20 dark:text-orange-400'
+												: 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-700/50',
+											disabled
+												? 'cursor-not-allowed opacity-50'
+												: 'cursor-pointer',
+										]"
+									>
+										<ArrowTopRightOnSquareIcon
+											:class="[
+												'mr-3 h-4 w-4 flex-shrink-0',
+												active
+													? 'text-orange-600 dark:text-orange-400'
+													: 'text-slate-400 dark:text-slate-500',
+											]"
+											aria-hidden="true"
+										/>
+										Open in new window
+									</button>
+								</MenuItem>
+							</div>
+						</MenuItems>
+					</transition>
+				</div>
+			</Teleport>
 			<!-- </div> -->
 		</Menu>
 	</div>

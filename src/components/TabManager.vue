@@ -340,14 +340,20 @@ watchEffect(() => {
 </script>
 
 <template>
-	<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+	<div
+		class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
+	>
 		<!-- Header Section -->
-		<div class="sticky top-0 z-40 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/50 dark:border-slate-700/50">
-			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+		<div
+			class="sticky top-0 z-40 border-b border-slate-200/50 bg-white/80 backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-900/80"
+		>
+			<div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
 				<!-- Navigation Pills -->
-				<div class="flex items-center justify-between mb-6">
+				<div class="mb-6 flex items-center justify-between">
 					<TabGroup :selected-index="selectedTab" @change="changeTab">
-						<TabList class="flex space-x-1 rounded-xl bg-slate-100/50 dark:bg-slate-800/50 p-1 backdrop-blur-sm">
+						<TabList
+							class="flex space-x-1 rounded-xl bg-slate-100/50 p-1 backdrop-blur-sm dark:bg-slate-800/50"
+						>
 							<AppTab
 								v-for="[category, values] in Object.entries(categories)"
 								:key="category"
@@ -359,8 +365,8 @@ watchEffect(() => {
 										'flex items-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200',
 										'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
 										selected
-											? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 scale-105'
-											: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50',
+											? 'scale-105 bg-white text-slate-900 shadow-lg shadow-slate-200/50 dark:bg-slate-700 dark:text-white dark:shadow-slate-900/50'
+											: 'text-slate-600 hover:bg-white/50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-white',
 									]"
 								>
 									<component
@@ -377,12 +383,12 @@ watchEffect(() => {
 							</AppTab>
 						</TabList>
 					</TabGroup>
-					
+
 					<!-- Mobile category selector -->
 					<div class="sm:hidden">
 						<select
 							v-model="selectedTab"
-							class="rounded-lg border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm"
+							class="rounded-lg border-slate-300 bg-white/80 backdrop-blur-sm dark:border-slate-600 dark:bg-slate-800/80"
 						>
 							<option
 								v-for="(tab, index) in Object.keys(categories)"
@@ -397,9 +403,13 @@ watchEffect(() => {
 
 				<!-- Search and Filter Bar -->
 				<div class="flex items-center space-x-4">
-					<div class="flex-1 relative">
-						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-							<MagnifyingGlassIcon class="h-5 w-5 text-slate-400 dark:text-slate-500" />
+					<div class="relative flex-1">
+						<div
+							class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+						>
+							<MagnifyingGlassIcon
+								class="h-5 w-5 text-slate-400 dark:text-slate-500"
+							/>
 						</div>
 						<input
 							id="search"
@@ -407,32 +417,36 @@ watchEffect(() => {
 							v-model="searchTerm"
 							type="text"
 							autofocus
-							class="block w-full pl-10 pr-12 py-3 border border-slate-200/50 dark:border-slate-700/50 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+							class="block w-full rounded-xl border border-slate-200/50 bg-white/80 py-3 pr-12 pl-10 text-slate-900 placeholder-slate-500 backdrop-blur-sm transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-white dark:placeholder-slate-400"
 							placeholder="Search tabs by title or URL..."
 						/>
-						
+
 						<!-- Search shortcut hint -->
 						<div
 							v-if="!searchTerm"
-							class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+							class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
 						>
-							<kbd class="inline-flex items-center rounded border border-slate-200 dark:border-slate-600 px-2 py-1 text-xs font-sans text-slate-400 dark:text-slate-500">
+							<kbd
+								class="inline-flex items-center rounded border border-slate-200 px-2 py-1 font-sans text-xs text-slate-400 dark:border-slate-600 dark:text-slate-500"
+							>
 								/
 							</kbd>
 						</div>
-						
+
 						<!-- Search results counter and clear -->
 						<div
 							v-if="totalTabs > 0 && searchTerm"
-							class="absolute inset-y-0 right-0 pr-3 flex items-center"
+							class="absolute inset-y-0 right-0 flex items-center pr-3"
 						>
 							<div class="flex items-center space-x-1">
-								<span class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+								<span
+									class="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+								>
 									{{ totalTabs }} results
 								</span>
 								<button
 									@click="searchTerm = ''"
-									class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+									class="rounded-md p-1 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700"
 								>
 									<XMarkIcon class="h-4 w-4 text-slate-400 dark:text-slate-500" />
 								</button>
@@ -445,14 +459,14 @@ watchEffect(() => {
 						<PopoverButton as="template">
 							<button
 								type="button"
-								class="inline-flex items-center space-x-2 px-4 py-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+								class="inline-flex items-center space-x-2 rounded-xl border border-slate-200/50 bg-white/80 px-4 py-3 text-slate-700 backdrop-blur-sm transition-all duration-200 hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700"
 							>
 								<FunnelIcon class="h-4 w-4" />
 								<span class="hidden sm:inline">Filters</span>
 							</button>
 						</PopoverButton>
-										<!-- <PopoverPanel class="absolute z-10"> -->
-										<!-- <div class="grid grid-cols-2">
+						<!-- <PopoverPanel class="absolute z-10"> -->
+						<!-- <div class="grid grid-cols-2">
                             <a href="/analytics">Analytics</a>
                             <a href="/engagement">Engagement</a>
                             <a href="/security">Security</a>
@@ -468,18 +482,22 @@ watchEffect(() => {
 						>
 							<PopoverPanel
 								v-slot="{ close }"
-								class="absolute top-full right-0 z-50 w-80 mt-2"
+								class="absolute top-full right-0 z-50 mt-2 w-80"
 							>
-								<div class="rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl shadow-xl shadow-slate-200/20 dark:shadow-slate-900/20 p-6 space-y-6">
+								<div
+									class="space-y-6 rounded-xl border border-slate-200/50 bg-white/95 p-6 shadow-xl shadow-slate-200/20 backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-800/95 dark:shadow-slate-900/20"
+								>
 									<button
 										@click="close"
-										class="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+										class="absolute top-4 right-4 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
 									>
 										<XMarkIcon class="h-4 w-4" />
 									</button>
 									<div class="space-y-6">
 										<div class="flex items-center justify-between">
-											<label class="text-sm font-medium text-slate-700 dark:text-slate-300">
+											<label
+												class="text-sm font-medium text-slate-700 dark:text-slate-300"
+											>
 												Date Range Filter
 											</label>
 											<Switch
@@ -488,13 +506,15 @@ watchEffect(() => {
 													filter.has_date_range
 														? 'bg-blue-600'
 														: 'bg-slate-200 dark:bg-slate-600',
-													'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50'
+													'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
 												]"
 											>
 												<span
 													:class="[
-														filter.has_date_range ? 'translate-x-5' : 'translate-x-0',
-														'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+														filter.has_date_range
+															? 'translate-x-5'
+															: 'translate-x-0',
+														'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
 													]"
 												/>
 											</Switch>
@@ -502,10 +522,14 @@ watchEffect(() => {
 										<div v-if="filter.has_date_range" class="space-y-4">
 											<div>
 												<RadioGroup v-model="filter.date_range_type">
-													<RadioGroupLabel class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+													<RadioGroupLabel
+														class="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300"
+													>
 														Range Type
 													</RadioGroupLabel>
-													<div class="grid grid-cols-5 gap-1 rounded-lg bg-slate-100 dark:bg-slate-700 p-1">
+													<div
+														class="grid grid-cols-5 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-700"
+													>
 														<RadioGroupOption
 															v-for="timeRange in ranges"
 															:key="timeRange.value"
@@ -517,8 +541,8 @@ watchEffect(() => {
 																	'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium transition-all duration-200',
 																	'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
 																	checked
-																		? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
-																		: 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-600/50',
+																		? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-white'
+																		: 'text-slate-600 hover:bg-white/50 dark:text-slate-400 dark:hover:bg-slate-600/50',
 																]"
 															>
 																{{ timeRange.label }}
@@ -528,7 +552,9 @@ watchEffect(() => {
 												</RadioGroup>
 											</div>
 											<div>
-												<label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 block">
+												<label
+													class="mb-3 block text-sm font-medium text-slate-700 dark:text-slate-300"
+												>
 													Time Range
 												</label>
 												<div v-if="ranges[filter.date_range_type].is_range">
@@ -538,30 +564,62 @@ watchEffect(() => {
 														:masks="masks"
 														is-range
 													>
-														<template #default="{ inputValue, inputEvents, isDragging }">
-															<div class="flex flex-col sm:flex-row gap-3">
+														<template
+															#default="{
+																inputValue,
+																inputEvents,
+																isDragging,
+															}"
+														>
+															<div
+																class="flex flex-col gap-3 sm:flex-row"
+															>
 																<div class="relative flex-1">
-																	<CalendarDaysIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+																	<CalendarDaysIcon
+																		class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400"
+																	/>
 																	<input
-																		class="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+																		class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-slate-900 transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
 																		type="text"
-																		:class="isDragging ? 'text-slate-600' : 'text-slate-900 dark:text-white'"
+																		:class="
+																			isDragging
+																				? 'text-slate-600'
+																				: 'text-slate-900 dark:text-white'
+																		"
 																		:value="inputValue.start"
 																		v-on="inputEvents.start"
 																		placeholder="Start date"
 																	/>
 																</div>
-																<div class="flex items-center justify-center">
-																	<svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+																<div
+																	class="flex items-center justify-center"
+																>
+																	<svg
+																		class="h-4 w-4 text-slate-400"
+																		viewBox="0 0 24 24"
+																		fill="none"
+																		stroke="currentColor"
+																	>
+																		<path
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																			stroke-width="2"
+																			d="M14 5l7 7m0 0l-7 7m7-7H3"
+																		/>
 																	</svg>
 																</div>
 																<div class="relative flex-1">
-																	<CalendarDaysIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+																	<CalendarDaysIcon
+																		class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400"
+																	/>
 																	<input
-																		class="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+																		class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-slate-900 transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
 																		type="text"
-																		:class="isDragging ? 'text-slate-600' : 'text-slate-900 dark:text-white'"
+																		:class="
+																			isDragging
+																				? 'text-slate-600'
+																				: 'text-slate-900 dark:text-white'
+																		"
 																		:value="inputValue.end"
 																		v-on="inputEvents.end"
 																		placeholder="End date"
@@ -577,11 +635,15 @@ watchEffect(() => {
 														mode="dateTime"
 														:masks="masks"
 													>
-														<template #default="{ inputValue, inputEvents }">
+														<template
+															#default="{ inputValue, inputEvents }"
+														>
 															<div class="relative">
-																<CalendarDaysIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+																<CalendarDaysIcon
+																	class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400"
+																/>
 																<input
-																	class="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+																	class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-slate-900 transition-all duration-200 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
 																	type="text"
 																	:value="inputValue"
 																	v-on="inputEvents"
@@ -603,9 +665,9 @@ watchEffect(() => {
 		</div>
 
 		<!-- Main Content Area -->
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+		<div class="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
 			<!-- Tab Groups Grid -->
-			<div v-if="Object.values(grouped).some((row) => row.length)" class="space-y-6">
+			<div v-if="Object.values(grouped).some((row) => row.length)" class="space-y-6 pt-8">
 				<transition-group
 					appear
 					enter-active-class="transition duration-300 ease-out"
@@ -619,46 +681,57 @@ watchEffect(() => {
 						v-for="(group, index) in grouped"
 						:id="`section-${index}`"
 						:key="`section-${index}`"
-						class="group relative"
+						class="relative"
 					>
 						<Disclosure v-slot="{ open }" :default-open="true">
 							<!-- Group Card -->
-							<div class="rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-lg shadow-slate-200/20 dark:shadow-slate-900/20 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/30 dark:hover:shadow-slate-900/30">
+							<div
+								class="overflow-hidden rounded-2xl border border-slate-200/50 bg-white/70 shadow-lg shadow-slate-200/20 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/30 dark:border-slate-700/50 dark:bg-slate-800/70 dark:shadow-slate-900/20 dark:hover:shadow-slate-900/30"
+							>
 								<!-- Group Header -->
-								<div class="px-6 py-4 bg-gradient-to-r from-slate-50/50 to-blue-50/50 dark:from-slate-800/50 dark:to-slate-700/50 border-b border-slate-200/50 dark:border-slate-700/50">
+								<div
+									class="group border-b border-slate-200/50 bg-gradient-to-r from-slate-50/50 to-blue-50/50 px-6 py-4 dark:border-slate-700/50 dark:from-slate-800/50 dark:to-slate-700/50"
+								>
 									<div class="flex items-center justify-between">
 										<div class="flex items-center space-x-3">
 											<DisclosureButton as="template">
-												<button class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 text-slate-900 dark:text-white font-medium hover:bg-white dark:hover:bg-slate-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+												<button
+													class="flex items-center space-x-2 rounded-xl border border-slate-200/50 bg-white/80 px-4 py-2 font-medium text-slate-900 backdrop-blur-sm transition-all duration-200 hover:bg-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none dark:border-slate-600/50 dark:bg-slate-700/80 dark:text-white dark:hover:bg-slate-600"
+												>
 													<span class="text-sm">{{ index }}</span>
-													<div class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+													<div
+														class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
+													>
 														{{ group.length }}
 													</div>
 												</button>
 											</DisclosureButton>
-											
+
 											<AppBtn
-												v-if="selectedTabName === 'Grouped' && index !== 'other'"
+												v-if="
+													selectedTabName === 'Grouped' &&
+													index !== 'other'
+												"
 												color="round-primary"
 												type="button"
 												@click="onEditGroup({ tabs: group })"
-												class="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+												class="opacity-0 transition-opacity duration-200 group-hover:opacity-100"
 											>
 												<PencilSquareIcon class="h-4 w-4" />
 											</AppBtn>
 										</div>
 
 										<!-- Action Buttons -->
-										<div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+										<div class="flex items-center space-x-2">
 											<button
 												@click="selectGroup(group)"
-												class="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+												class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
 											>
 												Select All
 											</button>
 											<button
 												@click="closeTabs(group)"
-												class="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+												class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
 											>
 												Close
 											</button>
@@ -666,22 +739,29 @@ watchEffect(() => {
 												:tabs="group"
 												:windows-map="windowsMap"
 												:loaded-groups="loadedGroups"
-												@on-create-group="({ tabs: emitedTabs }) => onCreateNewGroup({ tabs: emitedTabs })"
+												@on-create-group="
+													({ tabs: emitedTabs }) =>
+														onCreateNewGroup({ tabs: emitedTabs })
+												"
 											>
 												<template #menu-trigger-label>
-													<span class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
-														Move
-													</span>
+													<!-- <span -->
+													<!-- 	class="rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:bg-slate-600" -->
+													<!-- > -->
+													Move
+													<!-- </span> -->
 												</template>
 											</TabMoveToMenu>
 											<button
 												@click="copyLinks(group)"
-												class="px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+												class="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
 											>
 												Copy
 											</button>
 											<DisclosureButton as="template">
-												<button class="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+												<button
+													class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+												>
 													<ChevronDownIcon
 														class="h-4 w-4 transition-transform duration-200"
 														:class="{ 'rotate-180': open }"
@@ -723,46 +803,52 @@ watchEffect(() => {
 			</div>
 			<!-- Empty State -->
 			<div v-else-if="searchTerm" class="flex flex-col items-center justify-center py-20">
-				<div class="rounded-full bg-slate-100 dark:bg-slate-800 p-6 mb-6">
+				<div class="mb-6 rounded-full bg-slate-100 p-6 dark:bg-slate-800">
 					<XMarkIcon class="h-12 w-12 text-slate-400 dark:text-slate-500" />
 				</div>
-				<h3 class="text-lg font-medium text-slate-900 dark:text-white mb-2">No results found</h3>
-				<p class="text-slate-600 dark:text-slate-400 text-center max-w-md">
-					No tabs match your search for 
-					<span class="font-semibold text-slate-900 dark:text-white">"{{ searchTerm }}"</span>.
-					Try adjusting your search terms or filters.
+				<h3 class="mb-2 text-lg font-medium text-slate-900 dark:text-white">
+					No results found
+				</h3>
+				<p class="max-w-md text-center text-slate-600 dark:text-slate-400">
+					No tabs match your search for
+					<span class="font-semibold text-slate-900 dark:text-white"
+						>"{{ searchTerm }}"</span
+					>. Try adjusting your search terms or filters.
 				</p>
 			</div>
 		</div>
 	</div>
 
 	<!-- Selection Footer -->
-	<div
-		v-if="[...tabsSelected].length > 0"
-		class="fixed bottom-0 left-0 right-0 z-50 p-4"
-	>
-		<div class="max-w-7xl mx-auto">
-			<div class="rounded-2xl bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-slate-900/20 p-4">
+	<div v-if="[...tabsSelected].length > 0" class="fixed right-0 bottom-0 left-0 z-50 p-4">
+		<div class="mx-auto max-w-7xl">
+			<div
+				class="rounded-2xl border border-slate-700/50 bg-slate-900/95 p-4 shadow-2xl shadow-slate-900/20 backdrop-blur-xl dark:bg-slate-800/95"
+			>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center space-x-3">
-						<div class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 text-blue-400">
-							<span class="text-sm font-semibold">{{ [...tabsSelected].length }}</span>
+						<div
+							class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/20 text-blue-400"
+						>
+							<span class="text-sm font-semibold">{{
+								[...tabsSelected].length
+							}}</span>
 						</div>
-						<span class="text-white font-medium">
+						<span class="font-medium text-white">
 							{{ [...tabsSelected].length === 1 ? 'tab' : 'tabs' }} selected
 						</span>
 					</div>
-					
+
 					<div class="flex items-center space-x-2">
 						<button
 							@click="closeUnSelectedTabs"
-							class="px-3 py-2 text-sm font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
+							class="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20"
 						>
 							Close others
 						</button>
 						<button
 							@click="closeSelectedTabs"
-							class="px-3 py-2 text-sm font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
+							class="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20"
 						>
 							Close selected
 						</button>
@@ -770,32 +856,46 @@ watchEffect(() => {
 							:tabs="selectedGroup"
 							:loaded-groups="loadedGroups"
 							:windows-map="windowsMap"
-							@on-create-group="({ tabs: emitedTabs }) => onCreateNewGroup({ tabs: emitedTabs })"
+							@on-create-group="
+								({ tabs: emitedTabs }) => onCreateNewGroup({ tabs: emitedTabs })
+							"
 						>
 							<template #button-trigger="{ trigger }">
 								<button
-									:ref="(el) => trigger(el && '$el' in el ? (el.$el as HTMLElement) : (el as HTMLElement))"
-									class="px-3 py-2 text-sm font-medium text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors"
+									:ref="
+										(el) =>
+											trigger(
+												el && '$el' in el
+													? (el.$el as HTMLElement)
+													: (el as HTMLElement),
+											)
+									"
+									class="rounded-lg bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
 								>
 									Move to
 								</button>
 							</template>
 						</TabMoveToMenu>
 						<button
-							@click="() => { storeSession(selectedGroup); toast('Session saved') }"
-							class="px-3 py-2 text-sm font-medium text-green-400 bg-green-500/10 rounded-lg hover:bg-green-500/20 transition-colors"
+							@click="
+								() => {
+									storeSession(selectedGroup)
+									toast('Session saved')
+								}
+							"
+							class="rounded-lg bg-green-500/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-500/20"
 						>
 							Save session
 						</button>
 						<button
 							@click="copyLinks(selectedGroup)"
-							class="px-3 py-2 text-sm font-medium text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 transition-colors"
+							class="rounded-lg bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-400 transition-colors hover:bg-purple-500/20"
 						>
 							Copy links
 						</button>
 						<button
 							@click="tabsSelected.clear()"
-							class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+							class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
 						>
 							<XMarkIcon class="h-4 w-4" />
 						</button>
