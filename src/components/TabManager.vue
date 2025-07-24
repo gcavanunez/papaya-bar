@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ChevronDownIcon, MagnifyingGlassIcon, PencilSquareIcon } from '@heroicons/vue/20/solid'
 import { HomeIcon, TagIcon, RectangleGroupIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
-import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
+import { computed, reactive, ref, watchEffect } from 'vue'
 import { XMarkIcon, FunnelIcon } from '@heroicons/vue/20/solid'
 import { Switch } from '@headlessui/vue'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
@@ -18,7 +18,6 @@ import TabRow from '@/components/TabRow.vue'
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
 import { format, isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { useSessionsData } from '@/hooks/useSessionsData'
-import AppButton from './AppButton.vue'
 import TabMoveToMenu from './TabMoveToMenu.vue'
 import { useGlobalModals } from '@/hooks/useGlobalModals'
 
@@ -65,7 +64,7 @@ const filter = reactive({
 const masks = {
 	input: 'YYYY-MM-DD h:mm A',
 }
-const [groupHeaders] = useAutoAnimate()
+const [_groupHeaders] = useAutoAnimate()
 const inputRef = ref<HTMLInputElement | null>(null)
 const focusOnInput = () => {
 	if (inputRef.value) {
@@ -341,121 +340,117 @@ watchEffect(() => {
 </script>
 
 <template>
-	<div
-		class="max-w-3x mx-auto w-full flex-1 py-8 sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-12 lg:gap-8 lg:px-8"
-	>
-		<div class="hidden lg:col-span-2 lg:block">
-			<nav
-				aria-label="Tab viewing styles"
-				class="dark:divide-vercel-accents-2 sticky top-[88px] divide-y divide-slate-300"
-			>
-				<TabGroup :selected-index="selectedTab" vertical @change="changeTab">
-					<TabList class="flex flex-col space-y-1 rounded-lg pb-8">
-						<AppTab
-							v-for="[category, values] in Object.entries(categories)"
-							:key="category"
-							v-slot="{ selected }"
-							as="template"
-						>
-							<button
-								:class="[
-									'flex w-full items-center rounded-md px-3 py-2 text-sm leading-5 font-medium',
-									'group ring-papaya-900 focus:outline-none focus-visible:ring-2',
-									selected
-										? 'dark:bg-vercel-accents-2 dark:highlight-white/5 bg-white text-slate-900 shadow dark:text-white dark:ring-0'
-										: 'dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 text-slate-700 hover:bg-slate-50 dark:hover:text-white',
-								]"
+	<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+		<!-- Header Section -->
+		<div class="sticky top-0 z-40 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/50 dark:border-slate-700/50">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+				<!-- Navigation Pills -->
+				<div class="flex items-center justify-between mb-6">
+					<TabGroup :selected-index="selectedTab" @change="changeTab">
+						<TabList class="flex space-x-1 rounded-xl bg-slate-100/50 dark:bg-slate-800/50 p-1 backdrop-blur-sm">
+							<AppTab
+								v-for="[category, values] in Object.entries(categories)"
+								:key="category"
+								v-slot="{ selected }"
+								as="template"
 							>
-								<component
-									:is="values.icon"
+								<button
 									:class="[
+										'flex items-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200',
+										'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
 										selected
-											? 'text-slate-500 dark:text-white'
-											: 'dark:text-vercel-accents-5 text-slate-400 group-hover:text-slate-500 dark:group-hover:text-white',
-										'mr-3 -ml-1 h-6 w-6 shrink-0',
+											? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 scale-105'
+											: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50',
 									]"
-									aria-hidden="true"
-								/>
-								<span class="truncate">
-									{{ category }}
-								</span>
-							</button>
-						</AppTab>
-					</TabList>
-				</TabGroup>
-				<slot name="left-section" />
-			</nav>
-		</div>
-		<section class="lg:col-span-8">
-			<div class="">
-				<div class="">
-					<section>
-						<div class="">
-							<div class="">
-								<label for="search" class="sr-only">Search tabs</label>
-								<div
-									class="ring-opacity-5 flex rounded-md shadow-sm ring-1 ring-black"
 								>
-									<div class="relative flex grow items-stretch focus-within:z-10">
-										<div
-											class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-										>
-											<MagnifyingGlassIcon
-												class="dark:text-vercel-accents-4 h-5 w-5 text-slate-400"
-											/>
-										</div>
-										<input
-											id="search"
-											ref="inputRef"
-											v-model="searchTerm"
-											type="text"
-											autofocus
-											class="peer focus-visible:border-papaya-900 focus-visible:ring-papaya-900 dark:border-vercel-accents-2 dark:placeholder-vercel-accents-4 block w-full rounded-none rounded-l-md border-transparent pl-10 shadow-sm sm:text-sm dark:bg-black"
-											placeholder="Search"
-										/>
-										<div
-											class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 peer-focus:hidden"
-										>
-											<p
-												class="dark:border-vercel-accents-2 dark:text-vercel-accents-4 inline-flex items-center rounded border border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400"
-											>
-												/
-											</p>
-										</div>
-										<div
-											v-if="totalTabs > 0 && searchTerm"
-											class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
-										>
-											<div class="flex">
-												<p
-													class="dark:border-vercel-accents-2 inline-flex items-center rounded-l border border-r-0 border-slate-200 px-2 py-0.5 font-sans text-xs font-medium text-slate-400 dark:text-white"
-												>
-													{{ totalTabs }}
-												</p>
-												<button
-													class="dark:border-vercel-accents-2 dark:bg-vercel-accents-2 pointer-events-auto rounded-r border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-400 dark:text-white"
-													@click="searchTerm = ''"
-												>
-													<XMarkIcon class="h-3 w-3 fill-current" />
-												</button>
-											</div>
-										</div>
-									</div>
+									<component
+										:is="values.icon"
+										:class="[
+											'h-4 w-4 transition-colors',
+											selected
+												? 'text-blue-600 dark:text-blue-400'
+												: 'text-slate-500 dark:text-slate-400',
+										]"
+									/>
+									<span>{{ category }}</span>
+								</button>
+							</AppTab>
+						</TabList>
+					</TabGroup>
+					
+					<!-- Mobile category selector -->
+					<div class="sm:hidden">
+						<select
+							v-model="selectedTab"
+							class="rounded-lg border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm"
+						>
+							<option
+								v-for="(tab, index) in Object.keys(categories)"
+								:key="tab"
+								:value="index"
+							>
+								{{ tab }}
+							</option>
+						</select>
+					</div>
+				</div>
 
-									<Popover class="relative flex h-full">
-										<PopoverButton as="template">
-											<button
-												type="button"
-												class="group focus-visible:border-papaya-900 focus-visible:ring-papaya-900 relative -ml-px inline-flex items-center space-x-2 rounded-none rounded-r-md border border-transparent bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus-visible:ring-1 dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white"
-											>
-												<FunnelIcon
-													title="Add a Filter"
-													class="h-5 w-5 text-slate-400 dark:group-hover:text-white"
-												>
-												</FunnelIcon>
-												<span>Sort</span>
-											</button>
-										</PopoverButton>
+				<!-- Search and Filter Bar -->
+				<div class="flex items-center space-x-4">
+					<div class="flex-1 relative">
+						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+							<MagnifyingGlassIcon class="h-5 w-5 text-slate-400 dark:text-slate-500" />
+						</div>
+						<input
+							id="search"
+							ref="inputRef"
+							v-model="searchTerm"
+							type="text"
+							autofocus
+							class="block w-full pl-10 pr-12 py-3 border border-slate-200/50 dark:border-slate-700/50 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+							placeholder="Search tabs by title or URL..."
+						/>
+						
+						<!-- Search shortcut hint -->
+						<div
+							v-if="!searchTerm"
+							class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+						>
+							<kbd class="inline-flex items-center rounded border border-slate-200 dark:border-slate-600 px-2 py-1 text-xs font-sans text-slate-400 dark:text-slate-500">
+								/
+							</kbd>
+						</div>
+						
+						<!-- Search results counter and clear -->
+						<div
+							v-if="totalTabs > 0 && searchTerm"
+							class="absolute inset-y-0 right-0 pr-3 flex items-center"
+						>
+							<div class="flex items-center space-x-1">
+								<span class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+									{{ totalTabs }} results
+								</span>
+								<button
+									@click="searchTerm = ''"
+									class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+								>
+									<XMarkIcon class="h-4 w-4 text-slate-400 dark:text-slate-500" />
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Filter Button -->
+					<Popover class="relative">
+						<PopoverButton as="template">
+							<button
+								type="button"
+								class="inline-flex items-center space-x-2 px-4 py-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+							>
+								<FunnelIcon class="h-4 w-4" />
+								<span class="hidden sm:inline">Filters</span>
+							</button>
+						</PopoverButton>
 										<!-- <PopoverPanel class="absolute z-10"> -->
 										<!-- <div class="grid grid-cols-2">
                             <a href="/analytics">Analytics</a>
@@ -463,511 +458,251 @@ watchEffect(() => {
                             <a href="/security">Security</a>
                             <a href="/integrations">Integrations</a>
                           </div> -->
-										<!-- x-float.placement.bottom-end.offset="{ offset: 8 }" -->
-										<transition
-											enter-active-class="transition duration-200 ease-out"
-											enter-from-class="translate-y-1 opacity-0"
-											enter-to-class="translate-y-0 opacity-100"
-											leave-active-class="transition duration-150 ease-in"
-											leave-from-class="translate-y-0 opacity-100"
-											leave-to-class="translate-y-1 opacity-0"
-										>
-											<PopoverPanel
-												v-slot="{ close }"
-												class="absolute top-full z-10 w-screen max-w-sm transition"
+						<transition
+							enter-active-class="transition duration-200 ease-out"
+							enter-from-class="translate-y-1 opacity-0"
+							enter-to-class="translate-y-0 opacity-100"
+							leave-active-class="transition duration-150 ease-in"
+							leave-from-class="translate-y-0 opacity-100"
+							leave-to-class="translate-y-1 opacity-0"
+						>
+							<PopoverPanel
+								v-slot="{ close }"
+								class="absolute top-full right-0 z-50 w-80 mt-2"
+							>
+								<div class="rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl shadow-xl shadow-slate-200/20 dark:shadow-slate-900/20 p-6 space-y-6">
+									<button
+										@click="close"
+										class="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+									>
+										<XMarkIcon class="h-4 w-4" />
+									</button>
+									<div class="space-y-6">
+										<div class="flex items-center justify-between">
+											<label class="text-sm font-medium text-slate-700 dark:text-slate-300">
+												Date Range Filter
+											</label>
+											<Switch
+												v-model="filter.has_date_range"
+												:class="[
+													filter.has_date_range
+														? 'bg-blue-600'
+														: 'bg-slate-200 dark:bg-slate-600',
+													'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50'
+												]"
 											>
-												<!-- wire:ignore.self="" -->
-												<div
-													class="space-y-6 rounded-xl border border-slate-300 bg-white px-6 py-4 shadow-xl dark:border-slate-700 dark:bg-slate-800"
-												>
-													<button
-														title="Close"
-														type="button"
-														class="filament-icon-button absolute top-3 right-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-500/5 focus:bg-slate-500/10 focus:outline-none rtl:right-auto rtl:left-3 dark:hover:bg-slate-300/5"
-														@click="close"
-													>
-														<span class="sr-only"> Close </span>
-														<svg
-															class="filament-icon-button-icon h-5 w-5"
-															xmlns="http://www.w3.org/2000/svg"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke-width="2"
-															stroke="currentColor"
-															aria-hidden="true"
+												<span
+													:class="[
+														filter.has_date_range ? 'translate-x-5' : 'translate-x-0',
+														'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+													]"
+												/>
+											</Switch>
+										</div>
+										<div v-if="filter.has_date_range" class="space-y-4">
+											<div>
+												<RadioGroup v-model="filter.date_range_type">
+													<RadioGroupLabel class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+														Range Type
+													</RadioGroupLabel>
+													<div class="grid grid-cols-5 gap-1 rounded-lg bg-slate-100 dark:bg-slate-700 p-1">
+														<RadioGroupOption
+															v-for="timeRange in ranges"
+															:key="timeRange.value"
+															v-slot="{ checked }"
+															:value="timeRange.value"
 														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																d="M6 18L18 6M6 6l12 12"
-															></path>
-														</svg>
-													</button>
-													<div
-														class="filament-tables-filters-form space-y-6"
+															<button
+																:class="[
+																	'flex w-full justify-center rounded-md px-3 py-2 text-sm font-medium transition-all duration-200',
+																	'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50',
+																	checked
+																		? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
+																		: 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-600/50',
+																]"
+															>
+																{{ timeRange.label }}
+															</button>
+														</RadioGroupOption>
+													</div>
+												</RadioGroup>
+											</div>
+											<div>
+												<label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 block">
+													Time Range
+												</label>
+												<div v-if="ranges[filter.date_range_type].is_range">
+													<v-date-picker
+														v-model="filter.range"
+														mode="dateTime"
+														:masks="masks"
+														is-range
 													>
-														<div
-															class="filament-forms-component-container grid grid-cols-1 gap-6 lg:grid-cols-1"
-														>
-															<div class="col-span-1">
-																<Switch
-																	v-model="filter.has_date_range"
-																	:class="
-																		filter.has_date_range
-																			? 'bg-blue-700'
-																			: 'bg-slate-300 dark:bg-slate-700'
-																	"
-																	class="focus-visible:ring-opacity-75 relative inline-flex h-[38px] w-[74px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-																>
-																	<span class="sr-only"
-																		>Use setting</span
-																	>
-																	<span
-																		aria-hidden="true"
-																		:class="
-																			filter.has_date_range
-																				? 'translate-x-9'
-																				: 'translate-x-0'
-																		"
-																		class="pointer-events-none inline-block h-[34px] w-[34px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+														<template #default="{ inputValue, inputEvents, isDragging }">
+															<div class="flex flex-col sm:flex-row gap-3">
+																<div class="relative flex-1">
+																	<CalendarDaysIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+																	<input
+																		class="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+																		type="text"
+																		:class="isDragging ? 'text-slate-600' : 'text-slate-900 dark:text-white'"
+																		:value="inputValue.start"
+																		v-on="inputEvents.start"
+																		placeholder="Start date"
 																	/>
-																</Switch>
-															</div>
-															<div class="col-span-1">
-																<div
-																	class="filament-forms-component-container grid grid-cols-1 gap-6"
-																>
-																	<div>
-																		<RadioGroup
-																			v-model="
-																				filter.date_range_type
-																			"
-																		>
-																			<div class="space-y-2">
-																				<RadioGroupLabel>
-																					<span
-																						class="text-sm leading-4 font-medium text-slate-700 dark:text-slate-300"
-																					>
-																						Range type
-																					</span>
-																				</RadioGroupLabel>
-																				<div
-																					class="grid grid-cols-5 rounded-lg border border-slate-300 bg-slate-300 p-1 shadow-sm dark:bg-slate-700"
-																				>
-																					<RadioGroupOption
-																						v-for="timeRange in ranges"
-																						:key="
-																							timeRange.value
-																						"
-																						v-slot="{
-																							checked,
-																						}"
-																						:value="
-																							timeRange.value
-																						"
-																					>
-																						<button
-																							:class="[
-																								'flex w-full justify-center rounded-md px-3 py-2 text-sm leading-5 font-medium text-slate-700',
-																								'ring-opacity-60 ring-offset-papaya-900 ring-white ring-offset-2 focus:outline-none focus-visible:ring-2',
-																								checked
-																									? 'bg-white shadow'
-																									: 'text-papaya-500 hover:bg-white/12 hover:text-white',
-																							]"
-																						>
-																							{{
-																								timeRange.label
-																							}}
-																						</button>
-																					</RadioGroupOption>
-																				</div>
-																			</div>
-																		</RadioGroup>
-																	</div>
-																	<div class="col-span-1">
-																		<div
-																			class="filament-forms-field-wrapper"
-																		>
-																			<div class="space-y-2">
-																				<div
-																					class="flex items-center justify-between space-x-2"
-																				>
-																					<label
-																						class="filament-forms-field-wrapper-label inline-flex items-center space-x-3"
-																						for="time-range"
-																					>
-																						<span
-																							class="text-sm leading-4 font-medium text-slate-700 dark:text-slate-300"
-																						>
-																							Time
-																							Range
-																						</span>
-																					</label>
-																				</div>
-																				<div
-																					class="flex items-center space-x-1"
-																				>
-																					<div
-																						v-if="
-																							ranges[
-																								filter
-																									.date_range_type
-																							]
-																								.is_range
-																						"
-																						class="min-w-0 flex-1"
-																					>
-																						<v-date-picker
-																							v-model="
-																								filter.range
-																							"
-																							mode="dateTime"
-																							:masks="
-																								masks
-																							"
-																							is-range
-																						>
-																							<template
-																								#default="{
-																									inputValue,
-																									inputEvents,
-																									isDragging,
-																								}"
-																							>
-																								<div
-																									class="flex flex-col items-center justify-start sm:flex-row"
-																								>
-																									<div
-																										class="relative grow"
-																									>
-																										<svg
-																											class="pointer-events-none absolute mx-2 h-full w-4 text-slate-600"
-																											fill="none"
-																											stroke-linecap="round"
-																											stroke-linejoin="round"
-																											stroke-width="2"
-																											viewBox="0 0 24 24"
-																											stroke="currentColor"
-																										>
-																											<path
-																												d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-																											></path>
-																										</svg>
-																										<input
-																											class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
-																											type="text"
-																											:class="
-																												isDragging
-																													? 'text-slate-600'
-																													: 'text-slate-900'
-																											"
-																											:value="
-																												inputValue.start
-																											"
-																											v-on="
-																												inputEvents.start
-																											"
-																										/>
-																									</div>
-																									<span
-																										class="m-2 shrink-0"
-																									>
-																										<svg
-																											class="h-4 w-4 stroke-current text-slate-600"
-																											viewBox="0 0 24 24"
-																										>
-																											<path
-																												stroke-linecap="round"
-																												stroke-linejoin="round"
-																												stroke-width="2"
-																												d="M14 5l7 7m0 0l-7 7m7-7H3"
-																											/>
-																										</svg>
-																									</span>
-																									<div
-																										class="relative grow"
-																									>
-																										<svg
-																											class="pointer-events-none absolute mx-2 h-full w-4 text-slate-600"
-																											fill="none"
-																											stroke-linecap="round"
-																											stroke-linejoin="round"
-																											stroke-width="2"
-																											viewBox="0 0 24 24"
-																											stroke="currentColor"
-																										>
-																											<path
-																												d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-																											></path>
-																										</svg>
-																										<input
-																											class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
-																											type="text"
-																											:class="
-																												isDragging
-																													? 'text-slate-600'
-																													: 'text-slate-900'
-																											"
-																											:value="
-																												inputValue.end
-																											"
-																											v-on="
-																												inputEvents.end
-																											"
-																										/>
-																									</div>
-																								</div>
-																							</template>
-																						</v-date-picker>
-																					</div>
-																					<div
-																						v-else
-																						class="min-w-0 flex-1"
-																					>
-																						<v-date-picker
-																							v-model="
-																								filter.date
-																							"
-																							mode="dateTime"
-																							:masks="
-																								masks
-																							"
-																						>
-																							<template
-																								#default="{
-																									inputValue,
-																									inputEvents,
-																								}"
-																							>
-																								<div
-																									class="flex flex-col items-center justify-start sm:flex-row"
-																								>
-																									<div
-																										class="relative grow"
-																									>
-																										<svg
-																											class="pointer-events-none absolute mx-2 h-full w-4 text-slate-600"
-																											fill="none"
-																											stroke-linecap="round"
-																											stroke-linejoin="round"
-																											stroke-width="2"
-																											viewBox="0 0 24 24"
-																											stroke="currentColor"
-																										>
-																											<path
-																												d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-																											></path>
-																										</svg>
-																										<input
-																											id="date"
-																											class="w-full grow rounded-md border-slate-300 pr-2 pl-8 shadow-sm focus-visible:border-blue-500 focus-visible:ring-blue-500 sm:text-sm"
-																											type="text"
-																											:value="
-																												inputValue
-																											"
-																											v-on="
-																												inputEvents
-																											"
-																										/>
-																									</div>
-																								</div>
-																							</template>
-																						</v-date-picker>
-																					</div>
-																				</div>
-																			</div>
-																		</div>
-																	</div>
-																	<!-- <div class="col-span-1">
-                                        <div class="filament-forms-field-wrapper">
-                                          <div class="space-y-2">
-                                            <div
-                                              class="flex items-center justify-between space-x-2"
-                                            >
-                                              <label
-                                                class="filament-forms-field-wrapper-label inline-flex items-center space-x-3"
-                                                for="time-range"
-                                              >
-                                                <span
-                                                  class="text-sm font-medium leading-4 text-slate-700 dark:text-slate-300"
-                                                >
-                                                  Time Range
-                                                </span>
-                                              </label>
-                                            </div>
-          
-                                            <div
-                                              class="filament-forms-select-component group flex items-center space-x-1"
-                                            >
-                                              <div class="min-w-0 flex-1">
-                                                <select
-                                                  id="time-range"
-                                                  class="focus:border-primary-600 focus:ring-primary-600 dark:focus:border-primary-600 block w-full rounded-lg border-slate-300 text-slate-900 shadow-sm transition duration-75 focus:ring-1 focus:ring-inset disabled:opacity-70 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                                                >
-                                                  <option value="">
-                                                    Without deleted records
-                                                  </option>
-          
-                                                  <option value="1">
-                                                    With deleted records
-                                                  </option>
-                                                  <option value="0">
-                                                    Only deleted records
-                                                  </option>
-                                                </select>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div> -->
+																</div>
+																<div class="flex items-center justify-center">
+																	<svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+																	</svg>
+																</div>
+																<div class="relative flex-1">
+																	<CalendarDaysIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+																	<input
+																		class="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+																		type="text"
+																		:class="isDragging ? 'text-slate-600' : 'text-slate-900 dark:text-white'"
+																		:value="inputValue.end"
+																		v-on="inputEvents.end"
+																		placeholder="End date"
+																	/>
 																</div>
 															</div>
-														</div>
-														<!-- <div class="text-right">
-                                  <AppBtn color="primary"> Reset filters </AppBtn>
-                                </div> -->
-													</div>
+														</template>
+													</v-date-picker>
 												</div>
-											</PopoverPanel>
-										</transition>
-										<!-- </PopoverPanel> -->
-									</Popover>
-								</div>
-							</div>
-						</div>
-					</section>
-				</div>
-				<!-- <div class="lg:col-span-3">
-            <section aria-labelledby="who-to-follow-heading">
-              <div class="rounded-lg bg-white shadow">
-                <div class="p-6"></div>
-              </div>
-            </section>
-          </div> -->
-			</div>
-			<div v-if="Object.values(grouped).some((row) => row.length)" class="mt-6">
-				<div class="">
-					<div class="px-4 sm:px-0">
-						<div class="sm:hidden">
-							<label for="question-tabs" class="sr-only">Select a tab Category</label>
-							<select
-								id="question-tabs"
-								v-model="selectedTab"
-								class="block w-full rounded-md border-slate-300 text-base font-medium text-slate-900 shadow-sm focus:border-rose-500 focus:ring-rose-500"
-							>
-								<option
-									v-for="(tab, index) in Object.keys(categories)"
-									:key="tab"
-									:value="index"
-								>
-									{{ tab }}
-								</option>
-							</select>
-						</div>
-					</div>
-					<div class="">
-						<h1 class="sr-only">Recent questions</h1>
-						<ul role="list" class="space-y-4">
-							<transition-group
-								mode="out-in"
-								appear
-								enter-active-class="transition duration-100 ease-out"
-								enter-from-class="transform scale-95 opacity-0"
-								enter-to-class="transform scale-100 opacity-100"
-								leave-active-class="transition duration-75 ease-out"
-								leave-from-class="transform scale-100 opacity-100"
-								leave-to-class="transform scale-95 opacity-0"
-							>
-								<Disclosure
-									v-slot="{ open }"
-									v-for="(group, index) in grouped"
-									:id="`section-${index}`"
-									:key="`section-${index}`"
-									as="li"
-									class="ring-opacity-5 dark:divide-vercel-accents-2 divide-y divide-slate-100 rounded-lg bg-white shadow-sm ring-1 ring-black dark:bg-black"
-									:default-open="true"
-								>
-									<div class="px-4 py-4 md:px-6">
-										<h2 class="sr-only">{{ index }}</h2>
-										<div class="flex items-center justify-between">
-											<div class="flex items-center space-x-2">
-												<DisclosureButton as="template">
-													<AppButton intent="common" size="x-small">
-														{{ index }}
-													</AppButton>
-												</DisclosureButton>
-												<AppBtn
-													v-if="
-														selectedTabName === 'Grouped' &&
-														index !== 'other'
-													"
-													color="round-primary"
-													type="button"
-													@click="onEditGroup({ tabs: group })"
-												>
-													<PencilSquareIcon class="h-4 w-4" />
-												</AppBtn>
-											</div>
-
-											<div class="flex items-center space-x-2">
-												<AppButton
-													intent="common"
-													size="x-small"
-													type="button"
-													@click="selectGroup(group)"
-												>
-													Select
-												</AppButton>
-												<AppButton
-													intent="common"
-													size="x-small"
-													type="button"
-													@click="closeTabs(group)"
-												>
-													Close tabs
-												</AppButton>
-												<TabMoveToMenu
-													:tabs="group"
-													:windows-map="windowsMap"
-													:loaded-groups="loadedGroups"
-													@on-create-group="
-														({ tabs: emitedTabs }) => {
-															onCreateNewGroup({
-																tabs: emitedTabs,
-															})
-														}
-													"
-												>
-													<template #menu-trigger-label>Move </template>
-												</TabMoveToMenu>
-												<AppButton
-													intent="common"
-													size="x-small"
-													type="button"
-													@click="copyLinks(group)"
-												>
-													Copy
-												</AppButton>
-												<DisclosureButton as="template">
-													<AppBtn type="button" color="round-primary">
-														<ChevronDownIcon
-															class="h-4 w-4"
-															:class="open && 'rotate-180 transform'"
-														/>
-													</AppBtn>
-												</DisclosureButton>
+												<div v-else>
+													<v-date-picker
+														v-model="filter.date"
+														mode="dateTime"
+														:masks="masks"
+													>
+														<template #default="{ inputValue, inputEvents }">
+															<div class="relative">
+																<CalendarDaysIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+																<input
+																	class="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+																	type="text"
+																	:value="inputValue"
+																	v-on="inputEvents"
+																	placeholder="Select date"
+																/>
+															</div>
+														</template>
+													</v-date-picker>
+												</div>
 											</div>
 										</div>
 									</div>
-									<transition
-										enter-active-class="transition duration-100 ease-out"
-										enter-from-class="transform scale-95 opacity-0"
-										enter-to-class="transform scale-100 opacity-100"
-										leave-active-class="transition duration-75 ease-out"
-										leave-from-class="transform scale-100 opacity-100"
-										leave-to-class="transform scale-95 opacity-0"
-									>
-										<DisclosurePanel as="ul" class="px-4 py-4 md:px-6">
+								</div>
+							</PopoverPanel>
+						</transition>
+					</Popover>
+				</div>
+			</div>
+		</div>
+
+		<!-- Main Content Area -->
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+			<!-- Tab Groups Grid -->
+			<div v-if="Object.values(grouped).some((row) => row.length)" class="space-y-6">
+				<transition-group
+					appear
+					enter-active-class="transition duration-300 ease-out"
+					enter-from-class="transform scale-95 opacity-0 translate-y-4"
+					enter-to-class="transform scale-100 opacity-100 translate-y-0"
+					leave-active-class="transition duration-200 ease-in"
+					leave-from-class="transform scale-100 opacity-100 translate-y-0"
+					leave-to-class="transform scale-95 opacity-0 translate-y-4"
+				>
+					<div
+						v-for="(group, index) in grouped"
+						:id="`section-${index}`"
+						:key="`section-${index}`"
+						class="group relative"
+					>
+						<Disclosure v-slot="{ open }" :default-open="true">
+							<!-- Group Card -->
+							<div class="rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-lg shadow-slate-200/20 dark:shadow-slate-900/20 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/30 dark:hover:shadow-slate-900/30">
+								<!-- Group Header -->
+								<div class="px-6 py-4 bg-gradient-to-r from-slate-50/50 to-blue-50/50 dark:from-slate-800/50 dark:to-slate-700/50 border-b border-slate-200/50 dark:border-slate-700/50">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center space-x-3">
+											<DisclosureButton as="template">
+												<button class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 text-slate-900 dark:text-white font-medium hover:bg-white dark:hover:bg-slate-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+													<span class="text-sm">{{ index }}</span>
+													<div class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+														{{ group.length }}
+													</div>
+												</button>
+											</DisclosureButton>
+											
+											<AppBtn
+												v-if="selectedTabName === 'Grouped' && index !== 'other'"
+												color="round-primary"
+												type="button"
+												@click="onEditGroup({ tabs: group })"
+												class="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+											>
+												<PencilSquareIcon class="h-4 w-4" />
+											</AppBtn>
+										</div>
+
+										<!-- Action Buttons -->
+										<div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+											<button
+												@click="selectGroup(group)"
+												class="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+											>
+												Select All
+											</button>
+											<button
+												@click="closeTabs(group)"
+												class="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+											>
+												Close
+											</button>
+											<TabMoveToMenu
+												:tabs="group"
+												:windows-map="windowsMap"
+												:loaded-groups="loadedGroups"
+												@on-create-group="({ tabs: emitedTabs }) => onCreateNewGroup({ tabs: emitedTabs })"
+											>
+												<template #menu-trigger-label>
+													<span class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
+														Move
+													</span>
+												</template>
+											</TabMoveToMenu>
+											<button
+												@click="copyLinks(group)"
+												class="px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+											>
+												Copy
+											</button>
+											<DisclosureButton as="template">
+												<button class="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+													<ChevronDownIcon
+														class="h-4 w-4 transition-transform duration-200"
+														:class="{ 'rotate-180': open }"
+													/>
+												</button>
+											</DisclosureButton>
+										</div>
+									</div>
+								</div>
+
+								<!-- Tabs List -->
+								<transition
+									enter-active-class="transition duration-200 ease-out"
+									enter-from-class="opacity-0 -translate-y-2"
+									enter-to-class="opacity-100 translate-y-0"
+									leave-active-class="transition duration-150 ease-in"
+									leave-from-class="opacity-100 translate-y-0"
+									leave-to-class="opacity-0 -translate-y-2"
+								>
+									<DisclosurePanel class="px-6 py-4">
+										<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 											<TabRow
 												v-for="tab in group"
 												:key="`${tab.windowId}-${tab.stableId}`"
@@ -978,202 +713,95 @@ watchEffect(() => {
 												:history="loadedTabHistory"
 												@toggle-selection="toggleSelection"
 											/>
-										</DisclosurePanel>
-									</transition>
-								</Disclosure>
-							</transition-group>
-						</ul>
+										</div>
+									</DisclosurePanel>
+								</transition>
+							</div>
+						</Disclosure>
 					</div>
+				</transition-group>
+			</div>
+			<!-- Empty State -->
+			<div v-else-if="searchTerm" class="flex flex-col items-center justify-center py-20">
+				<div class="rounded-full bg-slate-100 dark:bg-slate-800 p-6 mb-6">
+					<XMarkIcon class="h-12 w-12 text-slate-400 dark:text-slate-500" />
 				</div>
+				<h3 class="text-lg font-medium text-slate-900 dark:text-white mb-2">No results found</h3>
+				<p class="text-slate-600 dark:text-slate-400 text-center max-w-md">
+					No tabs match your search for 
+					<span class="font-semibold text-slate-900 dark:text-white">"{{ searchTerm }}"</span>.
+					Try adjusting your search terms or filters.
+				</p>
 			</div>
-			<div v-else-if="searchTerm" class="mt-6">
-				<div
-					class="dark:text-vercel-accents-5 flex flex-col items-center py-20 text-sm leading-6 text-slate-600 md:py-32"
-				>
-					<XMarkIcon class="h-8 w-8" />
-					<p class="mt-6">
-						No matches for
-						<span class="font-semibold text-slate-900 dark:text-white"
-							>“{{ searchTerm }}”</span
-						>.
-					</p>
-				</div>
-			</div>
-		</section>
-		<aside class="-mb-8 hidden lg:col-span-2 lg:block">
-			<div
-				v-if="Object.values(grouped).some((row) => row.length)"
-				class="sticky top-[88px] space-y-4"
-			>
-				<section aria-labelledby="groupings">
-					<div class="pb-8 lg:h-[calc(100vh-88px)] lg:overflow-y-auto">
-						<div class="">
-							<!-- <div class="rounded-lg bg-white shadow lg:h-screen lg:overflow-y-auto">
-              <div class="p-6"> -->
-							<h2
-								id="groupings"
-								class="text-base font-medium text-slate-900 dark:text-white"
-							>
-								Groups
-							</h2>
-							<ul
-								ref="groupHeaders"
-								role="list"
-								class="dark:text-vercel-accents-5 mt-4 space-y-4 py-1 text-sm leading-6 text-slate-700 dark:hover:text-white"
-							>
-								<li
-									v-for="(group, index) in grouped"
-									:key="`list-${index}`"
-									class="relative"
-								>
-									<!-- <div
-                      class="launch-week-timeline-border absolute left-0 top-[4px] hidden h-full border-l border-slate-200 lg:block"
-                    ></div> -->
-
-									<Disclosure v-slot="{ open }">
-										<DisclosureButton
-											class="group focus-visible:ring-papaya-900 focus-visible:ring-opacity-75 relative flex w-full items-center justify-between space-x-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 focus:outline-none focus-visible:ring"
-											:class="
-												open
-													? 'dark:bg-vercel-accents-2 dark:highlight-white/5 bg-white text-slate-900 shadow dark:text-white dark:ring-0'
-													: 'dark:text-vercel-accents-5 dark:hover:bg-vercel-accents-2 hover:bg-slate-50 hover:text-slate-900 dark:hover:text-white'
-											"
-										>
-											<!-- <div
-                          class="absolute top-[50%] h-3 w-3 rounded-full border border-slate-900 bg-slate-200"
-                        ></div> -->
-											<router-link
-												:to="{
-													hash: `#section-${index}`,
-												}"
-												class="flex min-w-0"
-											>
-												<span class="truncate">
-													{{ index }}
-												</span>
-											</router-link>
-											<div
-												class="dark:bg-vercel-accents-4 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-800 dark:text-white"
-											>
-												{{ group.length }}
-											</div>
-										</DisclosureButton>
-										<DisclosurePanel
-											class="dark:text-vercel-accents-5 px-4 text-sm text-slate-500"
-										>
-											<ul
-												role="list"
-												class="dark:border-vercel-accents-2 mt-2 space-y-4 border-l border-slate-200 pl-6"
-											>
-												<li>
-													<button @click="moveTabs(group)">
-														New window
-													</button>
-												</li>
-												<li>
-													<button @click="closeTabs(group)">
-														Close all
-													</button>
-												</li>
-												<li>
-													<button @click="copyLinks(group)">
-														Copy all links
-													</button>
-												</li>
-											</ul>
-										</DisclosurePanel>
-									</Disclosure>
-								</li>
-							</ul>
-						</div>
-					</div>
-				</section>
-			</div>
-		</aside>
+		</div>
 	</div>
 
-	<footer
+	<!-- Selection Footer -->
+	<div
 		v-if="[...tabsSelected].length > 0"
-		class="dark:bg-papaya-500 sticky right-0 bottom-0 left-0 z-50 w-full bg-slate-900 shadow-lg"
+		class="fixed bottom-0 left-0 right-0 z-50 p-4"
 	>
-		<div class="mx-auto w-full max-w-7xl px-4 sm:px-2">
-			<div
-				class="flex w-full items-center justify-between rounded-lg px-4 py-4 text-lg md:px-6"
-			>
-				<div class="text-slate-300 dark:text-black">
-					{{ [...tabsSelected].length }} Tabs selected
-				</div>
-				<div class="flex items-center space-x-2">
-					<AppButton
-						type="button"
-						intent="plain-dark"
-						size="small"
-						@click="closeUnSelectedTabs"
-					>
-						Close unselected
-					</AppButton>
-					<AppButton
-						type="button"
-						intent="plain-dark"
-						size="small"
-						@click="closeSelectedTabs"
-					>
-						Close selected
-					</AppButton>
-					<TabMoveToMenu
-						:tabs="selectedGroup"
-						:loaded-groups="loadedGroups"
-						:windows-map="windowsMap"
-						@on-create-group="
-							({ tabs: emitedTabs }) => {
-								onCreateNewGroup({ tabs: emitedTabs })
-							}
-						"
-					>
-						<template #button-trigger="{ trigger }">
-							<AppButton
-								:ref="
-									(el) =>
-										trigger(
-											el && '$el' in el
-												? (el.$el as HTMLElement)
-												: (el as HTMLElement),
-										)
-								"
-								intent="primary"
-								size="small"
-								type="button"
-							>
-								Move to
-							</AppButton>
-						</template>
-					</TabMoveToMenu>
-					<AppButton
-						intent="primary"
-						size="small"
-						type="button"
-						@click="
-							() => {
-								storeSession(selectedGroup)
-								toast('Session saved')
-							}
-						"
-					>
-						Save as session
-					</AppButton>
-					<AppButton
-						intent="primary"
-						size="small"
-						type="button"
-						@click="copyLinks(selectedGroup)"
-					>
-						Copy
-					</AppButton>
-					<AppBtn color="round-dark-primary" type="button" @click="tabsSelected.clear()">
-						<XMarkIcon class="h-3 w-3" />
-					</AppBtn>
+		<div class="max-w-7xl mx-auto">
+			<div class="rounded-2xl bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-slate-900/20 p-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center space-x-3">
+						<div class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 text-blue-400">
+							<span class="text-sm font-semibold">{{ [...tabsSelected].length }}</span>
+						</div>
+						<span class="text-white font-medium">
+							{{ [...tabsSelected].length === 1 ? 'tab' : 'tabs' }} selected
+						</span>
+					</div>
+					
+					<div class="flex items-center space-x-2">
+						<button
+							@click="closeUnSelectedTabs"
+							class="px-3 py-2 text-sm font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
+						>
+							Close others
+						</button>
+						<button
+							@click="closeSelectedTabs"
+							class="px-3 py-2 text-sm font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
+						>
+							Close selected
+						</button>
+						<TabMoveToMenu
+							:tabs="selectedGroup"
+							:loaded-groups="loadedGroups"
+							:windows-map="windowsMap"
+							@on-create-group="({ tabs: emitedTabs }) => onCreateNewGroup({ tabs: emitedTabs })"
+						>
+							<template #button-trigger="{ trigger }">
+								<button
+									:ref="(el) => trigger(el && '$el' in el ? (el.$el as HTMLElement) : (el as HTMLElement))"
+									class="px-3 py-2 text-sm font-medium text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors"
+								>
+									Move to
+								</button>
+							</template>
+						</TabMoveToMenu>
+						<button
+							@click="() => { storeSession(selectedGroup); toast('Session saved') }"
+							class="px-3 py-2 text-sm font-medium text-green-400 bg-green-500/10 rounded-lg hover:bg-green-500/20 transition-colors"
+						>
+							Save session
+						</button>
+						<button
+							@click="copyLinks(selectedGroup)"
+							class="px-3 py-2 text-sm font-medium text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 transition-colors"
+						>
+							Copy links
+						</button>
+						<button
+							@click="tabsSelected.clear()"
+							class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+						>
+							<XMarkIcon class="h-4 w-4" />
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
-	</footer>
+	</div>
 </template>

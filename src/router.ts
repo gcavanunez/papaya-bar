@@ -52,17 +52,7 @@ const routes: RouteRecordRaw[] = [
 		path: '/util-screenshot',
 		component: () => import('@/views/UtilScreenshot.vue'),
 	},
-	{
-		path: '/next',
-		component: () => import('@/components/AppLayout.vue'),
-		children: [
-			{
-				path: '',
-				component: () => import('@/views/NextView.vue'),
-				name: 'next-view',
-			},
-		],
-	},
+
 ]
 
 export const router = createRouter({

@@ -6,8 +6,6 @@ import { closeTab, copyLink, goTo } from '@/helpers'
 import { Tab, HistoryMap, Group } from '@/types'
 import { computed, ref } from 'vue'
 
-import AppBtn from './AppBtn.vue'
-import AppButton from './AppButton.vue'
 import TabMoveToMenu from './TabMoveToMenu.vue'
 
 interface Props {
@@ -26,6 +24,15 @@ const hasImageError = ref(false)
 const onImageLoadError = () => {
 	hasImageError.value = true
 }
+const getHostname = (url?: string) => {
+	if (!url) return 'Unknown'
+	try {
+		return new URL(url).hostname
+	} catch {
+		return 'Unknown'
+	}
+}
+
 const tabHistory = computed(() => {
 	if (!props.tab.url) {
 		return []
@@ -45,152 +52,139 @@ const tabHistory = computed(() => {
 </script>
 
 <template>
-	<li :key="`${tab.windowId}-${tab.stableId}`" class="group w-full py-2">
+	<div class="group relative">
 		<Disclosure v-slot="{ open }">
 			<div
-				class="relative overflow-hidden rounded-lg border-l-4 shadow-sm ring-1 ring-black ring-opacity-5 transition dark:ring-vercel-accents-2"
-				:style="{
-					borderColor: loadedGroups.find((row) => row.id === tab.groupId)?.color,
-				}"
+				class="relative overflow-hidden rounded-xl bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 shadow-sm transition-all duration-200 hover:shadow-md"
 				:class="{
-					'group-hover:border-l-slate-200 dark:border-black dark:group-hover:border-vercel-accents-1':
-						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
-						!tabsSelected.has(tab.stableId),
-					'border-papaya-500 group-hover:border-papaya-500/85':
-						!loadedGroups.find((row) => row.id === tab.groupId)?.color &&
-						tabsSelected.has(tab.stableId),
+					'ring-2 ring-blue-500/50 border-blue-500/50': tabsSelected.has(tab.stableId),
+					'hover:border-slate-300/70 dark:hover:border-slate-500/70': !tabsSelected.has(tab.stableId),
 				}"
 			>
-				<!-- layer over the button -->
-				<div
-					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 opacity-0 transition focus-within:z-20 focus-within:opacity-100 hover:duration-150 group-hover:opacity-100"
-				>
-					<!-- delay-200  hover:delay-[0ms] -->
-					<div>
+				<!-- Action Overlay -->
+				<div class="absolute inset-0 z-10 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl">
+					<div class="absolute top-2 left-2">
 						<button
-							class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-100 text-slate-800 shadow-md transition dark:bg-white dark:hover:border-white dark:hover:bg-black dark:hover:text-white dark:active:bg-vercel-accents-2 dark:active:text-white"
 							@click="emit('toggleSelection', tab)"
+							class="flex items-center justify-center w-6 h-6 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors shadow-sm"
 						>
-							<PlusIcon v-if="!tabsSelected.has(tab.stableId)" class="h-4 w-4" />
-							<MinusIcon v-else class="h-4 w-4" />
+							<PlusIcon v-if="!tabsSelected.has(tab.stableId)" class="h-3 w-3" />
+							<MinusIcon v-else class="h-3 w-3" />
 						</button>
 					</div>
-					<div
-						class="pointer-events-auto flex items-center space-x-2 rounded-lg bg-white p-1 group-hover:bg-slate-200 dark:bg-black dark:group-hover:bg-vercel-accents-1"
-					>
-						<div class="relative inline-flex flex-col text-left">
-							<TabMoveToMenu
-								:tabs="[tab]"
-								:loaded-groups="loadedGroups"
-								:windows-map="windowsMap"
-								:can-create-group="false"
-							/>
-						</div>
-
+					
+					<div class="absolute top-2 right-2 flex items-center space-x-1">
 						<DisclosureButton as="template">
-							<AppButton
-								:class="{ 'opacity-80': open }"
-								intent="common"
-								size="x-small"
+							<button
+								class="flex items-center justify-center w-6 h-6 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors shadow-sm"
+								:class="{ 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400': open }"
 							>
-								<span class="flex items-center">
-									<span>History</span>
-									<ChevronUpIcon
-										:class="!open ? 'rotate-180 transform' : ''"
-										class="-mr-1 ml-1 h-2.5 w-2.5 text-slate-800 transition dark:text-white"
-										aria-hidden="true"
-									/>
-								</span>
-							</AppButton>
+								<ChevronUpIcon
+									class="h-3 w-3 transition-transform duration-200"
+									:class="{ 'rotate-180': !open }"
+								/>
+							</button>
 						</DisclosureButton>
-						<AppButton intent="common" size="x-small" @click="copyLink(tab)">
-							Copy
-						</AppButton>
-						<AppBtn color="round-primary" @click="closeTab([tab])">
+						<button
+							@click="closeTab([tab])"
+							class="flex items-center justify-center w-6 h-6 rounded-full bg-red-50/90 dark:bg-red-900/50 backdrop-blur-sm border border-red-200/50 dark:border-red-800/50 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/70 transition-colors shadow-sm"
+						>
 							<XMarkIcon class="h-3 w-3" />
-						</AppBtn>
+						</button>
+					</div>
+					
+					<div class="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+						<TabMoveToMenu
+							:tabs="[tab]"
+							:loaded-groups="loadedGroups"
+							:windows-map="windowsMap"
+							:can-create-group="false"
+						>
+							<template #menu-trigger-label>
+								<span class="px-2 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-md border border-slate-200/50 dark:border-slate-600/50 hover:bg-white dark:hover:bg-slate-700 transition-colors shadow-sm">
+									Move
+								</span>
+							</template>
+						</TabMoveToMenu>
+						<button
+							@click="copyLink(tab)"
+							class="px-2 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-md border border-slate-200/50 dark:border-slate-600/50 hover:bg-white dark:hover:bg-slate-700 transition-colors shadow-sm"
+						>
+							Copy
+						</button>
 					</div>
 				</div>
 
+				<!-- Tab Content -->
 				<button
-					class="flex w-full items-center rounded px-2 py-2"
-					:class="
-						!tabsSelected.has(tab.stableId)
-							? 'bg-white group-hover:bg-slate-200 dark:bg-black dark:group-hover:bg-vercel-accents-1'
-							: 'bg-papaya-500 group-hover:bg-papaya-500/85'
-					"
-					:title="tab.url"
 					@click="goTo(tab)"
+					class="w-full p-4 text-left transition-colors duration-200"
+					:title="tab.url"
 				>
-					<div class="shrink-0">
-						<img
-							v-if="!hasImageError && tab.favIconUrl"
-							class="h-8 w-8 rounded-full"
-							:src="tab.favIconUrl"
-							alt=""
-							@error="onImageLoadError"
-						/>
-						<div v-else class="h-8 w-8 rounded-full bg-slate-700"></div>
-					</div>
-					<div
-						class="ml-2 truncate text-sm font-medium group-hover:mr-40 group-focus:truncate"
-						:class="
-							!tabsSelected.has(tab.stableId)
-								? 'text-slate-900 dark:text-vercel-accents-5 dark:group-hover:text-white'
-								: 'text-slate-900 dark:text-vercel-accents-1'
-						"
-					>
-						{{ tab.title }}
+					<div class="flex items-start space-x-3">
+						<div class="shrink-0">
+							<div class="relative">
+								<img
+									v-if="!hasImageError && tab.favIconUrl"
+									class="w-8 h-8 rounded-lg shadow-sm"
+									:src="tab.favIconUrl"
+									alt=""
+									@error="onImageLoadError"
+								/>
+								<div v-else class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700"></div>
+								
+								<!-- Group Color Indicator -->
+								<div
+									v-if="loadedGroups.find((row) => row.id === tab.groupId)?.color"
+									class="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-slate-700"
+									:style="{ backgroundColor: loadedGroups.find((row) => row.id === tab.groupId)?.color }"
+								></div>
+							</div>
+						</div>
+						
+						<div class="flex-1 min-w-0">
+							<h3 class="text-sm font-medium text-slate-900 dark:text-white truncate mb-1">
+								{{ tab.title }}
+							</h3>
+							<p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+								{{ getHostname(tab.url) }}
+							</p>
+						</div>
 					</div>
 				</button>
 			</div>
-			<DisclosurePanel class="px-4 text-sm text-slate-500">
-				<!-- <ul role="list" class="mt-2 space-y-4 border-l border-slate-200 pl-6"> -->
-				<ul role="list" class="mt-2 pl-2">
-					<li v-for="(historyEvent, index) in tabHistory" :key="historyEvent.id">
-						<div class="grid grid-cols-12">
-							<div
-								class="false relative col-span-12 flex flex-col gap-8 border-slate-200 pb-1 lg:pl-8"
-							>
-								<div
-									class="absolute left-0 top-[4px] h-full"
-									:class="{
-										'border-l border-slate-200':
-											index !== tabHistory.length - 1,
-									}"
-								></div>
-								<div class="flex flex-col gap-4 pl-4 lg:pl-0">
-									<div
-										class="absolute -ml-[21px] mt-[4px] h-3 w-3 rounded-full border border-slate-100 bg-slate-300 lg:-ml-[37.5px]"
-									></div>
-									<div class="flex items-end justify-between">
-										<div class="dark:text-vercel-accents-4">
-											{{ historyEvent.humanDistance }} ago
-										</div>
-										<div
-											class="text-sm ordinal slashed-zero tabular-nums text-slate-400 dark:text-vercel-accents-5"
-										>
-											{{ historyEvent.dateTime }}
-										</div>
-										<!-- <span
-                      class="text-purple-1100 inline-flex items-center rounded-full border border-purple-700 bg-purple-200 bg-opacity-10 px-2.5 py-0.5 text-xs font-medium"
-                    >
-                      Not shipped yet
-                    </span> -->
-									</div>
-									<!-- <h4 class="text-scale-1200 text-2xl md:text-3xl lg:text-4xl">
-                    Monday 08:00 PT | 11:00 ET
-                  </h4> -->
-								</div>
-								<div class=""></div>
+			
+			<!-- History Panel -->
+			<DisclosurePanel class="border-t border-slate-200/50 dark:border-slate-600/50 bg-slate-50/50 dark:bg-slate-800/50 p-4">
+				<div class="space-y-3">
+					<h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+						Visit History
+					</h4>
+					<div class="space-y-2 max-h-32 overflow-y-auto">
+						<div
+							v-for="historyEvent in tabHistory.slice(0, 5)"
+							:key="historyEvent.id"
+							class="flex items-center justify-between py-1"
+						>
+							<div class="flex items-center space-x-2">
+								<div class="w-1.5 h-1.5 rounded-full bg-blue-400 dark:bg-blue-500"></div>
+								<span class="text-xs text-slate-600 dark:text-slate-400">
+									{{ historyEvent.humanDistance }} ago
+								</span>
 							</div>
+							<span class="text-xs text-slate-500 dark:text-slate-500 font-mono">
+								{{ historyEvent.dateTime }}
+							</span>
 						</div>
-
-						<!-- <pre>{{ historyEvent }}</pre> -->
-						<!-- {{ historyEvent.dateTime }} | {{ historyEvent.humanDistance }} -->
-					</li>
-				</ul>
+						<div v-if="tabHistory.length > 5" class="text-xs text-slate-500 dark:text-slate-500 text-center py-1">
+							+{{ tabHistory.length - 5 }} more visits
+						</div>
+						<div v-if="tabHistory.length === 0" class="text-xs text-slate-500 dark:text-slate-500 text-center py-2">
+							No visit history available
+						</div>
+					</div>
+				</div>
 			</DisclosurePanel>
 		</Disclosure>
-	</li>
+	</div>
 </template>
