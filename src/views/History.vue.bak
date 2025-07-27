@@ -107,9 +107,7 @@ watch(
 </script>
 <template>
 	<div class="relative">
-		<div
-			class="dark:bg-vercel-accents-1 sticky top-0 z-10 container mx-auto max-w-7xl bg-slate-100 px-4 pt-6 sm:px-2"
-		>
+		<div class="container mx-auto max-w-7xl px-4 py-6 sm:px-2">
 			<div class="px-4 sm:px-6 lg:px-8">
 				<!-- Header Section -->
 				<div class="sm:flex sm:items-center">
@@ -127,22 +125,17 @@ watch(
 				</div>
 
 				<!-- Search Section -->
-				<div class="z-10 mt-6 space-y-4 pb-4">
-					<div class="flex">
-						<div class="lg:w-96">
-							<AppInput v-model="search" label="Search history" placeholder="Search by title or URL..." />
-						</div>
-					</div>
-
-					<!-- Results Stats -->
-					<div v-if="historyMatches.length > 0" class="text-sm text-slate-700 dark:text-vercel-accents-5">
-						{{ historyMatches.length }} {{ historyMatches.length === 1 ? 'item' : 'items' }} found
+				<div class="mt-6 flex">
+					<div class="lg:w-96">
+						<AppInput v-model="search" label="Search history" placeholder="Search by title or URL..." />
 					</div>
 				</div>
-			</div>
-		</div>
-		<div class="container mx-auto max-w-7xl px-4 pb-6 sm:px-2">
-			<div class="px-4 sm:px-6 lg:px-8">
+
+				<!-- Results Stats -->
+				<div v-if="historyMatches.length > 0" class="mt-4 text-sm text-slate-700 dark:text-vercel-accents-5">
+					{{ historyMatches.length }} {{ historyMatches.length === 1 ? 'item' : 'items' }} found
+				</div>
+
 				<!-- History Items -->
 				<div class="mt-6">
 					<div v-if="historyMatches.length === 0" class="text-center py-12">
@@ -161,13 +154,13 @@ watch(
 						>
 							<div
 								:style="{
-									height: `${virtualizer.value.getTotalSize()}px`,
+									height: `${virtualizer.getTotalSize()}px`,
 									width: '100%',
 									position: 'relative',
 								}"
 							>
 								<div
-									v-for="virtualRow in virtualizer.value.getVirtualItems()"
+									v-for="virtualRow in virtualizer.getVirtualItems()"
 									:key="virtualRow.index"
 									:style="{
 										position: 'absolute',

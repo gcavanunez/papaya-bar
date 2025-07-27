@@ -75,7 +75,7 @@ const masks = {
 }
 const [_groupHeaders] = useAutoAnimate()
 const inputRef = ref<HTMLInputElement | null>(null)
-const isListView = ref(false)
+const isListView = ref(true)
 const selectedTabIndex = ref(0)
 
 const focusOnInput = () => {
