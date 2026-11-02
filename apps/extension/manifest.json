@@ -1,0 +1,101 @@
+{
+	"manifest_version": 3,
+	"name": "Papaya Bar",
+	"version": "0.1.0",
+	"version_name": "0.1.0",
+	"description": "Chrome Extension manage tabs",
+	"author": { "email": "me@guillermocava.com" },
+	"permissions": [
+		"storage",
+		"tabCapture",
+		"history",
+		"bookmarks",
+		"activeTab",
+		"unlimitedStorage",
+		"tabs",
+		"scripting",
+		"downloads",
+		"tabGroups",
+		"desktopCapture",
+		"identity",
+		"offscreen",
+		"contextMenus",
+		"clipboardWrite",
+		"nativeMessaging",
+		"clipboardRead",
+		"system.display",
+		"sidePanel",
+		"alarms",
+		"sessions"
+	],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["favicon.ico", "/static/media/*"],
+			"matches": ["<all_urls>"]
+		}
+	],
+	"host_permissions": ["<all_urls>"],
+	"icons": {
+		"16": "public/assets/papaya-icon.png",
+		"32": "public/assets/papaya-icon.png",
+		"48": "public/assets/papaya-icon.png",
+		"128": "public/assets/papaya-icon.png"
+	},
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>", "*://*/*", "https://*.google.com/*"],
+			"js": ["src/content/index.ts"],
+			"run_at": "document_idle"
+		}
+	],
+	"commands": {
+		"open-page": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+K",
+				"mac": "Command+Shift+K"
+			},
+			"description": "Open Chonching tabs",
+			"global": false
+		},
+		"copy-link": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+1",
+				"mac": "Command+Shift+1"
+			},
+			"description": "Copy link name",
+			"global": false
+		},
+		"screenshot-area": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+2",
+				"mac": "Command+Shift+2"
+			},
+			"description": "Screenshot area",
+			"global": false
+		},
+		"open-panel": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+E",
+				"mac": "Command+Shift+E"
+			},
+			"description": "Open Contexts panel",
+			"global": false
+		}
+	},
+	"action": {
+		"default_popup": "index.html#/popup",
+		"default_title": "Choncho"
+	},
+	"side_panel": {
+		"default_path": "index.html#/panel"
+	},
+	"options_page": "index.html#/popup",
+	"options_ui": {
+		"page": "index.html#/popup",
+		"open_in_tab": false
+	}
+}

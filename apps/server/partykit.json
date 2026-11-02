@@ -1,0 +1,10 @@
+{
+	"name": "papaya-bar-sync",
+	"main": "party/sync.ts",
+	"parties": {
+		"auth": "party/auth.ts"
+	},
+	"serve": "../dashboard/dist",
+	"compatibilityDate": "2024-01-01",
+	"domain": "sync.guillermocava.com"
+}

@@ -1,0 +1,1884 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Papaya · Sessions and groups — plan v2</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #f7f7f5;
+				--surface: #ffffff;
+				--sunken: #eeeeea;
+				--ink: #1a1a19;
+				--muted: #5d5d58;
+				--faint: #8b8b85;
+				--line: #dcdcd6;
+				--accent: #e8501c;
+				--accent-soft: #fde9df;
+				--ok: #1f7a43;
+				--ok-soft: #e1f2e7;
+				--strip: #e3e3de;
+				--tab: #f4f4f1;
+				--g-blue: #6f97e8;
+				--g-green: #6fb27c;
+				--g-yellow: #e9c552;
+				--g-red: #d9776b;
+				--g-purple: #a77ae6;
+				--g-cyan: #5fbdd6;
+				--g-orange: #e8995a;
+				--g-pink: #e27db8;
+				--g-grey: #a9aba9;
+				--radius: 8px;
+				--mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+				--sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, sans-serif;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #121211;
+					--surface: #1b1b1a;
+					--sunken: #232321;
+					--ink: #ededea;
+					--muted: #a9a9a3;
+					--faint: #7b7b75;
+					--line: #34342f;
+					--accent: #ff7a4d;
+					--accent-soft: #3a2117;
+					--ok: #5fcf8a;
+					--ok-soft: #17301f;
+					--strip: #2a2a27;
+					--tab: #333330;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				scroll-behavior: smooth;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				html {
+					scroll-behavior: auto;
+				}
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--ink);
+				font: 16px/1.6 var(--sans);
+			}
+			a {
+				color: inherit;
+				text-decoration-color: var(--accent);
+				text-underline-offset: 3px;
+			}
+			a:focus-visible,
+			summary:focus-visible {
+				outline: 2px solid var(--accent);
+				outline-offset: 3px;
+				border-radius: 3px;
+			}
+			main {
+				max-width: 1080px;
+				margin: 0 auto;
+				padding: 48px 24px 96px;
+			}
+			.prose {
+				max-width: 70ch;
+			}
+			h1 {
+				font-size: clamp(28px, 4vw, 40px);
+				line-height: 1.15;
+				letter-spacing: -0.02em;
+				margin: 0 0 12px;
+			}
+			h2 {
+				font-size: 24px;
+				letter-spacing: -0.01em;
+				margin: 72px 0 8px;
+				padding-top: 16px;
+				border-top: 1px solid var(--line);
+			}
+			h2 .num {
+				color: var(--accent);
+				font-variant-numeric: tabular-nums;
+				margin-right: 8px;
+			}
+			h3 {
+				font-size: 17px;
+				margin: 32px 0 6px;
+			}
+			p {
+				margin: 0 0 14px;
+			}
+			code,
+			kbd {
+				font-family: var(--mono);
+				font-size: 0.86em;
+				background: var(--sunken);
+				border-radius: 4px;
+				padding: 1px 5px;
+			}
+			kbd {
+				border: 1px solid var(--line);
+			}
+			.meta {
+				color: var(--muted);
+				font-size: 14px;
+				margin-bottom: 28px;
+			}
+			.story {
+				font-size: clamp(19px, 2.4vw, 23px);
+				line-height: 1.45;
+				border-left: 4px solid var(--accent);
+				padding: 4px 0 4px 20px;
+				margin: 28px 0;
+				max-width: 46ch;
+			}
+			nav.toc {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px 18px;
+				font-size: 14px;
+				color: var(--muted);
+				margin: 24px 0 0;
+				padding: 12px 0;
+				border-top: 1px solid var(--line);
+				border-bottom: 1px solid var(--line);
+			}
+			nav.toc a {
+				text-decoration: none;
+			}
+			nav.toc a:hover {
+				color: var(--ink);
+				text-decoration: underline;
+			}
+			.figure {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 24px;
+				margin: 20px 0 8px;
+				overflow-x: auto;
+			}
+			.caption {
+				color: var(--muted);
+				font-size: 14px;
+				margin: 8px 0 0;
+			}
+			.label {
+				font-size: 12px;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				color: var(--faint);
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 15px;
+				margin: 12px 0;
+			}
+			th,
+			td {
+				text-align: left;
+				vertical-align: top;
+				padding: 9px 12px;
+				border-bottom: 1px solid var(--line);
+			}
+			th {
+				font-weight: 600;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			td:first-child {
+				font-weight: 600;
+				white-space: nowrap;
+			}
+			.table-wrap {
+				overflow-x: auto;
+			}
+			.table-wrap table {
+				min-width: 640px;
+			}
+
+			/* ---------- Tab strip language ---------- */
+			.strip {
+				display: flex;
+				align-items: flex-end;
+				gap: 3px;
+				background: var(--strip);
+				border-radius: 8px 8px 0 0;
+				padding: 8px 8px 0;
+				min-height: 42px;
+				flex-wrap: nowrap;
+			}
+			.tab {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				background: var(--tab);
+				border-radius: 6px 6px 0 0;
+				padding: 6px 10px;
+				font-size: 12px;
+				white-space: nowrap;
+				max-width: 140px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				border-bottom: 3px solid transparent;
+			}
+			.tab::before {
+				content: '';
+				flex: none;
+				width: 10px;
+				height: 10px;
+				border-radius: 3px;
+				background: var(--faint);
+				opacity: 0.6;
+			}
+			.tab.pin {
+				padding: 6px 8px;
+			}
+			.tab.unloaded {
+				color: var(--faint);
+				font-family: var(--mono);
+				font-size: 11px;
+			}
+			.tab.unloaded::before {
+				opacity: 0.2;
+			}
+			.chip {
+				align-self: center;
+				font-size: 12px;
+				font-weight: 600;
+				color: #1a1a19;
+				border-radius: 6px;
+				padding: 2px 8px;
+				margin: 0 2px 6px 6px;
+				white-space: nowrap;
+			}
+			.chip.collapsed::after {
+				content: ' ▸';
+			}
+			.g-blue {
+				--g: var(--g-blue);
+			}
+			.g-green {
+				--g: var(--g-green);
+			}
+			.g-yellow {
+				--g: var(--g-yellow);
+			}
+			.g-red {
+				--g: var(--g-red);
+			}
+			.g-purple {
+				--g: var(--g-purple);
+			}
+			.g-cyan {
+				--g: var(--g-cyan);
+			}
+			.g-orange {
+				--g: var(--g-orange);
+			}
+			.g-pink {
+				--g: var(--g-pink);
+			}
+			.chip[class*='g-'] {
+				background: var(--g);
+			}
+			.tab[class*='g-'] {
+				border-bottom-color: var(--g);
+			}
+			.dot {
+				display: inline-block;
+				width: 10px;
+				height: 10px;
+				border-radius: 50%;
+				background: var(--g, var(--g-grey));
+				flex: none;
+			}
+
+			/* ---------- Model figure ---------- */
+			.model {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 16px;
+				min-width: 760px;
+			}
+			.pinned-zone {
+				border: 1px dashed var(--line);
+				border-radius: 10px;
+				padding: 12px;
+				width: 150px;
+			}
+			.pinned-zone .strip {
+				background: transparent;
+				padding: 0;
+				min-height: 0;
+			}
+			.session-box {
+				border: 2px solid var(--accent);
+				border-radius: 12px;
+				padding: 14px;
+				position: relative;
+			}
+			.session-box > .label {
+				color: var(--accent);
+			}
+			.zones {
+				display: grid;
+				grid-template-columns: 1.6fr 1fr;
+				gap: 14px;
+				margin-top: 10px;
+			}
+			.zone {
+				background: var(--sunken);
+				border-radius: 10px;
+				padding: 12px;
+			}
+			.zone .note {
+				font-size: 13px;
+				color: var(--muted);
+				margin: 8px 0 0;
+			}
+			.rows {
+				list-style: none;
+				margin: 8px 0 0;
+				padding: 0;
+				display: grid;
+				gap: 4px;
+			}
+			.rows li {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				background: var(--surface);
+				border-radius: 6px;
+				padding: 5px 9px;
+				font-size: 13px;
+			}
+			.rows li .n {
+				margin-left: auto;
+				color: var(--faint);
+				font-variant-numeric: tabular-nums;
+			}
+			.past {
+				margin-top: 14px;
+				display: flex;
+				align-items: center;
+				gap: 14px;
+				font-size: 13px;
+				color: var(--muted);
+			}
+			.stack {
+				position: relative;
+				width: 132px;
+				height: 46px;
+				flex: none;
+			}
+			.stack span {
+				position: absolute;
+				inset: 0;
+				border: 1px solid var(--line);
+				background: var(--surface);
+				border-radius: 8px;
+				font-size: 12px;
+				padding: 4px 8px;
+				color: var(--ink);
+			}
+			.stack span:nth-child(1) {
+				transform: translate(8px, -8px);
+				opacity: 0.5;
+			}
+			.stack span:nth-child(2) {
+				transform: translate(4px, -4px);
+				opacity: 0.75;
+			}
+
+			/* ---------- Walkthrough ---------- */
+			.steps {
+				list-style: none;
+				margin: 20px 0 0;
+				padding: 0;
+				display: grid;
+				grid-template-columns: repeat(5, minmax(0, 1fr));
+				gap: 12px;
+			}
+			.steps > li {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 14px;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+			.steps .k {
+				font-size: 12px;
+				font-weight: 700;
+				color: var(--accent);
+			}
+			.steps h3 {
+				margin: 0;
+				font-size: 15px;
+			}
+			.steps p {
+				font-size: 14px;
+				color: var(--muted);
+				margin: 0;
+			}
+			.mini {
+				height: 64px;
+				background: var(--sunken);
+				border-radius: 6px;
+				padding: 8px;
+				display: flex;
+				flex-wrap: wrap;
+				align-content: flex-start;
+				gap: 3px;
+				overflow: hidden;
+			}
+			.mini i {
+				display: block;
+				width: 9px;
+				height: 7px;
+				border-radius: 2px;
+				background: var(--g, var(--faint));
+				opacity: 0.85;
+			}
+			.mini .bar {
+				height: 7px;
+				border-radius: 2px;
+				background: var(--g);
+			}
+			.mini .side {
+				border-left: 2px solid var(--line);
+				padding-left: 6px;
+				display: grid;
+				gap: 3px;
+				align-content: start;
+			}
+			@media (max-width: 900px) {
+				.steps {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			/* ---------- SVG diagrams ---------- */
+			svg {
+				display: block;
+				width: 100%;
+				height: auto;
+				font-family: var(--sans);
+			}
+			.node rect {
+				fill: var(--surface);
+				stroke: var(--ink);
+				stroke-width: 1.5;
+			}
+			.node.loose rect {
+				stroke-dasharray: 5 4;
+				stroke: var(--muted);
+			}
+			.node.open rect {
+				stroke: var(--g-blue);
+				stroke-width: 3;
+			}
+			.node.stashed rect {
+				fill: var(--sunken);
+				stroke: var(--muted);
+			}
+			.node.accent rect {
+				stroke: var(--accent);
+				stroke-width: 2.5;
+			}
+			.node text {
+				fill: var(--ink);
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.node text.sub {
+				font-size: 11.5px;
+				font-weight: 400;
+				fill: var(--muted);
+			}
+			.edge {
+				fill: none;
+				stroke: var(--muted);
+				stroke-width: 1.6;
+			}
+			.edge.soft {
+				stroke-dasharray: 4 4;
+				opacity: 0.7;
+			}
+			.edge-label {
+				fill: var(--ink);
+				font-size: 12px;
+			}
+			.edge-label.soft {
+				fill: var(--muted);
+			}
+			.arrowhead {
+				fill: var(--muted);
+			}
+			.two-col {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 20px;
+			}
+			@media (max-width: 860px) {
+				.two-col {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			/* ---------- Side panel mock ---------- */
+			.mock-wrap {
+				display: grid;
+				grid-template-columns: 340px 1fr;
+				gap: 28px;
+				align-items: start;
+			}
+			@media (max-width: 760px) {
+				.mock-wrap {
+					grid-template-columns: 1fr;
+				}
+			}
+			.panel {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				overflow: hidden;
+				font-size: 13px;
+				box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+			}
+			.panel header {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 12px 14px;
+				border-bottom: 1px solid var(--line);
+			}
+			.panel header b {
+				font-size: 15px;
+			}
+			.btn {
+				margin-left: auto;
+				font-size: 12px;
+				font-weight: 600;
+				background: var(--ink);
+				color: var(--bg);
+				border-radius: 6px;
+				padding: 4px 9px;
+			}
+			.btn.ghost {
+				background: transparent;
+				color: var(--ink);
+				border: 1px solid var(--line);
+			}
+			.panel section {
+				padding: 10px 14px;
+				border-bottom: 1px solid var(--line);
+			}
+			.panel section:last-child {
+				border-bottom: 0;
+			}
+			.panel .head {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 6px;
+			}
+			.prow {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 5px 6px;
+				border-radius: 6px;
+			}
+			.prow.focused {
+				background: var(--sunken);
+				box-shadow: inset 2px 0 0 var(--accent);
+			}
+			.prow .n {
+				color: var(--faint);
+				font-variant-numeric: tabular-nums;
+			}
+			.prow .act {
+				margin-left: auto;
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.callout {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 20px;
+				height: 20px;
+				border-radius: 50%;
+				background: var(--accent);
+				color: #fff;
+				font-size: 11px;
+				font-weight: 700;
+				flex: none;
+			}
+			.callouts {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+				display: grid;
+				gap: 14px;
+			}
+			.callouts li {
+				display: flex;
+				gap: 12px;
+			}
+			.callouts p {
+				margin: 0;
+			}
+
+			/* ---------- Switch figure ---------- */
+			.switch-grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 20px;
+			}
+			@media (max-width: 860px) {
+				.switch-grid {
+					grid-template-columns: 1fr;
+				}
+			}
+			.switch-grid .strip {
+				overflow: hidden;
+			}
+
+			.api {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 16px 18px;
+				margin: 16px 0;
+				max-width: 78ch;
+			}
+			.api p:last-child {
+				margin-bottom: 0;
+			}
+
+			/* ---------- Bars ---------- */
+			.bars {
+				display: grid;
+				gap: 14px;
+				margin: 8px 0;
+			}
+			.bar-row {
+				display: grid;
+				grid-template-columns: 200px 1fr 90px;
+				gap: 12px;
+				align-items: center;
+				font-size: 14px;
+			}
+			.bar-track {
+				height: 22px;
+				background: var(--sunken);
+				border-radius: 4px;
+				overflow: hidden;
+			}
+			.bar-fill {
+				height: 100%;
+				background: var(--accent);
+			}
+			.bar-fill.calm {
+				background: var(--ok);
+			}
+			.bar-row .v {
+				font-variant-numeric: tabular-nums;
+				font-weight: 600;
+			}
+			@media (max-width: 640px) {
+				.bar-row {
+					grid-template-columns: 1fr 70px;
+				}
+				.bar-row .bar-track {
+					grid-column: 1 / -1;
+					order: 3;
+				}
+			}
+
+			/* ---------- Decisions ---------- */
+			.decided {
+				list-style: none;
+				padding: 0;
+				margin: 12px 0;
+				display: grid;
+				gap: 8px;
+			}
+			.decided li {
+				position: relative;
+				background: var(--ok-soft);
+				border-radius: 8px;
+				padding: 9px 12px 9px 36px;
+			}
+			.decided li::before {
+				content: '✓';
+				position: absolute;
+				left: 14px;
+				color: var(--ok);
+				font-weight: 700;
+			}
+			.question {
+				border: 1px solid var(--line);
+				border-left: 4px solid var(--accent);
+				background: var(--surface);
+				border-radius: 8px;
+				padding: 16px 18px;
+				margin: 14px 0;
+			}
+			.question h3 {
+				margin: 0 0 6px;
+			}
+			.question ol {
+				margin: 8px 0 0;
+				padding-left: 22px;
+			}
+			.question li {
+				margin: 4px 0;
+			}
+			.rec {
+				display: inline-block;
+				font-size: 11px;
+				font-weight: 700;
+				color: var(--accent);
+				background: var(--accent-soft);
+				border-radius: 4px;
+				padding: 0 6px;
+				margin-left: 6px;
+				vertical-align: 1px;
+			}
+
+			/* ---------- Phases ---------- */
+			.phases {
+				list-style: none;
+				margin: 16px 0 0;
+				padding: 0;
+				display: grid;
+				gap: 12px;
+				counter-reset: phase;
+			}
+			.phases > li {
+				display: grid;
+				grid-template-columns: 56px 1fr;
+				gap: 16px;
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 18px;
+			}
+			.phases .pn {
+				font-size: 30px;
+				font-weight: 700;
+				color: var(--accent);
+				line-height: 1;
+			}
+			.phases h3 {
+				margin: 0 0 4px;
+			}
+			.phases .needs {
+				font-size: 13px;
+				color: var(--muted);
+				margin: 0 0 8px;
+			}
+			.phases ul {
+				margin: 0 0 8px;
+				padding-left: 18px;
+			}
+			.phases .done {
+				font-size: 14px;
+				margin: 0;
+			}
+			.phases .done b {
+				color: var(--ok);
+			}
+			.phases li.later {
+				border-style: dashed;
+			}
+
+			/* ---------- Data model ---------- */
+			.erd {
+				display: grid;
+				grid-template-columns: repeat(4, minmax(170px, 1fr));
+				gap: 14px;
+				min-width: 760px;
+			}
+			.entity {
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				overflow: hidden;
+				background: var(--surface);
+			}
+			.entity h4 {
+				margin: 0;
+				padding: 8px 12px;
+				font-size: 14px;
+				background: var(--sunken);
+				font-family: var(--mono);
+			}
+			.entity ul {
+				list-style: none;
+				margin: 0;
+				padding: 8px 12px;
+				font-size: 12.5px;
+				font-family: var(--mono);
+				color: var(--muted);
+			}
+			.entity li b {
+				color: var(--ink);
+				font-weight: 600;
+			}
+			.entity p {
+				font-size: 12.5px;
+				margin: 0;
+				padding: 0 12px 10px;
+				color: var(--muted);
+			}
+			.truth {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 12px;
+				margin-top: 14px;
+			}
+			.truth div {
+				background: var(--sunken);
+				border-radius: 8px;
+				padding: 10px 12px;
+				font-size: 14px;
+			}
+			@media (max-width: 760px) {
+				.truth {
+					grid-template-columns: 1fr;
+				}
+			}
+			ol.plain {
+				padding-left: 22px;
+			}
+			ol.plain li,
+			ul.plain li {
+				margin: 6px 0;
+			}
+			.risk td:first-child {
+				white-space: normal;
+				width: 30%;
+			}
+			@media print {
+				body {
+					background: #fff;
+				}
+				.figure,
+				.phases > li,
+				.question {
+					break-inside: avoid;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<header>
+				<p class="label">Papaya Bar · plan v2.1 · reviewed Nov 2, 2026</p>
+				<h1>Sessions and groups: one model for organizing, switching and the past</h1>
+				<p class="meta">
+					Supersedes the v1 markdown plan and folds in your review of it. Replaces the separate
+					"Sessions" and "Contexts" features.
+				</p>
+				<p class="story">
+					A session is everything you're working on. Groups organize it.
+					<strong>Stash</strong> a group to close its tabs and keep it in the sidebar.
+					<strong>Switch</strong> between the groups you have open. Put the whole session away,
+					and open it again later.
+				</p>
+				<nav class="toc" aria-label="Contents">
+					<a href="#changes">What changed</a>
+					<a href="#model">The model</a>
+					<a href="#morning">A morning with 547 tabs</a>
+					<a href="#lifecycle">How things move</a>
+					<a href="#sidebar">The sidebar</a>
+					<a href="#switching">Switching</a>
+					<a href="#grouping">Smart grouping</a>
+					<a href="#answers">Your two questions</a>
+					<a href="#decisions">Decisions</a>
+					<a href="#phases">Phases</a>
+					<a href="#data">Data and migration</a>
+					<a href="#risks">Risks</a>
+				</nav>
+			</header>
+
+			<section id="changes" aria-labelledby="changes-h">
+				<h2 id="changes-h"><span class="num">1</span>What changed since v1</h2>
+				<ul class="plain prose">
+					<li>
+						<strong>Groups are now the everyday unit.</strong> You stash a group to close its tabs
+						and keep it listed in the sidebar, and you open it again with one click. v1 could only
+						"split out" a group into a separate session, which is now
+						<em>Move to session</em>.
+					</li>
+					<li>
+						<strong>Switching between the groups you have open is a core feature</strong>, separate
+						from switching whole sessions.
+					</li>
+					<li>
+						<strong>Smart grouping moves to phase 1</strong> and doesn't wait for the backend.
+						Chrome's own on-device model can group tabs, with replies checked against a schema.
+					</li>
+					<li>
+						Your answers from both reviews are recorded as <a href="#decisions">decisions</a>; only
+						the default for switching is still open. Your follow-up questions (loading big
+						sessions, the Chrome API behind it, pinned tabs) are answered
+						<a href="#answers">below</a>, and the keys for switching are
+						<a href="#switching">spelled out</a>.
+					</li>
+				</ul>
+			</section>
+
+			<section id="model" aria-labelledby="model-h">
+				<h2 id="model-h"><span class="num">2</span>The model</h2>
+				<p class="prose">
+					One session is open at a time; it's everything in your windows. Inside it, tabs are
+					either in a <strong>group</strong> or <strong>loose</strong>. A group is open (a
+					Chrome tab group you can see) or stashed (closed, waiting in the sidebar). Pinned tabs
+					belong to no session. Closed sessions and their history make up the past.
+				</p>
+				<figure class="figure" aria-labelledby="model-cap">
+					<div class="model">
+						<div class="pinned-zone">
+							<div class="label">Pinned tabs</div>
+							<div class="strip" aria-hidden="true">
+								<span class="tab pin">Mail</span>
+								<span class="tab pin">Cal</span>
+							</div>
+							<p class="caption" style="font-size: 12.5px">
+								Outside every session. Open whichever session is active.
+							</p>
+						</div>
+						<div class="session-box">
+							<div class="label">Open session · Home</div>
+							<div class="zones">
+								<div class="zone">
+									<div class="label">In your window</div>
+									<div class="strip" style="margin-top: 8px" aria-hidden="true">
+										<span class="chip g-blue">Feature X</span>
+										<span class="tab g-blue">PR #412</span>
+										<span class="tab g-blue">Spec</span>
+										<span class="chip g-green collapsed">Docs</span>
+										<span class="tab">Loose tab</span>
+										<span class="tab">Loose tab</span>
+									</div>
+									<p class="note">
+										<span class="dot g-blue"></span> Open groups are Chrome tab groups.
+										Loose tabs are the "to sort" pile that smart grouping works on.
+									</p>
+								</div>
+								<div class="zone">
+									<div class="label">In the sidebar</div>
+									<ul class="rows">
+										<li><span class="dot g-red"></span>Taxes <span class="n">23</span></li>
+										<li><span class="dot g-purple"></span>Trip <span class="n">17</span></li>
+										<li><span class="dot g-cyan"></span>Rust book <span class="n">12</span></li>
+									</ul>
+									<p class="note">Stashed groups: closed, saved, one click to reopen.</p>
+								</div>
+							</div>
+							<div class="past">
+								<div class="stack" aria-hidden="true">
+									<span>Work trip</span><span>Taxes 2025</span><span>Side project</span>
+								</div>
+								<span>
+									<strong style="color: var(--ink)">The past:</strong> closed sessions, each with
+									its last 10 versions.
+								</span>
+							</div>
+						</div>
+					</div>
+				</figure>
+				<p class="caption" id="model-cap">
+					Illustration with example names. The orange boundary is one session; only one is open
+					at a time.
+				</p>
+
+				<div class="table-wrap">
+					<table>
+						<caption class="sr-only" style="position: absolute; left: -9999px">
+							Definitions
+						</caption>
+						<thead>
+							<tr>
+								<th scope="col">Thing</th>
+								<th scope="col">What it is</th>
+								<th scope="col">Replaces</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Session</td>
+								<td>
+									Your workspace: groups, loose tabs and window layout. One open at a time. You
+									start in <strong>Home</strong>.
+								</td>
+								<td>Contexts, saved sessions, the Inbox</td>
+							</tr>
+							<tr>
+								<td>Group</td>
+								<td>
+									Related tabs with a name and color. <strong>Open</strong>: a Chrome tab group.
+									<strong>Stashed</strong>: closed, listed in the sidebar.
+								</td>
+								<td>Chrome tab groups, plus "peel off to context"</td>
+							</tr>
+							<tr>
+								<td>Loose tabs</td>
+								<td>Open tabs that aren't in a group yet.</td>
+								<td>The Inbox</td>
+							</tr>
+							<tr>
+								<td>History</td>
+								<td>
+									A version is saved when you close or switch away from a session, or click "Save
+									version". The last 10 are kept.
+								</td>
+								<td>Context snapshots</td>
+							</tr>
+							<tr>
+								<td>Parked</td>
+								<td>A stashed group that stale tabs move into automatically.</td>
+								<td>The Parked context</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="morning" aria-labelledby="morning-h">
+				<h2 id="morning-h"><span class="num">3</span>A morning with 547 tabs</h2>
+				<p class="prose">
+					This is the flow you described, start to finish. 547 is from your screenshot; the rest
+					are example numbers.
+				</p>
+				<ol class="steps">
+					<li>
+						<span class="k">1 · The pile</span>
+						<div class="mini" aria-hidden="true">
+							<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+							><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i
+							></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+							><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i
+							></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+						</div>
+						<h3>547 loose tabs</h3>
+						<p>Everything open, nothing grouped. You don't want to close any of it.</p>
+					</li>
+					<li>
+						<span class="k">2 · Smart group</span>
+						<div class="mini" aria-hidden="true">
+							<i class="g-blue" style="--g: var(--g-blue)"></i><i style="--g: var(--g-blue)"></i
+							><i style="--g: var(--g-blue)"></i><i style="--g: var(--g-blue)"></i
+							><i style="--g: var(--g-green)"></i><i style="--g: var(--g-green)"></i
+							><i style="--g: var(--g-green)"></i><i style="--g: var(--g-red)"></i
+							><i style="--g: var(--g-red)"></i><i style="--g: var(--g-red)"></i
+							><i style="--g: var(--g-red)"></i><i style="--g: var(--g-purple)"></i
+							><i style="--g: var(--g-purple)"></i><i style="--g: var(--g-cyan)"></i
+							><i style="--g: var(--g-cyan)"></i><i style="--g: var(--g-cyan)"></i
+							><i style="--g: var(--g-orange)"></i><i style="--g: var(--g-orange)"></i
+							><i style="--g: var(--g-pink)"></i><i style="--g: var(--g-pink)"></i
+							><i style="--g: var(--g-yellow)"></i><i style="--g: var(--g-yellow)"></i
+							><i style="--g: var(--g-yellow)"></i><i></i><i></i>
+						</div>
+						<h3>Groups, in place</h3>
+						<p>
+							Papaya suggests about 14 groups. You rename, merge or drop any, then apply. Nothing
+							closes.
+						</p>
+					</li>
+					<li>
+						<span class="k">3 · Keep what you need</span>
+						<div class="mini" aria-hidden="true" style="flex-wrap: nowrap; gap: 8px">
+							<div style="display: grid; gap: 3px; align-content: start; flex: 1">
+								<div class="bar" style="--g: var(--g-blue); width: 100%"></div>
+								<div class="bar" style="--g: var(--g-green); width: 70%"></div>
+								<div class="bar" style="--g: var(--g-yellow); width: 45%"></div>
+							</div>
+							<div class="side" style="flex: 1">
+								<div class="bar" style="--g: var(--g-red); width: 90%"></div>
+								<div class="bar" style="--g: var(--g-purple); width: 70%"></div>
+								<div class="bar" style="--g: var(--g-cyan); width: 80%"></div>
+								<div class="bar" style="--g: var(--g-orange); width: 60%"></div>
+								<div class="bar" style="--g: var(--g-pink); width: 75%"></div>
+							</div>
+						</div>
+						<h3>Stash the rest</h3>
+						<p>
+							Keep 3 groups open and stash 11. Their tabs close and wait in the sidebar. About 60
+							tabs stay open.
+						</p>
+					</li>
+					<li>
+						<span class="k">4 · Switch</span>
+						<div class="mini" aria-hidden="true" style="flex-direction: column; gap: 4px">
+							<div class="bar" style="--g: var(--g-blue); width: 100%; height: 14px"></div>
+							<div style="display: flex; gap: 4px">
+								<div class="bar" style="--g: var(--g-green); width: 26px"></div>
+								<div class="bar" style="--g: var(--g-yellow); width: 26px"></div>
+							</div>
+						</div>
+						<h3>Jump between groups</h3>
+						<p>
+							Focus "Feature X" and the other groups fold up. Open a stashed group when you need it.
+						</p>
+					</li>
+					<li>
+						<span class="k">5 · Put it away</span>
+						<div class="mini" aria-hidden="true" style="align-items: center; justify-content: center">
+							<div class="stack" style="width: 90px; height: 34px">
+								<span></span><span></span><span style="font-size: 11px">Home · v4</span>
+							</div>
+						</div>
+						<h3>Close or switch the session</h3>
+						<p>
+							Switch to "Trip" and Home is saved as a version, with every group in the state you
+							left it.
+						</p>
+					</li>
+				</ol>
+			</section>
+
+			<section id="lifecycle" aria-labelledby="lifecycle-h">
+				<h2 id="lifecycle-h"><span class="num">4</span>How things move</h2>
+				<p class="prose">
+					Two small state machines: one for a group, one for a session. The everyday moves are
+					all on the group side.
+				</p>
+				<div class="two-col">
+					<figure class="figure" style="margin: 0">
+						<svg viewBox="0 0 560 300" role="img" aria-labelledby="g-title g-desc">
+							<title id="g-title">A group's life</title>
+							<desc id="g-desc">
+								Loose tabs become an open group through smart grouping or by hand. An open group
+								can be stashed into the sidebar and opened again. Either can be moved to another
+								session. Ungrouping returns tabs to loose.
+							</desc>
+							<defs>
+								<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+									<path d="M0 0 L10 5 L0 10 z" class="arrowhead" />
+								</marker>
+							</defs>
+							<g class="node loose">
+								<rect x="10" y="118" width="130" height="56" rx="10" />
+								<text x="75" y="142" text-anchor="middle">Loose tabs</text>
+								<text x="75" y="160" text-anchor="middle" class="sub">the pile</text>
+							</g>
+							<g class="node open">
+								<rect x="215" y="30" width="150" height="62" rx="10" />
+								<text x="290" y="56" text-anchor="middle">Open group</text>
+								<text x="290" y="75" text-anchor="middle" class="sub">a Chrome tab group</text>
+							</g>
+							<g class="node stashed">
+								<rect x="215" y="200" width="150" height="62" rx="10" />
+								<text x="290" y="226" text-anchor="middle">Stashed group</text>
+								<text x="290" y="245" text-anchor="middle" class="sub">in the sidebar</text>
+							</g>
+							<g class="node">
+								<rect x="430" y="118" width="120" height="56" rx="10" />
+								<text x="490" y="142" text-anchor="middle">Another</text>
+								<text x="490" y="160" text-anchor="middle">session</text>
+							</g>
+							<path class="edge" d="M140 132 C 175 110, 185 80, 213 66" marker-end="url(#arr)" />
+							<text class="edge-label" x="96" y="84">smart group</text>
+							<text class="edge-label" x="96" y="100">or by hand</text>
+							<path class="edge soft" d="M213 84 C 190 110, 175 140, 142 156" marker-end="url(#arr)" />
+							<text class="edge-label soft" x="150" y="190">ungroup</text>
+							<path class="edge" d="M270 92 L270 198" marker-end="url(#arr)" />
+							<text class="edge-label" x="228" y="150">stash</text>
+							<path class="edge" d="M312 200 L312 94" marker-end="url(#arr)" />
+							<text class="edge-label" x="320" y="150">open</text>
+							<path class="edge soft" d="M365 70 C 400 80, 415 100, 440 116" marker-end="url(#arr)" />
+							<path class="edge soft" d="M365 230 C 400 220, 415 200, 440 176" marker-end="url(#arr)" />
+							<text class="edge-label soft" x="398" y="70">move to session</text>
+							<path class="edge" d="M330 30 C 360 2, 400 10, 366 46" marker-end="url(#arr)" />
+							<text class="edge-label" x="392" y="20">focus</text>
+						</svg>
+						<p class="caption">A group: open and stashed are the two states you'll use daily.</p>
+					</figure>
+					<figure class="figure" style="margin: 0">
+						<svg viewBox="0 0 560 300" role="img" aria-labelledby="s-title s-desc">
+							<title id="s-title">A session's life</title>
+							<desc id="s-desc">
+								The open session becomes a closed session when you switch away or close it, which
+								saves a version. Opening a closed session reopens the groups that were open and
+								keeps the stashed ones stashed. Each closed session keeps its last ten versions.
+							</desc>
+							<g class="node accent">
+								<rect x="20" y="70" width="190" height="70" rx="12" />
+								<text x="115" y="100" text-anchor="middle">Open session</text>
+								<text x="115" y="120" text-anchor="middle" class="sub">your windows right now</text>
+							</g>
+							<g class="node stashed">
+								<rect x="350" y="70" width="190" height="70" rx="12" />
+								<text x="445" y="100" text-anchor="middle">Closed session</text>
+								<text x="445" y="120" text-anchor="middle" class="sub">saved, in the library</text>
+							</g>
+							<path class="edge" d="M210 88 L348 88" marker-end="url(#arr)" />
+							<text class="edge-label" x="279" y="64" text-anchor="middle">switch away / close</text>
+							<text class="edge-label soft" x="279" y="80" text-anchor="middle">saves a version</text>
+							<path class="edge" d="M350 124 L212 124" marker-end="url(#arr)" />
+							<text class="edge-label" x="281" y="148" text-anchor="middle">switch to / open</text>
+							<text class="edge-label soft" x="281" y="164" text-anchor="middle">open groups reopen</text>
+							<g aria-hidden="true">
+								<rect x="384" y="196" width="120" height="30" rx="6" fill="var(--surface)" stroke="var(--line)" />
+								<rect x="378" y="203" width="120" height="30" rx="6" fill="var(--surface)" stroke="var(--line)" />
+								<rect x="372" y="210" width="120" height="30" rx="6" fill="var(--surface)" stroke="var(--muted)" />
+								<text x="432" y="230" text-anchor="middle" class="edge-label">history · last 10</text>
+								<path class="edge soft" d="M445 140 L445 194" />
+							</g>
+							<text class="edge-label soft" x="20" y="200">Only one session is open at a time.</text>
+							<text class="edge-label soft" x="20" y="218">You always start in Home.</text>
+						</svg>
+						<p class="caption">A session: the bigger, rarer move.</p>
+					</figure>
+				</div>
+			</section>
+
+			<section id="sidebar" aria-labelledby="sidebar-h">
+				<h2 id="sidebar-h"><span class="num">5</span>The sidebar</h2>
+				<p class="prose">
+					The side panel becomes the home for this model: what's open, what's stashed, and the pile
+					still to sort. Mock with example data.
+				</p>
+				<div class="figure mock-wrap">
+					<div class="panel" role="img" aria-label="Mock of the redesigned side panel">
+						<header>
+							<span class="callout">1</span>
+							<b>Home ▾</b>
+							<span class="n" style="color: var(--faint)">61 open</span>
+							<span class="btn ghost">Save version</span>
+						</header>
+						<section>
+							<div class="head">
+								<span class="callout">2</span><span class="label">Open groups · 3</span>
+							</div>
+							<div class="prow focused g-blue">
+								<span class="dot"></span>Feature X <span class="n">12</span
+								><span class="act">Stash</span>
+							</div>
+							<div class="prow g-green">
+								<span class="dot"></span>Docs <span class="n">8</span><span class="act">Stash</span>
+							</div>
+							<div class="prow g-yellow">
+								<span class="dot"></span>Tickets <span class="n">5</span
+								><span class="act">Stash</span>
+							</div>
+						</section>
+						<section>
+							<div class="head">
+								<span class="callout">3</span><span class="label">Loose tabs · 36</span
+								><span class="btn">Smart group</span>
+							</div>
+						</section>
+						<section>
+							<div class="head">
+								<span class="callout">4</span><span class="label">Stashed · 11</span>
+							</div>
+							<div class="prow g-red">
+								<span class="dot"></span>Taxes <span class="n">23</span><span class="act">Open</span>
+							</div>
+							<div class="prow g-purple">
+								<span class="dot"></span>Trip <span class="n">17</span><span class="act">Open</span>
+							</div>
+							<div class="prow g-cyan">
+								<span class="dot"></span>Rust book <span class="n">12</span
+								><span class="act">Open</span>
+							</div>
+							<div class="prow">
+								<span class="dot"></span>Parked <span class="n">431</span
+								><span class="act">Open</span>
+							</div>
+						</section>
+						<section>
+							<div class="head">
+								<span class="callout">5</span><span class="label">Sessions</span>
+								<span class="act" style="margin-left: auto; color: var(--muted)"
+									>Trip · Taxes 2025 · All →</span
+								>
+							</div>
+						</section>
+					</div>
+					<ol class="callouts">
+						<li>
+							<span class="callout">1</span>
+							<p>
+								<strong>The open session.</strong> Click the name to switch sessions. "Save version"
+								adds to its history.
+							</p>
+						</li>
+						<li>
+							<span class="callout">2</span>
+							<p>
+								<strong>Open groups</strong>, mirrored from Chrome's tab groups. Click one to focus
+								it; the bar marks the one you're in. Stash closes it into the sidebar.
+							</p>
+						</li>
+						<li>
+							<span class="callout">3</span>
+							<p>
+								<strong>Loose tabs</strong> and the Smart group button. Suggestions appear here for
+								review before anything is applied.
+							</p>
+						</li>
+						<li>
+							<span class="callout">4</span>
+							<p>
+								<strong>Stashed groups</strong>, searchable, one click to reopen. Parked lives here
+								too.
+							</p>
+						</li>
+						<li>
+							<span class="callout">5</span>
+							<p>
+								<strong>Sessions:</strong> recent ones, plus a link to the full library on the
+								Sessions page, where history lives.
+							</p>
+						</li>
+					</ol>
+				</div>
+			</section>
+
+			<section id="switching" aria-labelledby="switching-h">
+				<h2 id="switching-h"><span class="num">6</span>Switching between groups</h2>
+				<p class="prose">
+					Two ways to switch, shown here as the tab strip after you switch to "Docs". Which one is
+					the default is <a href="#q-switch">question A below</a>; the other is always one modifier
+					away.
+				</p>
+				<div class="figure switch-grid">
+					<div>
+						<p class="label">Focus · nothing closes</p>
+						<div class="strip" aria-hidden="true">
+							<span class="chip g-blue collapsed">Feature X</span>
+							<span class="chip g-green">Docs</span>
+							<span class="tab g-green">Guide</span>
+							<span class="tab g-green">API</span>
+							<span class="chip g-yellow collapsed">Tickets</span>
+						</div>
+						<p class="caption">
+							Docs expands and gets the active tab; the other groups fold up. Cheap and instant.
+						</p>
+					</div>
+					<div>
+						<p class="label">Swap · leave one, open another</p>
+						<div class="strip" aria-hidden="true">
+							<span class="chip g-green">Docs</span>
+							<span class="tab g-green">Guide</span>
+							<span class="tab g-green">API</span>
+							<span class="chip g-yellow collapsed">Tickets</span>
+						</div>
+						<p class="caption">
+							Feature X is stashed as you leave it. Good when you want fewer tabs open, not just
+							tidier ones.
+						</p>
+					</div>
+				</div>
+
+				<h3>Where you switch from, and the keys</h3>
+				<p class="prose">
+					<kbd>Shift</kbd> isn't a shortcut on its own. It changes whichever way you switch from
+					focus to swap (assuming focus is the default):
+				</p>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th scope="col">From</th>
+								<th scope="col">Focus</th>
+								<th scope="col">Swap</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Sidebar</td>
+								<td>Click the group</td>
+								<td><kbd>Shift</kbd>-click</td>
+							</tr>
+							<tr>
+								<td>Palette</td>
+								<td>
+									<kbd>⌘K</kbd> on Papaya's pages, <kbd>⌥K</kbd> on any website: type the group,
+									<kbd>Enter</kbd>
+								</td>
+								<td><kbd>Shift</kbd>+<kbd>Enter</kbd></td>
+							</tr>
+							<tr>
+								<td>Anywhere</td>
+								<td>New "Next group" and "Previous group" commands</td>
+								<td>A "Swap to next group" command</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<p class="prose">
+					<strong>A limit on "anywhere":</strong> Chrome lets an extension suggest default keys
+					for only four commands, and Papaya already uses all four (open manager <kbd>⌘⇧K</kbd>,
+					copy link <kbd>⌘⇧1</kbd>, screenshot <kbd>⌘⇧2</kbd>, side panel <kbd>⌘⇧E</kbd>). The new
+					commands would ship without keys, and you'd pick them in
+					<code>chrome://extensions/shortcuts</code>. The other option is to give up one of the
+					four defaults.
+				</p>
+			</section>
+
+			<section id="grouping" aria-labelledby="grouping-h">
+				<h2 id="grouping-h"><span class="num">7</span>Smart grouping</h2>
+				<p class="prose">
+					One flow, three engines behind it. Every engine returns the same thing: a list of
+					groups, each a name plus tab ids. The reply is checked against a schema and against your
+					real tabs, so nothing is parsed out of free text. Suggestions are always reviewed before
+					they're applied, and applying only creates tab groups.
+				</p>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th scope="col">Engine</th>
+								<th scope="col">How good</th>
+								<th scope="col">What it needs</th>
+								<th scope="col">When</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>By site</td>
+								<td>Basic: one group per website</td>
+								<td>Nothing. Works offline today.</td>
+								<td>Fallback, always</td>
+							</tr>
+							<tr>
+								<td>On-device</td>
+								<td>
+									Groups by topic. Chrome's built-in model (Gemini Nano), reply forced to a JSON
+									schema.
+								</td>
+								<td>
+									Chrome 138+, macOS 13+, 16 GB RAM or a GPU with more than 4 GB, 22 GB free disk.
+									Downloads the model once. Nothing leaves your Mac. Small context window, so 547
+									tabs go in batches.
+								</td>
+								<td>Phase 1</td>
+							</tr>
+							<tr>
+								<td>Your agent</td>
+								<td>
+									Best: can look things up and take follow-ups ("split research by project")
+								</td>
+								<td>
+									The tailnet hub on hl-mango, with pi or opencode answering through a typed tool.
+								</td>
+								<td>Phase 5 (separate plan)</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="answers" aria-labelledby="answers-h">
+				<h2 id="answers-h"><span class="num">8</span>Your two questions</h2>
+
+				<h3>"Loading only the visible tab — we'd still be opening all 300 tabs, right?"</h3>
+				<p class="prose">
+					Yes, every tab would exist in the tab strip. The difference is that Chrome can keep a tab
+					<em>unloaded</em>: it has its address, but no page runs until you click it. I measured it
+					on hl-mango (Linux, Chrome 148) by opening the same 30 pages from Wikipedia, MDN, GitHub,
+					Hacker News and vuejs.org both ways:
+				</p>
+				<div class="figure">
+					<div class="bars" role="list">
+						<div class="bar-row" role="listitem">
+							<span>Opened normally</span>
+							<div class="bar-track"><div class="bar-fill" style="width: 100%"></div></div>
+							<span class="v">+5.1 GB</span>
+						</div>
+						<div class="bar-row" role="listitem">
+							<span>Created, then unloaded</span>
+							<div class="bar-track"><div class="bar-fill calm" style="width: 1.8%"></div></div>
+							<span class="v">+0.09 GB</span>
+						</div>
+					</div>
+					<p class="caption">
+						Chrome's memory for 30 tabs: 1.2 → 6.2 GB opened normally, 1.2 → 1.3 GB unloaded. Page
+						processes: 31 new vs none. The test box has no GPU, so absolute numbers run higher than
+						on a Mac; the ratio is the point. Clicking an unloaded tab loaded it normally.
+					</p>
+				</div>
+				<div class="api">
+					<p class="label">Is this something the Chrome API gives us?</p>
+					<p>
+						Yes. <code>chrome.tabs.discard(tabId)</code> unloads a tab: it stays in the tab strip,
+						and Chrome reloads it when you click it. It's the same mechanism as Chrome's Memory
+						Saver. <code>tab.discarded</code> says whether a tab is unloaded, and
+						<code>tab.autoDiscardable</code> controls whether Chrome may unload it on its own. It
+						needs no extra permission.
+					</p>
+					<p>
+						There's no "create it unloaded" option, so Papaya creates each tab in the background
+						and unloads it straight away. Each one starts its request for a moment; the
+						measurement above includes that. The tab you're looking at can't be unloaded. In the
+						test, all 30 tabs unloaded and kept their tab ids.
+					</p>
+				</div>
+				<p class="prose">
+					<strong>The catch:</strong> a tab unloaded before it ever loaded shows its address
+					instead of its title, and no icon, until you click it:
+				</p>
+				<div class="figure" style="padding: 16px">
+					<div class="strip" aria-hidden="true" style="max-width: 560px">
+						<span class="chip g-red">Taxes</span>
+						<span class="tab g-red">Form 1040 – IRS</span>
+						<span class="tab g-red unloaded">irs.gov/forms…</span>
+						<span class="tab g-red unloaded">docs.google.c…</span>
+					</div>
+					<p class="caption">First tab clicked and loaded; the other two still unloaded.</p>
+				</div>
+				<p class="prose">
+					In this model you'll rarely open hundreds of tabs anyway. Stashed groups stay in the
+					sidebar, opening a stashed group opens just that group, and opening a session reopens
+					only the groups that were open.
+				</p>
+
+				<h3>"What is the current behavior with pinned tabs?"</h3>
+				<p class="prose">It depends on which feature you use, so there's no consistent rule today:</p>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th scope="col">Feature today</th>
+								<th scope="col">Saves pinned tabs?</th>
+								<th scope="col">Closes them?</th>
+								<th scope="col">When reopened</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Save session (Tabs page)</td>
+								<td>Yes, but the pin isn't recorded</td>
+								<td>"Save session &amp; close all" closes them too</td>
+								<td>Come back unpinned</td>
+							</tr>
+							<tr>
+								<td>Switch context (side panel, ⌘K)</td>
+								<td>Yes, but the pin isn't recorded</td>
+								<td>Never</td>
+								<td>
+									<strong>Bug:</strong> an unpinned duplicate of each pinned tab opens on every
+									switch back
+								</td>
+							</tr>
+							<tr>
+								<td>Close all tabs (Tabs page)</td>
+								<td>—</td>
+								<td>Yes</td>
+								<td>—</td>
+							</tr>
+							<tr>
+								<td>Park and auto-park</td>
+								<td>No</td>
+								<td>No</td>
+								<td>—</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="decisions" aria-labelledby="decisions-h">
+				<h2 id="decisions-h"><span class="num">9</span>Decisions</h2>
+				<h3>Decided</h3>
+				<ul class="decided">
+					<li>The top-level thing is called a <strong>Session</strong>; groups live inside sessions.</li>
+					<li><strong>One session open at a time</strong> for now; several later if you miss it.</li>
+					<li>
+						Auto-group <strong>groups in place</strong>, then you put groups away one by one. In v2,
+						putting a group away is <em>Stash</em>.
+					</li>
+					<li>
+						History gets a new version <strong>when you close or switch away</strong>, plus a manual
+						"Save version".
+					</li>
+					<li>
+						<strong>Unloaded tabs show their address</strong> until clicked; the group's name says
+						what's inside.
+					</li>
+					<li>
+						<strong>Pinned tabs are global</strong> for now: never saved, never closed by Papaya.
+						To revisit later.
+					</li>
+					<li>
+						<strong>Smart grouping escalates through three engines:</strong> by site always, the
+						on-device model when the machine supports it, your agent once the hub exists.
+					</li>
+				</ul>
+
+				<h3>Still open</h3>
+				<div class="question" id="q-switch">
+					<h3>A. What should switching to a group do by default?</h3>
+					<p>
+						This is the core move you described. Focus keeps everything open and just folds the
+						other groups up. Swap stashes the group you're leaving, so fewer tabs stay open.
+						<kbd>Shift</kbd> flips to the other one: <kbd>Shift</kbd>-click in the sidebar,
+						<kbd>Shift</kbd>+<kbd>Enter</kbd> in the palettes (<a href="#switching">the keys</a>).
+					</p>
+					<ol>
+						<li>Focus by default; <kbd>Shift</kbd> to swap<span class="rec">Recommended</span></li>
+						<li>Swap by default; <kbd>Shift</kbd> to just focus</li>
+					</ol>
+				</div>
+			</section>
+
+			<section id="phases" aria-labelledby="phases-h">
+				<h2 id="phases-h"><span class="num">10</span>Phases</h2>
+				<p class="prose">
+					Reordered so the features you asked for first come first. Phase 1 changes no stored data,
+					so it can ship before the migration.
+				</p>
+				<ol class="phases">
+					<li>
+						<span class="pn" aria-hidden="true">1</span>
+						<div>
+							<h3>Smart grouping and switching</h3>
+							<p class="needs">Needs nothing else. Uses Chrome tab groups only; no storage changes.</p>
+							<ul>
+								<li>Sidebar lists the open tab groups; click to focus.</li>
+								<li>
+									Smart group for loose tabs: by site plus the on-device engine, review list,
+									apply as tab groups.
+								</li>
+								<li>
+									"Go to group" in both palettes, plus Next / Previous group commands (keys you
+									pick).
+								</li>
+								<li>
+									Fixes: the parking count (counts 3 days, labelled 7) and the pinned duplicate
+									bug.
+								</li>
+							</ul>
+							<p class="done">
+								<b>Done when</b> your 547 tabs can be grouped in place and you can jump between
+								groups from the sidebar and the keyboard.
+							</p>
+						</div>
+					</li>
+					<li>
+						<span class="pn" aria-hidden="true">2</span>
+						<div>
+							<h3>Foundation and migration</h3>
+							<p class="needs">No visible change. Needed before anything is stored differently.</p>
+							<ul>
+								<li>Tests: Vitest with a fake <code>chrome</code>. The project has none today.</li>
+								<li>
+									One restore engine (about 330 duplicated lines today) and one session module.
+								</li>
+								<li>
+									The new data model, migrated from contexts and saved sessions with a rollback
+									copy and a dry run.
+								</li>
+							</ul>
+							<p class="done">
+								<b>Done when</b> the migration passes against a backup of your real data and the
+								current UI runs unchanged on top of it.
+							</p>
+						</div>
+					</li>
+					<li>
+						<span class="pn" aria-hidden="true">3</span>
+						<div>
+							<h3>Stash and the sidebar</h3>
+							<p class="needs">Needs phase 2.</p>
+							<ul>
+								<li>Stash and open groups, with unloaded opening.</li>
+								<li>Stashed list in the sidebar, Parked in it, Move to session.</li>
+								<li><kbd>⌘K</kbd> searches tabs inside stashed groups.</li>
+							</ul>
+							<p class="done">
+								<b>Done when</b> you can stash 11 groups, find them in the sidebar, and reopen one
+								in a click.
+							</p>
+						</div>
+					</li>
+					<li>
+						<span class="pn" aria-hidden="true">4</span>
+						<div>
+							<h3>Sessions and the past</h3>
+							<p class="needs">Needs phase 3.</p>
+							<ul>
+								<li>Switch sessions, Home, history versions.</li>
+								<li>
+									The Sessions page becomes the library: past sessions, their history, Switch to,
+									Rename, Archive, Download.
+								</li>
+								<li>The on-page palette gets the same commands.</li>
+							</ul>
+							<p class="done">
+								<b>Done when</b> you can put Home away, open an old saved session, and come back
+								with nothing lost.
+							</p>
+						</div>
+					</li>
+					<li class="later">
+						<span class="pn" aria-hidden="true">5</span>
+						<div>
+							<h3>Your agent and sync</h3>
+							<p class="needs">Separate plan. Builds on phase 2's data model and phase 1's engine slot.</p>
+							<ul>
+								<li>The tailnet hub on hl-mango: sync plus typed tools for pi, opencode and Claude Code.</li>
+								<li>The agent becomes the third grouping engine.</li>
+							</ul>
+						</div>
+					</li>
+				</ol>
+			</section>
+
+			<section id="data" aria-labelledby="data-h">
+				<h2 id="data-h"><span class="num">11</span>Data and migration</h2>
+				<p class="prose">
+					The rename happens before sync goes live, while there's no server copy to migrate. Key
+					fields only.
+				</p>
+				<div class="figure">
+					<div class="erd">
+						<div class="entity">
+							<h4>sessions</h4>
+							<ul>
+								<li><b>name</b>, color</li>
+								<li><b>kind</b>: home · normal</li>
+								<li><b>status</b>: open · closed · archived</li>
+								<li>lastOpenedAt, order</li>
+							</ul>
+							<p>One row has status open.</p>
+						</div>
+						<div class="entity">
+							<h4>groups</h4>
+							<ul>
+								<li><b>sessionId</b></li>
+								<li><b>name</b>, color, order</li>
+								<li><b>state</b>: open · stashed · archived</li>
+								<li>kind: normal · parked</li>
+							</ul>
+							<p>While open, linked to its Chrome tab group.</p>
+						</div>
+						<div class="entity">
+							<h4>tabs</h4>
+							<ul>
+								<li><b>groupId</b>, or sessionId when loose</li>
+								<li>url, title, icon</li>
+								<li>position, window</li>
+							</ul>
+							<p>Pinned tabs are never stored.</p>
+						</div>
+						<div class="entity">
+							<h4>versions</h4>
+							<ul>
+								<li><b>sessionId</b>, createdAt</li>
+								<li>reason: switch · close · manual</li>
+								<li>full copy: groups, tabs, windows</li>
+							</ul>
+							<p>Last 10 per session.</p>
+						</div>
+					</div>
+					<div class="truth">
+						<div><strong>Open groups and loose tabs:</strong> Chrome is the source of truth.</div>
+						<div><strong>Stashed groups:</strong> Papaya is the source of truth.</div>
+						<div><strong>Versions:</strong> Papaya, written on switch, close or "Save version".</div>
+					</div>
+				</div>
+
+				<h3>Migration, once, on update</h3>
+				<ol class="plain prose">
+					<li>
+						<strong>Rollback copy first.</strong> The full current data is saved before anything
+						changes. If a step fails, it's restored and the old UI keeps working.
+					</li>
+					<li>
+						<strong>What's open now becomes Home.</strong> If a context is active, that context
+						becomes the open session instead. Existing Chrome tab groups become open groups; the rest
+						are loose tabs.
+					</li>
+					<li>
+						<strong>Each context becomes a closed session.</strong> Its saved tab groups become
+						stashed groups; ungrouped tabs stay loose in that session. Its snapshots become history.
+					</li>
+					<li>
+						<strong>Each saved session becomes a closed session</strong> with one version, named
+						from its title or date. The duplicate copies the old code wrote are dropped.
+					</li>
+					<li>
+						<strong>A dry run reports all of this first</strong>, and the old saved-sessions list
+						stays read-only until you confirm the result.
+					</li>
+					<li>Backups export in the new format; importing an old backup runs the same migration.</li>
+				</ol>
+			</section>
+
+			<section id="risks" aria-labelledby="risks-h">
+				<h2 id="risks-h"><span class="num">12</span>Risks</h2>
+				<div class="table-wrap">
+					<table class="risk">
+						<thead>
+							<tr>
+								<th scope="col">Risk</th>
+								<th scope="col">Mitigation</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Migrating your real data (547 tabs plus every saved session)</td>
+								<td>Rollback copy, tests against your exported backup, dry run, old list kept until you confirm.</td>
+							</tr>
+							<tr>
+								<td>Re-linking open groups after Chrome restarts</td>
+								<td>
+									Chrome restores tab groups with new ids. Match them by name and color, then by
+									their tabs' addresses.
+								</td>
+							</tr>
+							<tr>
+								<td>On-device model not available on a machine</td>
+								<td>By-site grouping always works; the agent engine arrives with the hub.</td>
+							</tr>
+							<tr>
+								<td>Chrome tab group limits</td>
+								<td>
+									No nesting, pinned tabs can't be grouped, a group lives in one window. The model
+									only needs one level.
+								</td>
+							</tr>
+							<tr>
+								<td>Unloaded tabs show addresses, not titles</td>
+								<td>
+									Accepted for now. If it grates, the placeholder page or load-then-unload are the
+									fallbacks.
+								</td>
+							</tr>
+							<tr>
+								<td>Deleted items coming back once sync is on</td>
+								<td>Today's sync merge never deletes; the hub plan replaces it with TinyBase's own sync.</td>
+							</tr>
+							<tr>
+								<td>The on-page palette runs in the background worker</td>
+								<td>It can't touch the store directly, so every new action also goes through the op queue.</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<h3>Not in this plan</h3>
+				<ul class="plain prose">
+					<li>Several sessions open at once.</li>
+					<li>Sync, the tailnet hub and agent tools (phase 5, separate plan).</li>
+					<li>Sharing a session with someone else.</li>
+				</ul>
+			</section>
+		</main>
+	</body>
+</html>

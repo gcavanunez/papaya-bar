@@ -1,0 +1,13 @@
+{
+	"name": "server",
+	"private": true,
+	"type": "module",
+	"version": "0.1.0",
+	"scripts": {
+		"dev": "partykit dev",
+		"deploy": "export $(grep -v '^#' ../../.env.local | grep -v '^$' | xargs) && partykit deploy"
+	},
+	"dependencies": {
+		"partykit": "^0.0.115"
+	}
+}

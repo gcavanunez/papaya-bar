@@ -7,7 +7,13 @@ export default defineConfigWithVueTs(
 	vue.configs['flat/essential'],
 	vueTsConfigs.recommended,
 	{
-		ignores: ['node_modules', 'public', 'dist', 'tailwind.config.js', 'tailwind.config.cjs'],
+		ignores: [
+			'**/node_modules',
+			'**/public',
+			'**/dist',
+			'**/tailwind.config.js',
+			'**/tailwind.config.cjs',
+		],
 	},
 	{
 		rules: {

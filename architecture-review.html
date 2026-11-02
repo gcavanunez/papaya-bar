@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>Architecture review — papaya-bar</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script type="module">
+		import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+		mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+	</script>
+	<style>
+		.seam { stroke-dasharray: 4 4; }
+		.deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+		.mermaid { display: flex; justify-content: center; }
+		.mermaid svg { max-width: 100%; height: auto; }
+	</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans antialiased">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+	<!-- ================================================== header -->
+	<header class="space-y-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-3">
+			<h1 class="font-serif text-3xl font-semibold tracking-tight">Architecture review — <span class="text-indigo-700">papaya-bar</span></h1>
+			<p class="text-sm text-stone-500">apps/extension · 2026-07-16</p>
+		</div>
+		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-stone-600">
+			<span class="flex items-center gap-2"><span class="inline-block h-3 w-5 rounded-sm border border-slate-400 bg-white"></span> module</span>
+			<span class="flex items-center gap-2"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#64748b" stroke-width="2" class="seam"/></svg> seam</span>
+			<span class="flex items-center gap-2"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#dc2626" stroke-width="2.5"/></svg> leakage</span>
+			<span class="flex items-center gap-2"><span class="deep inline-block h-3 w-5 rounded-sm"></span> deep module</span>
+			<span class="ml-auto rounded-full bg-red-50 px-3 py-1 font-medium text-red-700 ring-1 ring-red-200">0 tests · 0 test tooling in the monorepo</span>
+		</div>
+	</header>
+
+	<section id="candidates" class="space-y-10">
+
+	<!-- ================================================== C1 -->
+	<article id="c1" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="font-serif text-xl font-semibold">1 · One seam for the browser: the tab workspace module</h2>
+			<span class="ml-auto rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold text-emerald-800">Strong</span>
+			<span class="rounded-full bg-stone-100 px-3 py-0.5 text-xs text-stone-600">ports &amp; adapters</span>
+		</div>
+		<p class="font-mono text-xs text-stone-500 leading-5">src/helpers.ts · src/hooks/useChromeTabs.ts · TabManager.vue · PopUp.vue · CommandPalette.vue · ContextPanel.vue · History.vue · Utilities.vue · useGlobalModals.ts</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">Before — no seam</p>
+				<pre class="mermaid">
+flowchart LR
+  TM[TabManager.vue] --> CH[(chrome.tabs / windows / tabGroups)]
+  PU[PopUp.vue] --> CH
+  CP[CommandPalette.vue] --> CH
+  CX[ContextPanel.vue] --> CH
+  HV[History / Utilities] --> CH
+  GM[useGlobalModals] --> CH
+  H[helpers.ts] --> CH
+  UCT[useChromeTabs] --> CH
+  linkStyle 0,1,2,3,4,5 stroke:#dc2626,stroke-width:2px;
+				</pre>
+				<p class="mt-2 text-xs text-stone-500">~42 direct chrome.* call sites outside the two modules that pretend to own the seam. Tab activation implemented 5 ways.</p>
+			</div>
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">After — one deep module</p>
+				<div class="relative flex h-[300px] flex-col items-center justify-center gap-3">
+					<div class="flex gap-2 text-[10px] uppercase tracking-wider text-stone-500">
+						<span class="rounded border border-slate-300 px-2 py-1">TabManager</span>
+						<span class="rounded border border-slate-300 px-2 py-1">PopUp</span>
+						<span class="rounded border border-slate-300 px-2 py-1">Palette</span>
+						<span class="rounded border border-slate-300 px-2 py-1">Panel</span>
+					</div>
+					<svg width="20" height="24"><line x1="10" y1="0" x2="10" y2="20" stroke="#64748b" stroke-width="2"/><polygon points="5,18 15,18 10,24" fill="#64748b"/></svg>
+					<div class="deep w-72 rounded-lg p-3 text-center text-white shadow-lg">
+						<p class="text-xs font-semibold uppercase tracking-wider">tab workspace</p>
+						<p class="mt-1 text-[10px] text-slate-300">query · activate · close+undo · pin · move · group</p>
+						<div class="mt-2 flex justify-center gap-1 opacity-40">
+							<span class="rounded border border-slate-500 px-1.5 py-0.5 text-[9px]">event coalescing</span>
+							<span class="rounded border border-slate-500 px-1.5 py-0.5 text-[9px]">history fetch</span>
+							<span class="rounded border border-slate-500 px-1.5 py-0.5 text-[9px]">stableId</span>
+						</div>
+					</div>
+					<svg width="120" height="24"><line x1="0" y1="12" x2="120" y2="12" stroke="#64748b" stroke-width="2" class="seam"/></svg>
+					<div class="flex gap-3 text-[10px] uppercase tracking-wider">
+						<span class="rounded border border-slate-300 bg-stone-50 px-2 py-1 text-stone-600">chrome.* adapter</span>
+						<span class="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-emerald-700">in-memory adapter (tests)</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="grid gap-4 text-sm md:grid-cols-2">
+			<div>
+				<p><span class="font-semibold">Problem</span> — the browser seam doesn't exist: chrome.* leaks into 9 caller files, and helpers.ts is shallow (its interface nearly matches its implementation — <code class="text-xs">closeTab</code> is <code class="text-xs">chrome.tabs.remove</code> plus a loop).</p>
+				<p class="mt-2"><span class="font-semibold">Solution</span> — one tab workspace module owning live tab state and every tab mutation; chrome.* becomes an adapter behind the seam, and full-requery-per-event becomes an implementation detail it can fix privately.</p>
+			</div>
+			<ul class="list-disc space-y-1 pl-5 text-stone-700">
+				<li>Leverage: one interface, 9 caller files</li>
+				<li>Locality: tab-mutation bugs in one module</li>
+				<li>The interface is the test surface</li>
+				<li>Second adapter already exists in spirit</li>
+				<li>Deletes 5 duplicate "activate tab" implementations</li>
+			</ul>
+		</div>
+		<div class="rounded-md bg-indigo-50 px-4 py-2 text-xs text-indigo-900 ring-1 ring-indigo-100">
+			Evidence the seam is real: rendering the UI outside Chrome already required a hand-written chrome shim (this session's visual tests). Two adapters — real chrome, in-memory fake — is exactly the "real seam" test.
+		</div>
+	</article>
+
+	<!-- ================================================== C2 -->
+	<article id="c2" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="font-serif text-xl font-semibold">2 · One restore engine: collapse the duplicated Session/Context restore</h2>
+			<span class="ml-auto rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold text-emerald-800">Strong</span>
+			<span class="rounded-full bg-stone-100 px-3 py-0.5 text-xs text-stone-600">in-process</span>
+		</div>
+		<p class="font-mono text-xs text-stone-500 leading-5">src/hooks/useSessionsData.ts (openAll, ~260 loc) · src/lib/swapEngine.ts (restoreContext) · src/hooks/useContexts.ts:50–107</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">Before — the algorithm exists twice</p>
+				<div class="flex h-[300px] items-center justify-center gap-6">
+					<div class="w-40 space-y-2">
+						<p class="text-center text-[10px] uppercase tracking-wider text-stone-500">UI swaps</p>
+						<div class="rounded border-2 border-red-300 bg-red-50 p-2">
+							<p class="text-[10px] font-semibold uppercase tracking-wider text-red-800">openAll()</p>
+							<p class="text-[9px] text-red-600">display fit · rect overlap · URL regroup</p>
+						</div>
+						<div class="rounded border-2 border-red-300 bg-red-50 p-2">
+							<p class="text-[10px] font-semibold uppercase tracking-wider text-red-800">useContexts 50–107</p>
+							<p class="text-[9px] text-red-600">capture helpers (verbatim copy)</p>
+						</div>
+					</div>
+					<svg width="40" height="120"><line x1="20" y1="10" x2="20" y2="110" stroke="#dc2626" stroke-width="2.5"/><text x="20" y="64" font-size="9" fill="#dc2626" text-anchor="middle" transform="rotate(90 20 64)">drift risk</text></svg>
+					<div class="w-40 space-y-2">
+						<p class="text-center text-[10px] uppercase tracking-wider text-stone-500">Background swaps</p>
+						<div class="rounded border-2 border-red-300 bg-red-50 p-2">
+							<p class="text-[10px] font-semibold uppercase tracking-wider text-red-800">restoreContext()</p>
+							<p class="text-[9px] text-red-600">same algorithm, "ported from openAll"</p>
+						</div>
+						<div class="rounded border-2 border-red-300 bg-red-50 p-2">
+							<p class="text-[10px] font-semibold uppercase tracking-wider text-red-800">swapEngine 28–80</p>
+							<p class="text-[9px] text-red-600">capture helpers (the original)</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">After — one deep module, two callers</p>
+				<div class="flex h-[300px] flex-col items-center justify-center gap-3">
+					<div class="flex gap-3 text-[10px] uppercase tracking-wider">
+						<span class="rounded border border-slate-300 px-2 py-1">Session restore (UI)</span>
+						<span class="rounded border border-slate-300 px-2 py-1">Context swap (worker)</span>
+					</div>
+					<svg width="20" height="24"><line x1="10" y1="0" x2="10" y2="20" stroke="#64748b" stroke-width="2"/><polygon points="5,18 15,18 10,24" fill="#64748b"/></svg>
+					<div class="deep w-72 rounded-lg p-3 text-center text-white shadow-lg">
+						<p class="text-xs font-semibold uppercase tracking-wider">restore engine</p>
+						<p class="mt-1 text-[10px] text-slate-300">capture live · close own-pages · restore windows/groups</p>
+						<div class="mt-2 flex justify-center gap-1 opacity-40">
+							<span class="rounded border border-slate-500 px-1.5 py-0.5 text-[9px]">display fit</span>
+							<span class="rounded border border-slate-500 px-1.5 py-0.5 text-[9px]">rect overlap</span>
+							<span class="rounded border border-slate-500 px-1.5 py-0.5 text-[9px]">URL regroup</span>
+						</div>
+					</div>
+					<p class="text-[10px] text-stone-400">−330 duplicated lines</p>
+				</div>
+			</div>
+		</div>
+
+		<div class="grid gap-4 text-sm md:grid-cols-2">
+			<div>
+				<p><span class="font-semibold">Problem</span> — the hairiest implementation in the app (window/display fitting, URL-keyed regrouping) is duplicated; UI Session restores run one copy, background Context swaps run the other, and the capture helpers are a line-for-line copy that doesn't even import its twin.</p>
+				<p class="mt-2"><span class="font-semibold">Solution</span> — deepen swapEngine into the single restore engine; <code class="text-xs">openAll</code> and useContexts delegate through its interface and the copies are deleted.</p>
+			</div>
+			<ul class="list-disc space-y-1 pl-5 text-stone-700">
+				<li>Deletion test passes: complexity concentrates</li>
+				<li>Locality: restore bugs fixed once</li>
+				<li>One interface to test (with C1's fake adapter)</li>
+				<li>Fixes land on both swap paths at once</li>
+			</ul>
+		</div>
+	</article>
+
+	<!-- ================================================== C3 -->
+	<article id="c3" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="font-serif text-xl font-semibold">3 · Sessions: one module, one write path</h2>
+			<span class="ml-auto rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold text-emerald-800">Strong</span>
+			<span class="rounded-full bg-stone-100 px-3 py-0.5 text-xs text-stone-600">local-substitutable</span>
+		</div>
+		<p class="font-mono text-xs text-stone-500 leading-5">src/hooks/useSessionsData.ts · src/sync/store.ts · src/utils/dataBackup.ts</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">Before — dual-write, half-bridged</p>
+				<pre class="mermaid">
+sequenceDiagram
+  participant UI as Tab Manager
+  participant M as legacy Map (storage.local)
+  participant T as TinyBase sessions
+  UI->>M: storeSession (id = date string)
+  UI->>T: createSession (id = uuid)
+  Note over M,T: two copies, unlinked IDs
+  UI->>M: removeSavedSession
+  Note over T: delete never bridged ⚠
+				</pre>
+			</div>
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">After — one interface, storage as adapters</p>
+				<div class="flex h-[300px] flex-col items-center justify-center gap-3">
+					<div class="flex gap-2 text-[10px] uppercase tracking-wider">
+						<span class="rounded border border-slate-300 px-2 py-1">Tab Manager</span>
+						<span class="rounded border border-slate-300 px-2 py-1">Sessions view</span>
+						<span class="rounded border border-slate-300 px-2 py-1">Backup</span>
+					</div>
+					<svg width="20" height="24"><line x1="10" y1="0" x2="10" y2="20" stroke="#64748b" stroke-width="2"/><polygon points="5,18 15,18 10,24" fill="#64748b"/></svg>
+					<div class="deep w-64 rounded-lg p-3 text-center text-white shadow-lg">
+						<p class="text-xs font-semibold uppercase tracking-wider">sessions</p>
+						<p class="mt-1 text-[10px] text-slate-300">save · list · delete · restore</p>
+					</div>
+					<svg width="120" height="24"><line x1="0" y1="12" x2="120" y2="12" stroke="#64748b" stroke-width="2" class="seam"/></svg>
+					<div class="flex gap-3 text-[10px] uppercase tracking-wider">
+						<span class="rounded border border-slate-300 bg-stone-50 px-2 py-1 text-stone-600">TinyBase (canonical)</span>
+						<span class="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-700">legacy Map (read-only migration)</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="grid gap-4 text-sm md:grid-cols-2">
+			<div>
+				<p><span class="font-semibold">Problem</span> — a Session lives in two stores with unlinked IDs; saves write both, deletes touch one. The migration path even reads <code class="text-xs">localStorage</code> while the live path writes <code class="text-xs">chrome.storage.local</code> — the seams have drifted apart.</p>
+				<p class="mt-2"><span class="font-semibold">Solution</span> — a Sessions module with one interface; TinyBase becomes the canonical adapter, the legacy Map demotes to a read-only migration adapter and then gets deleted.</p>
+			</div>
+			<ul class="list-disc space-y-1 pl-5 text-stone-700">
+				<li>Kills a data-integrity bug class</li>
+				<li>Locality: persistence knowledge in one module</li>
+				<li>Two adapters justify the seam (canonical + migration)</li>
+				<li>Also deletes 5 dead store.ts exports en route</li>
+			</ul>
+		</div>
+	</article>
+
+	<!-- ================================================== C4 -->
+	<article id="c4" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="font-serif text-xl font-semibold">4 · The Mirror protocol: give the worker seam a single owner</h2>
+			<span class="ml-auto rounded-full bg-amber-100 px-3 py-0.5 text-xs font-semibold text-amber-800">Worth exploring</span>
+			<span class="rounded-full bg-stone-100 px-3 py-0.5 text-xs text-stone-600">ports &amp; adapters</span>
+		</div>
+		<p class="font-mono text-xs text-stone-500 leading-5">src/lib/contextBridge.ts · background.js · src/content/index.ts · src/hooks/useContexts.ts</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">Before — protocol knowledge in 4 files</p>
+				<div class="flex h-[300px] flex-col justify-center gap-1.5">
+					<div class="flex h-12 items-center gap-3 border-l-4 border-red-400 bg-red-50 px-3">
+						<span class="text-[10px] font-semibold uppercase tracking-wider text-red-800 w-28">contextBridge.ts</span>
+						<span class="text-[10px] text-red-700">types + keys (canonical)</span>
+					</div>
+					<div class="flex h-12 items-center gap-3 border-l-4 border-red-400 bg-red-50 px-3">
+						<span class="text-[10px] font-semibold uppercase tracking-wider text-red-800 w-28">background.js</span>
+						<span class="text-[10px] text-red-700">re-declared keys · untyped op literals · mirror shape by convention</span>
+					</div>
+					<div class="flex h-12 items-center gap-3 border-l-4 border-red-400 bg-red-50 px-3">
+						<span class="text-[10px] font-semibold uppercase tracking-wider text-red-800 w-28">content/index.ts</span>
+						<span class="text-[10px] text-red-700">re-declared Model shape · message strings</span>
+					</div>
+					<div class="flex h-12 items-center gap-3 border-l-4 border-red-400 bg-red-50 px-3">
+						<span class="text-[10px] font-semibold uppercase tracking-wider text-red-800 w-28">useContexts.ts</span>
+						<span class="text-[10px] text-red-700">op-queue drain semantics · parkQueue (third untyped key)</span>
+					</div>
+				</div>
+			</div>
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">After — one protocol module, two adapters</p>
+				<div class="flex h-[300px] flex-col items-center justify-center gap-3">
+					<div class="deep w-72 rounded-lg p-3 text-center text-white shadow-lg">
+						<p class="text-xs font-semibold uppercase tracking-wider">context bridge</p>
+						<p class="mt-1 text-[10px] text-slate-300">Mirror + StoreOp + parkQueue: encode · decode · enqueue · drain</p>
+					</div>
+					<svg width="120" height="24"><line x1="0" y1="12" x2="120" y2="12" stroke="#64748b" stroke-width="2" class="seam"/></svg>
+					<div class="flex gap-3 text-[10px] uppercase tracking-wider">
+						<span class="rounded border border-slate-300 bg-stone-50 px-2 py-1 text-stone-600">page adapter (TinyBase)</span>
+						<span class="rounded border border-slate-300 bg-stone-50 px-2 py-1 text-stone-600">worker adapter (storage.local)</span>
+					</div>
+					<p class="max-w-xs text-center text-[10px] text-stone-400">background becomes TS (or imports a built protocol module) so ops are constructed through the interface, not by string convention</p>
+				</div>
+			</div>
+		</div>
+
+		<div class="grid gap-4 text-sm md:grid-cols-2">
+			<div>
+				<p><span class="font-semibold">Problem</span> — the page↔worker seam is real (two runtimes, one storage key), but its interface is folklore: background.js builds StoreOps as untyped literals against a TypeScript type it cannot import; a shape change breaks silently at runtime.</p>
+				<p class="mt-2"><span class="font-semibold">Solution</span> — deepen contextBridge into the protocol's single owner; both runtimes consume it as adapters at the seam.</p>
+			</div>
+			<ul class="list-disc space-y-1 pl-5 text-stone-700">
+				<li>Locality: protocol changes in one module</li>
+				<li>Type safety crosses the worker seam</li>
+				<li>Two adapters — the seam is already real</li>
+				<li>Protocol becomes testable round-trip</li>
+			</ul>
+		</div>
+	</article>
+
+	<!-- ================================================== C5 -->
+	<article id="c5" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="font-serif text-xl font-semibold">5 · Internal seams for the Tab Manager: extract the tab query pipeline</h2>
+			<span class="ml-auto rounded-full bg-amber-100 px-3 py-0.5 text-xs font-semibold text-amber-800">Worth exploring</span>
+			<span class="rounded-full bg-stone-100 px-3 py-0.5 text-xs text-stone-600">in-process</span>
+		</div>
+		<p class="font-mono text-xs text-stone-500 leading-5">src/components/TabManager.vue (~2,300 loc)</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">Before — mass diagram: one implementation, no internal seams</p>
+				<div class="flex h-[300px] items-end justify-center gap-10 pb-6">
+					<div class="flex flex-col items-center gap-1">
+						<div class="w-24 rounded-t border border-slate-400 bg-white py-2 text-center text-[10px] uppercase tracking-wider">interface<br/>(5 props)</div>
+						<div class="w-24 h-52 rounded-b border border-slate-400 bg-slate-200 relative overflow-hidden">
+							<div class="absolute inset-x-0 top-0 h-full flex flex-col text-[8px] text-slate-500">
+								<span class="flex-1 border-b border-dashed border-red-300 grid place-items-center">query pipeline</span>
+								<span class="flex-1 border-b border-dashed border-red-300 grid place-items-center">cursor + visual</span>
+								<span class="flex-1 border-b border-dashed border-red-300 grid place-items-center">keymap bindings</span>
+								<span class="flex-1 border-b border-dashed border-red-300 grid place-items-center">virtualizer</span>
+								<span class="flex-1 grid place-items-center">actions + template</span>
+							</div>
+						</div>
+						<p class="text-[10px] text-stone-500">only testable by mounting everything</p>
+					</div>
+				</div>
+			</div>
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">After — same external interface, testable internals</p>
+				<div class="flex h-[300px] items-end justify-center gap-6 pb-6">
+					<div class="flex flex-col items-center gap-1">
+						<div class="w-24 rounded-t border border-slate-400 bg-white py-2 text-center text-[10px] uppercase tracking-wider">interface<br/>(5 props)</div>
+						<div class="w-24 h-32 rounded-b border border-slate-400 bg-slate-100 grid place-items-center text-[9px] text-slate-500">template + wiring</div>
+					</div>
+					<div class="flex flex-col items-center gap-1">
+						<div class="deep w-28 rounded p-2 text-center text-white">
+							<p class="text-[10px] font-semibold uppercase tracking-wider">tab query</p>
+							<p class="text-[8px] text-slate-300">(tabs, category, search, filters) → grouped/flat</p>
+						</div>
+						<div class="deep w-28 rounded p-2 text-center text-white">
+							<p class="text-[10px] font-semibold uppercase tracking-wider">cursor + selection</p>
+							<p class="text-[8px] text-slate-300">move · visual range · targets(count)</p>
+						</div>
+						<p class="text-[10px] text-emerald-700">pure interfaces → plain unit tests</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="grid gap-4 text-sm md:grid-cols-2">
+			<div>
+				<p><span class="font-semibold">Problem</span> — the derivation pipeline (domain grouping → history window → search + filters → flat order) and the cursor/visual model are pure logic trapped inside one 2,300-line implementation; every bug fix is verified by hand.</p>
+				<p class="mt-2"><span class="font-semibold">Solution</span> — keep the component's external interface; give the implementation two internal seams: a tab query module and a cursor + selection module.</p>
+			</div>
+			<ul class="list-disc space-y-1 pl-5 text-stone-700">
+				<li>Pure interface = trivial tests (dedupe, presets, counts)</li>
+				<li>Keymap bindings bind to modules, not refs</li>
+				<li>Locality: filter bugs stop hiding in the template</li>
+				<li>Matches tech-debt-todos item 11</li>
+			</ul>
+		</div>
+	</article>
+
+	<!-- ================================================== C6 -->
+	<article id="c6" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="font-serif text-xl font-semibold">6 · One Palette definition, three surfaces</h2>
+			<span class="ml-auto rounded-full bg-slate-200 px-3 py-0.5 text-xs font-semibold text-slate-700">Speculative</span>
+			<span class="rounded-full bg-stone-100 px-3 py-0.5 text-xs text-stone-600">in-process</span>
+		</div>
+		<p class="font-mono text-xs text-stone-500 leading-5">src/content/index.ts · src/components/CommandPalette.vue · background.js</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">Before</p>
+				<pre class="mermaid">
+flowchart TD
+  subgraph V["CommandPalette.vue"]
+    a1[commands list] --- a2[color map] --- a3[slice rules]
+  end
+  subgraph C["content/index.ts (⌥K overlay)"]
+    b1[commands list] --- b2[color map] --- b3[slice rules]
+  end
+  V -. same prompt string,<br/>same commands, third<br/>color representation .- C
+  linkStyle 4 stroke:#dc2626,stroke-width:2px;
+				</pre>
+			</div>
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<p class="mb-2 text-xs uppercase tracking-wider text-stone-400">After</p>
+				<div class="flex h-[300px] flex-col items-center justify-center gap-3">
+					<div class="deep w-64 rounded-lg p-3 text-center text-white shadow-lg">
+						<p class="text-xs font-semibold uppercase tracking-wider">palette definition</p>
+						<p class="mt-1 text-[10px] text-slate-300">commands · colors · ranking/slice rules (data, no DOM)</p>
+					</div>
+					<svg width="120" height="24"><line x1="0" y1="12" x2="120" y2="12" stroke="#64748b" stroke-width="2" class="seam"/></svg>
+					<div class="flex gap-3 text-[10px] uppercase tracking-wider">
+						<span class="rounded border border-slate-300 bg-stone-50 px-2 py-1 text-stone-600">Vue renderer (⌘K)</span>
+						<span class="rounded border border-slate-300 bg-stone-50 px-2 py-1 text-stone-600">Shadow-DOM renderer (⌥K)</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="grid gap-4 text-sm md:grid-cols-2">
+			<div>
+				<p><span class="font-semibold">Problem</span> — the Palette exists twice (Vue dialog and shadow-DOM overlay) with the same commands, the same prompt strings, and a third representation of Context colors; content/index.ts is deliberately zero-import, but it is Vite-bundled, so importing pure data costs nothing.</p>
+				<p class="mt-2"><span class="font-semibold">Solution</span> — a palette definition module (pure data + ranking); both surfaces become renderers over it.</p>
+			</div>
+			<ul class="list-disc space-y-1 pl-5 text-stone-700">
+				<li>Commands stop drifting between surfaces</li>
+				<li>Speculative: renderers differ more than they share</li>
+				<li>Do after C4 — same files, one motion</li>
+			</ul>
+		</div>
+	</article>
+
+	</section>
+
+	<!-- ================================================== top recommendation -->
+	<section id="top-recommendation" class="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-8 space-y-3">
+		<p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Top recommendation</p>
+		<h2 class="font-serif text-2xl font-semibold"><a href="#c1" class="hover:underline">1 · The tab workspace module</a></h2>
+		<p class="max-w-3xl text-sm text-stone-700">
+			It's the enabling seam for everything else in a repo with zero tests: the in-memory adapter it creates is the same one candidates 2, 3, and 5 need to become testable, and the shim we hand-wrote just to render the UI proves the second adapter is real demand, not speculation. Sequence: <span class="font-semibold">1 → 2 → 3</span>; 5 rides along once 1 exists; 4 and 6 together as a later motion.
+		</p>
+	</section>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Papaya Bar — The Vim Layer, Explained</title>
+
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script type="module">
+		import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+		mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+	</script>
+
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+		rel="stylesheet"
+	/>
+
+	<script>
+		tailwind.config = {
+			theme: {
+				extend: {
+					colors: {
+						ink: '#14120f',
+						panel: '#1c1915',
+						panel2: '#211d18',
+						line: '#2e2a23',
+						fg: '#d9d2c5',
+						mute: '#8a8172',
+						papaya: '#ffd96e',
+						ember: '#ff5d26',
+						normal: '#7aa2f7',
+						visual: '#e0af68',
+						search: '#9ece6a',
+						paper: '#f4efe4',
+					},
+					fontFamily: {
+						mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+						disp: ['Fraunces', 'Georgia', 'serif'],
+					},
+				},
+			},
+		}
+	</script>
+
+	<style>
+		html { scroll-behavior: auto; }
+		body {
+			background-color: #14120f;
+			background-image:
+				radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 217, 110, 0.07), transparent),
+				url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+		}
+		::selection { background: #ffd96e; color: #14120f; }
+		kbd {
+			font-family: "IBM Plex Mono", monospace;
+			font-size: 0.72rem;
+			line-height: 1;
+			padding: 0.22rem 0.4rem;
+			border: 1px solid #3a352c;
+			border-bottom-width: 2px;
+			border-radius: 0.3rem;
+			background: #211d18;
+			color: #ffd96e;
+			white-space: nowrap;
+		}
+		.gutter { counter-reset: line; }
+		.gutter > span { display: block; counter-increment: line; }
+		.gutter > span::before {
+			content: counter(line);
+			display: inline-block;
+			width: 2.2rem;
+			margin-right: 1.1rem;
+			text-align: right;
+			color: #4d463a;
+			user-select: none;
+		}
+		.tok-k { color: #ff5d26; }          /* keyword */
+		.tok-s { color: #9ece6a; }          /* string */
+		.tok-f { color: #7aa2f7; }          /* fn/prop */
+		.tok-c { color: #6b6355; font-style: italic; } /* comment */
+		.tok-y { color: #ffd96e; }          /* emphasis */
+		.mermaid { display: flex; justify-content: center; }
+		.mermaid svg { max-width: 100%; height: auto; }
+		.crt { position: relative; }
+		.crt::after {
+			content: ""; position: absolute; inset: 0; pointer-events: none;
+			background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,0.12) 3px 4px);
+			border-radius: inherit;
+		}
+		.hr-tilde { color: #4d463a; letter-spacing: 0.4em; }
+		@keyframes blink { 0%, 55% { opacity: 1 } 56%, 100% { opacity: 0 } }
+		.caret { animation: blink 1.1s steps(1) infinite; }
+		@keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+		.rise { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+	</style>
+</head>
+
+<body class="font-mono text-fg antialiased pb-24">
+
+	<!-- ======================================================= buffer tabline -->
+	<div class="sticky top-0 z-40 border-b border-line bg-ink/95 backdrop-blur">
+		<div class="mx-auto flex max-w-6xl items-center gap-0 overflow-x-auto px-4 text-[11px]">
+			<div class="flex items-center gap-2 border-r border-line bg-panel px-4 py-2 text-papaya">
+				<span class="h-2 w-2 rounded-full bg-ember"></span>
+				docs/keymap-architecture.html
+			</div>
+			<a href="#idea"     class="px-4 py-2 text-mute hover:text-fg">:idea</a>
+			<a href="#wiring"   class="px-4 py-2 text-mute hover:text-fg">:wiring</a>
+			<a href="#pipeline" class="px-4 py-2 text-mute hover:text-fg">:pipeline</a>
+			<a href="#modes"    class="px-4 py-2 text-mute hover:text-fg">:modes</a>
+			<a href="#binding"  class="px-4 py-2 text-mute hover:text-fg">:binding</a>
+			<a href="#keys"     class="px-4 py-2 text-mute hover:text-fg">:keys</a>
+			<a href="#files"    class="px-4 py-2 text-mute hover:text-fg">:files</a>
+		</div>
+	</div>
+
+	<!-- ======================================================= hero -->
+	<header class="mx-auto max-w-6xl px-4 pt-16 pb-12 sm:px-6">
+		<p class="rise text-xs tracking-[0.3em] text-ember uppercase">Papaya Bar · Tab Manager · architecture note</p>
+		<h1 class="rise mt-5 font-disp text-5xl leading-[1.02] font-semibold tracking-tight text-fg sm:text-7xl" style="animation-delay:.06s">
+			One keydown listener.<br />
+			<span class="text-papaya italic">The whole vim layer.</span>
+		</h1>
+		<p class="rise mt-6 max-w-2xl text-sm leading-7 text-mute" style="animation-delay:.12s">
+			The tab manager's keyboard UX — sequences like <kbd>dd</kbd> and <kbd>gg</kbd>, counts like
+			<kbd>3j</kbd>, visual mode, which-key hints, the <kbd>?</kbd> cheat sheet and the statusline —
+			all hangs off <span class="text-fg">a single declarative binding table</span> dispatched by
+			<span class="text-fg">one window-level keydown listener</span>. No hotkey library. Zero new dependencies.
+		</p>
+
+		<div class="rise mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-4" style="animation-delay:.18s">
+			<div class="bg-panel p-5"><p class="font-disp text-4xl text-papaya">1</p><p class="mt-1 text-[11px] text-mute">keydown listener<br/>(window, bubble phase)</p></div>
+			<div class="bg-panel p-5"><p class="font-disp text-4xl text-papaya">54</p><p class="mt-1 text-[11px] text-mute">bindings in one table<br/>(incl. hidden aliases)</p></div>
+			<div class="bg-panel p-5"><p class="font-disp text-4xl text-papaya">3</p><p class="mt-1 text-[11px] text-mute">modes — normal, visual,<br/>search (all derived)</p></div>
+			<div class="bg-panel p-5"><p class="font-disp text-4xl text-papaya">4</p><p class="mt-1 text-[11px] text-mute">consumers of that table:<br/>dispatch · which-key · help · statusline</p></div>
+		</div>
+
+		<p class="rise mt-6 text-[11px] text-mute" style="animation-delay:.24s">
+			▸ this page runs a miniature of the engine — try <kbd>j</kbd> <kbd>k</kbd> <kbd>d</kbd> <kbd>u</kbd> <kbd>gg</kbd> <kbd>G</kbd> <kbd>3j</kbd> <kbd>?</kbd> — watch the statusline below.
+		</p>
+	</header>
+
+	<div class="hr-tilde mx-auto max-w-6xl px-6 text-sm select-none">~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~</div>
+
+	<!-- ======================================================= 01 the idea -->
+	<section id="idea" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="grid gap-10 lg:grid-cols-[240px_1fr]">
+			<div>
+				<p class="text-[11px] text-ember">// 01</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">The single<br/>source of truth</h2>
+			</div>
+			<div class="space-y-6">
+				<p class="max-w-2xl text-sm leading-7 text-mute">
+					Every shortcut is a plain object in <span class="text-papaya">TabManager.vue</span> —
+					keys, modes, description, group, and a <span class="text-fg">run()</span> closure over the
+					component's own actions. Because the table is data, everything that needs to <em>know</em>
+					about shortcuts reads the same array. Add one entry and it shows up in the help overlay,
+					the which-key popup, and the dispatcher simultaneously. Nothing can drift.
+				</p>
+
+				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="crt rounded-lg border border-line bg-panel p-5">
+						<p class="text-[11px] tracking-widest text-normal uppercase">consumes it → dispatch</p>
+						<p class="mt-2 text-xs leading-6 text-mute"><span class="text-fg">useKeymap.ts</span> matches incoming key tokens against <code class="text-papaya">binding.keys</code> and fires <code class="text-papaya">run({ count })</code>.</p>
+					</div>
+					<div class="crt rounded-lg border border-line bg-panel p-5">
+						<p class="text-[11px] tracking-widest text-visual uppercase">consumes it → which-key</p>
+						<p class="mt-2 text-xs leading-6 text-mute">Pending prefix (<kbd>m</kbd>…) filters the table for completions: <kbd>w</kbd> new window, <kbd>g</kbd> new group.</p>
+					</div>
+					<div class="crt rounded-lg border border-line bg-panel p-5">
+						<p class="text-[11px] tracking-widest text-search uppercase">consumes it → help overlay</p>
+						<p class="mt-2 text-xs leading-6 text-mute"><span class="text-fg">KeymapHelpOverlay.vue</span> groups visible bindings by <code class="text-papaya">group</code> and renders the <kbd>?</kbd> cheat sheet.</p>
+					</div>
+					<div class="crt rounded-lg border border-line bg-panel p-5">
+						<p class="text-[11px] tracking-widest text-ember uppercase">reflects it → statusline</p>
+						<p class="mt-2 text-xs leading-6 text-mute"><span class="text-fg">TabManagerStatusline.vue</span> shows mode, pending keys (<code class="text-papaya">3d</code>), cursor <code class="text-papaya">12/148</code>, selection count.</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ======================================================= 02 wiring -->
+	<section id="wiring" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="grid gap-10 lg:grid-cols-[240px_1fr]">
+			<div>
+				<p class="text-[11px] text-ember">// 02</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">How it's<br/>hooked up</h2>
+				<p class="mt-4 text-xs leading-6 text-mute">
+					Data flows in a loop: the component owns state and actions, the engine owns key
+					grammar. Neither imports the other's internals — they meet at two function props:
+					<code class="text-papaya">mode()</code> and <code class="text-papaya">bindings()</code>.
+				</p>
+			</div>
+			<div class="rounded-xl border border-line bg-paper p-6">
+				<pre class="mermaid">
+flowchart LR
+  KEY(["window 'keydown'"]) --> KM
+
+  subgraph ENGINE["useKeymap.ts — the engine"]
+    KM["token · guards · counts<br/>sequence buffer · chord timer"]
+  end
+
+  subgraph TM["TabManager.vue — owns state and actions"]
+    B["bindings[] · 54 entries<br/>(single source of truth)"]
+    ST["cursorIndex · visualAnchor<br/>tabsSelected · searchTerm"]
+    ACT["moveCursor · closeTargets · togglePin<br/>selectSameDomain · saveTargets …"]
+  end
+
+  subgraph UI["presentational"]
+    SL["TabManagerStatusline.vue<br/>mode · pending · which-key · 12/148"]
+    HO["KeymapHelpOverlay.vue<br/>? cheat sheet"]
+    LV["virtualized list · TabRow is-cursor<br/>@tanstack/vue-virtual"]
+  end
+
+  H["helpers.ts<br/>closeTab · pinTabs · undoCloseTabs"]
+  CH[("chrome.tabs · chrome.windows<br/>chrome.sessions · chrome.tabGroups")]
+
+  TM -- "mode() + bindings()" --> KM
+  KM -- "run({ count })" --> ACT
+  ACT --> ST
+  KM -- "pendingDisplay · whichKey" --> SL
+  B --> HO
+  ST --> LV
+  ACT --> H --> CH
+  CH -- "onUpdated / onRemoved → re-query" --> ST
+				</pre>
+				<p class="mt-4 text-[11px] leading-5 text-neutral-500">
+					The loop closes through Chrome itself: actions mutate real tabs → <span class="font-semibold">useChromeTabs</span>
+					re-queries on tab events → <span class="font-semibold">flatTabs</span> recomputes → cursor clamps → UI settles.
+					No optimistic state to reconcile.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- ======================================================= 03 pipeline -->
+	<section id="pipeline" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="grid gap-10 lg:grid-cols-[240px_1fr]">
+			<div>
+				<p class="text-[11px] text-ember">// 03</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">Life of a<br/>keystroke</h2>
+				<p class="mt-4 text-xs leading-6 text-mute">
+					Guards first, grammar second. The engine refuses to fight menus, dialogs, text
+					fields or focused buttons — then parses count → sequence → resolution.
+				</p>
+				<div class="mt-6 space-y-3 text-xs leading-6 text-mute">
+					<p><span class="text-papaya">dead-end swallow</span> — a key that breaks a pending sequence is consumed, vim-style, not leaked to the page.</p>
+					<p><span class="text-papaya">chord timer</span> — exact match with longer candidates (none today, by design) waits 450&nbsp;ms, then falls back.</p>
+					<p><span class="text-papaya">repeat gate</span> — held keys only auto-fire bindings marked <code>repeat: true</code> (navigation). A held <kbd>d</kbd> can never machine-gun <kbd>dd</kbd>.</p>
+				</div>
+			</div>
+			<div class="rounded-xl border border-line bg-paper p-6">
+				<pre class="mermaid">
+flowchart TD
+  A(["keydown e"]) --> G1{"inside menu /<br/>listbox / dialog?"}
+  G1 -- yes --> X1["reset · return<br/><i>Headless UI owns it</i>"]
+  G1 -- no --> G2{"typing in an input<br/>and mode ≠ search?"}
+  G2 -- yes --> X1
+  G2 -- no --> T["eventToToken(e)<br/>'j' · 'G' · 'ctrl+d' · 'shift+delete'"]
+  T --> G3{"Enter/Space on a<br/>focused button or checkbox?"}
+  G3 -- yes --> X2["return — native<br/>activation wins"]
+  G3 -- no --> R{"e.repeat?"}
+  R -- "yes, binding has repeat:true" --> F
+  R -- "yes, anything else bound" --> X3["swallow —<br/>no held-key dd"]
+  R -- no --> E{"Escape with<br/>pending keys?"}
+  E -- yes --> X4["abort sequence"]
+  E -- no --> C{"digit, no pending?"}
+  C -- yes --> CB["countBuffer += digit<br/>('3' … waiting)"]
+  C -- no --> M{"match attempted tokens<br/>against bindings for mode"}
+  M -- "no candidates" --> D["dead end: reset<br/>(swallow if mid-sequence)"]
+  M -- "prefix only ('d', 'g', 'm')" --> P["buffer it → statusline shows pending<br/>→ which-key lists completions"]
+  M -- "exact + longer exist" --> W["arm 450ms chord timer<br/>fire exact on expiry"]
+  M -- "exact only" --> F["fire(binding)<br/>run({ count: countBuffer or 1 })"]
+				</pre>
+			</div>
+		</div>
+	</section>
+
+	<!-- ======================================================= 04 modes -->
+	<section id="modes" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="grid gap-10 lg:grid-cols-[240px_1fr]">
+			<div>
+				<p class="text-[11px] text-ember">// 04</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">Modes are<br/>derived, never<br/>stored</h2>
+				<p class="mt-4 text-xs leading-6 text-mute">
+					There is no <code>mode</code> ref to desync. Mode is a computed over two facts that
+					already exist: <em>is the search input focused?</em> and <em>is a visual anchor set?</em>
+					Focus the input by any means — click, <kbd>/</kbd>, autofocus — and you are in SEARCH.
+					Blur and you are out. Impossible states are unrepresentable.
+				</p>
+				<div class="mt-6 overflow-x-auto rounded-lg border border-line bg-panel p-4 text-xs leading-6">
+					<div class="gutter min-w-max whitespace-nowrap text-fg">
+<span><span class="tok-k">const</span> keymapMode = <span class="tok-f">computed</span>&lt;KeymapMode&gt;(() =&gt; {</span>
+<span>  <span class="tok-k">if</span> (isInputFocused.value) <span class="tok-k">return</span> <span class="tok-s">'search'</span></span>
+<span>  <span class="tok-k">if</span> (visualAnchor.value !== <span class="tok-k">null</span>) <span class="tok-k">return</span> <span class="tok-s">'visual'</span></span>
+<span>  <span class="tok-k">return</span> <span class="tok-s">'normal'</span></span>
+<span>})</span>
+					</div>
+				</div>
+			</div>
+			<div class="space-y-6">
+				<div class="rounded-xl border border-line bg-paper p-6">
+					<pre class="mermaid">
+stateDiagram-v2
+  direction LR
+  [*] --> SEARCH : page load (autofocus)
+  NORMAL --> SEARCH : "/" focuses input
+  SEARCH --> NORMAL : Esc (keep filter) · Enter opens highlighted
+  NORMAL --> VISUAL : v — anchor = cursorIndex
+  VISUAL --> NORMAL : v / action (keep range) · Esc (restore prior selection)
+
+  note right of SEARCH
+    isInputFocused === true
+    ctrl-j/k still move the cursor
+  end note
+  note right of VISUAL
+    j/k re-derive selection as
+    preVisual ∪ [anchor..cursor]
+  end note
+					</pre>
+				</div>
+				<div class="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3 text-xs">
+					<div class="bg-panel p-4">
+						<span class="rounded bg-normal/15 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-normal">NORMAL</span>
+						<p class="mt-3 leading-6 text-mute">Full grammar live: motions, counts, operators, <kbd>Esc</kbd> is progressive — selection → search filter.</p>
+					</div>
+					<div class="bg-panel p-4">
+						<span class="rounded bg-visual/15 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-visual">VISUAL</span>
+						<p class="mt-3 leading-6 text-mute">Anchor + cursor define a range. <kbd>d</kbd> closes it, <kbd>y</kbd> copies it, both exit the mode.</p>
+					</div>
+					<div class="bg-panel p-4">
+						<span class="rounded bg-search/15 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-search">SEARCH</span>
+						<p class="mt-3 leading-6 text-mute">Letters type into the filter; only explicit search-mode bindings (<kbd>Ctrl-j</kbd>, <kbd>Enter</kbd>, <kbd>Esc</kbd>) intercept.</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ======================================================= 05 binding anatomy -->
+	<section id="binding" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="grid gap-10 lg:grid-cols-[240px_1fr]">
+			<div>
+				<p class="text-[11px] text-ember">// 05</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">Anatomy of<br/>a binding</h2>
+				<p class="mt-4 text-xs leading-6 text-mute">
+					<code class="text-papaya">targetTabs(count)</code> encodes the vim philosophy in one
+					function: an explicit selection always wins; otherwise the operator acts on
+					<em>count</em> rows from the cursor. So <kbd>dd</kbd> closes one tab, <kbd>3dd</kbd>
+					closes three, and with tabs selected the same keys close the selection.
+				</p>
+				<p class="mt-4 text-xs leading-6 text-mute">
+					Destructive actions are wrapped in an undo toast backed by
+					<code class="text-papaya">chrome.sessions.restore()</code> — press <kbd>u</kbd>
+					or click Undo. Fearless <kbd>dd</kbd> is the point.
+				</p>
+			</div>
+			<div class="crt overflow-x-auto rounded-xl border border-line bg-panel p-6 text-xs leading-7">
+				<div class="gutter min-w-max text-fg">
+<span><span class="tok-c">// TabManager.vue — one entry from the table</span></span>
+<span>{</span>
+<span>  <span class="tok-f">id</span>: <span class="tok-s">'action-close'</span>,</span>
+<span>  <span class="tok-f">keys</span>: <span class="tok-s">'d d'</span>,              <span class="tok-c">// space-separated sequence → dd</span></span>
+<span>  <span class="tok-f">modes</span>: [<span class="tok-s">'normal'</span>],       <span class="tok-c">// visual mode binds bare 'd' instead</span></span>
+<span>  <span class="tok-f">group</span>: <span class="tok-s">'Actions'</span>,        <span class="tok-c">// section in the ? overlay</span></span>
+<span>  <span class="tok-f">description</span>: <span class="tok-s">'Close tab / selection'</span>,</span>
+<span>  <span class="tok-f">run</span>: ({ <span class="tok-y">count</span> }) =&gt; <span class="tok-f">closeTargets</span>(<span class="tok-y">count</span>),  <span class="tok-c">// 3dd → count = 3</span></span>
+<span>},</span>
+<span></span>
+<span><span class="tok-c">// selection-aware targeting — the whole trick</span></span>
+<span><span class="tok-k">const</span> <span class="tok-f">targetTabs</span> = (<span class="tok-y">count</span> = 1): Tab[] =&gt; {</span>
+<span>  <span class="tok-k">if</span> (tabsSelected.value.size &gt; 0) <span class="tok-k">return</span> selectedGroup.value</span>
+<span>  <span class="tok-k">return</span> flatTabs.value.<span class="tok-f">slice</span>(cursorIndex.value, cursorIndex.value + <span class="tok-y">count</span>)</span>
+<span>}</span>
+<span></span>
+<span><span class="tok-c">// hookup — the component hands the engine two getters, done</span></span>
+<span><span class="tok-k">const</span> { pendingDisplay, whichKey } = <span class="tok-f">useKeymap</span>({</span>
+<span>  <span class="tok-f">mode</span>: () =&gt; keymapMode.value,</span>
+<span>  <span class="tok-f">bindings</span>: () =&gt; bindings,</span>
+<span>})</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- cursor + virtualization strip -->
+		<div class="mt-10 grid gap-4 lg:grid-cols-3">
+			<div class="rounded-lg border border-line bg-panel p-5">
+				<p class="text-[11px] tracking-widest text-papaya uppercase">cursor, not focus</p>
+				<p class="mt-2 text-xs leading-6 text-mute">
+					<code class="text-fg">cursorIndex</code> points into <code class="text-fg">flatTabs</code>
+					(the grouped list, flattened in display order). The ring renders in <em>both</em> views —
+					list rows and grid cards (<code class="text-fg">TabRow :is-cursor</code>) — independent of DOM focus.
+					Watchers clamp it when tabs close and reset it when the filter or category changes.
+				</p>
+			</div>
+			<div class="rounded-lg border border-line bg-panel p-5">
+				<p class="text-[11px] tracking-widest text-papaya uppercase">virtualized rows</p>
+				<p class="mt-2 text-xs leading-6 text-mute">
+					List view renders ~20 absolutely-positioned rows via
+					<code class="text-fg">useWindowVirtualizer</code> (<code class="text-fg">scrollMargin</code> =
+					list's document offset). <kbd>j</kbd>/<kbd>k</kbd> at 300 tabs costs the same as at 30.
+				</p>
+			</div>
+			<div class="rounded-lg border border-line bg-panel p-5">
+				<p class="text-[11px] tracking-widest text-papaya uppercase">scroll math</p>
+				<p class="mt-2 text-xs leading-6 text-mute">
+					<code class="text-fg">scrollCursorIntoView()</code> reads the virtualizer's measurements
+					and scrolls the <em>window</em> manually so the cursor row clears the sticky header
+					(~330px) on the way up and the statusline on the way down.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- ======================================================= 06 keymap -->
+	<section id="keys" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="mb-10 flex items-end justify-between gap-6">
+			<div>
+				<p class="text-[11px] text-ember">// 06</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">The keymap</h2>
+			</div>
+			<p class="max-w-sm text-right text-[11px] leading-5 text-mute">rendered in-app by <span class="text-fg">KeymapHelpOverlay.vue</span> from the same table — press <kbd>?</kbd> there</p>
+		</div>
+
+		<div class="grid gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-2 xl:grid-cols-4 text-xs">
+			<div class="bg-panel p-5">
+				<h3 class="mb-4 text-[11px] font-semibold tracking-widest text-normal uppercase">Navigation</h3>
+				<dl class="space-y-2.5">
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Move down / up</dt><dd><kbd>j</kbd> <kbd>k</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">With counts</dt><dd><kbd>3j</kbd> <kbd>10k</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">First / last tab</dt><dd><kbd>gg</kbd> <kbd>G</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Half page</dt><dd><kbd>Ctrl-d</kbd> <kbd>Ctrl-u</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Next / prev group</dt><dd><kbd>}</kbd> <kbd>{</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Category</dt><dd><kbd>h</kbd> <kbd>l</kbd></dd></div>
+				</dl>
+			</div>
+			<div class="bg-panel p-5">
+				<h3 class="mb-4 text-[11px] font-semibold tracking-widest text-visual uppercase">Selection</h3>
+				<dl class="space-y-2.5">
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Toggle</dt><dd><kbd>x</kbd> <kbd>Space</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Visual range</dt><dd><kbd>v</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Same domain</dt><dd><kbd>*</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">All filtered</dt><dd><kbd>Ctrl-a</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Progressive clear</dt><dd><kbd>Esc</kbd></dd></div>
+				</dl>
+			</div>
+			<div class="bg-panel p-5">
+				<h3 class="mb-4 text-[11px] font-semibold tracking-widest text-ember uppercase">Actions</h3>
+				<dl class="space-y-2.5">
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Open tab</dt><dd><kbd>Enter</kbd> <kbd>o</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Close (undoable)</dt><dd><kbd>dd</kbd> <kbd>3dd</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Reopen closed</dt><dd><kbd>u</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Copy links</dt><dd><kbd>yy</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Pin / unpin</dt><dd><kbd>p</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Move → window / group</dt><dd><kbd>mw</kbd> <kbd>mg</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Save session</dt><dd><kbd>s</kbd></dd></div>
+				</dl>
+			</div>
+			<div class="bg-panel p-5">
+				<h3 class="mb-4 text-[11px] font-semibold tracking-widest text-search uppercase">View &amp; search</h3>
+				<dl class="space-y-2.5">
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Focus search</dt><dd><kbd>/</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Command palette</dt><dd><kbd>:</kbd> <kbd>⌘K</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">List / grid</dt><dd><kbd>t</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Cheat sheet</dt><dd><kbd>?</kbd></dd></div>
+					<div class="mt-3 border-t border-line pt-3"></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">While searching: nav</dt><dd><kbd>Ctrl-j/k</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Open highlighted</dt><dd><kbd>Enter</kbd></dd></div>
+					<div class="flex items-center justify-between gap-3"><dt class="text-mute">Back to list</dt><dd><kbd>Esc</kbd></dd></div>
+				</dl>
+			</div>
+		</div>
+	</section>
+
+	<!-- ======================================================= 07 files -->
+	<section id="files" class="mx-auto max-w-6xl scroll-mt-16 px-4 py-16 sm:px-6">
+		<div class="grid gap-10 lg:grid-cols-[240px_1fr]">
+			<div>
+				<p class="text-[11px] text-ember">// 07</p>
+				<h2 class="mt-1 font-disp text-3xl font-semibold text-fg">Where it<br/>lives</h2>
+			</div>
+			<div class="overflow-hidden rounded-xl border border-line">
+				<table class="w-full text-left text-xs">
+					<thead class="bg-panel2 text-[10px] tracking-widest text-mute uppercase">
+						<tr><th class="px-5 py-3 font-medium">path (apps/extension/…)</th><th class="px-5 py-3 font-medium">role</th><th class="px-5 py-3 font-medium">status</th></tr>
+					</thead>
+					<tbody class="divide-y divide-line bg-panel">
+						<tr><td class="px-5 py-3 text-papaya">src/hooks/useKeymap.ts</td><td class="px-5 py-3 text-mute">engine — tokens, guards, counts, sequences, chord timer, repeat gate, which-key data</td><td class="px-5 py-3 text-search">new · ~250 loc</td></tr>
+						<tr><td class="px-5 py-3 text-papaya">src/components/TabManager.vue</td><td class="px-5 py-3 text-mute">binding table, cursor + visual model, actions, virtualized list, scroll math</td><td class="px-5 py-3 text-visual">rewired · −200 loc of timers</td></tr>
+						<tr><td class="px-5 py-3 text-papaya">src/components/TabManagerStatusline.vue</td><td class="px-5 py-3 text-mute">mode badge · pending keys · which-key popup · 12/148 · selection count</td><td class="px-5 py-3 text-search">new</td></tr>
+						<tr><td class="px-5 py-3 text-papaya">src/components/KeymapHelpOverlay.vue</td><td class="px-5 py-3 text-mute"><kbd>?</kbd> cheat sheet, generated from the binding table</td><td class="px-5 py-3 text-search">new</td></tr>
+						<tr><td class="px-5 py-3 text-papaya">src/components/TabRow.vue</td><td class="px-5 py-3 text-mute">grid card gains <code>is-cursor</code> ring + <code>data-tab-index</code> scroll target</td><td class="px-5 py-3 text-visual">touched</td></tr>
+						<tr><td class="px-5 py-3 text-papaya">src/helpers.ts</td><td class="px-5 py-3 text-mute"><code>pinTabs()</code> · <code>undoCloseTabs()</code> via chrome.sessions</td><td class="px-5 py-3 text-visual">extended</td></tr>
+						<tr><td class="px-5 py-3 text-papaya">manifest.json</td><td class="px-5 py-3 text-mute">adds <code>"sessions"</code> permission for undo-close</td><td class="px-5 py-3 text-visual">touched</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="mt-16 border-t border-line pt-8 text-center">
+			<p class="font-disp text-2xl text-mute italic">"The best shortcut is the one the UI teaches you."</p>
+			<p class="mt-3 text-[11px] text-mute">statusline shows the grammar · which-key completes it · <kbd>?</kbd> documents it · <kbd>u</kbd> forgives it</p>
+		</div>
+	</section>
+
+	<!-- ======================================================= which-key popup (live demo) -->
+	<div id="whichkey" class="fixed right-4 bottom-14 z-50 hidden w-64 rounded-md border border-line bg-panel py-1 shadow-2xl shadow-black/60"></div>
+
+	<!-- help popover (live demo) -->
+	<div id="dochelp" class="fixed inset-x-4 bottom-14 z-50 mx-auto hidden max-w-md rounded-lg border border-line bg-panel p-5 shadow-2xl shadow-black/60">
+		<p class="text-[11px] tracking-widest text-papaya uppercase">this page's keymap</p>
+		<dl class="mt-3 space-y-2 text-xs">
+			<div class="flex justify-between"><dt class="text-mute">Scroll down / up</dt><dd><kbd>j</kbd> <kbd>k</kbd> · counts work: <kbd>5j</kbd></dd></div>
+			<div class="flex justify-between"><dt class="text-mute">Half page</dt><dd><kbd>d</kbd> <kbd>u</kbd></dd></div>
+			<div class="flex justify-between"><dt class="text-mute">Top / bottom</dt><dd><kbd>gg</kbd> <kbd>G</kbd></dd></div>
+			<div class="flex justify-between"><dt class="text-mute">This help</dt><dd><kbd>?</kbd> · close with <kbd>Esc</kbd></dd></div>
+		</dl>
+		<p class="mt-4 text-[10px] leading-5 text-mute">Same engine shape as production: token → count → sequence buffer → dead-end swallow. Select any text to enter VISUAL.</p>
+	</div>
+
+	<!-- ======================================================= statusline (live) -->
+	<footer class="fixed inset-x-0 bottom-0 z-40 flex h-10 items-center justify-between border-t border-line bg-panel px-4 text-[11px]">
+		<div class="flex items-center gap-3">
+			<span id="sl-mode" class="rounded bg-normal/15 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-normal">NORMAL</span>
+			<span id="sl-pending" class="font-semibold text-papaya"></span>
+			<span class="hidden text-mute sm:inline">docs/keymap-architecture.html<span class="caret text-papaya">▍</span></span>
+		</div>
+		<div class="flex items-center gap-4 text-mute">
+			<span class="hidden sm:inline">papaya bar · tab manager</span>
+			<span id="sl-pos">Top</span>
+			<span class="flex items-center gap-1"><kbd>?</kbd> help</span>
+		</div>
+	</footer>
+
+	<!-- ======================================================= miniature engine -->
+	<script>
+		// A faithful miniature of useKeymap.ts: token → count → sequence → resolve.
+		const $ = (id) => document.getElementById(id)
+		const half = () => Math.round(window.innerHeight / 2)
+		const bottomY = () => document.documentElement.scrollHeight
+
+		const bindings = [
+			{ keys: 'j',   hint: 'down',      repeat: true, run: (c) => scrollBy({ top: 90 * c }) },
+			{ keys: 'k',   hint: 'up',        repeat: true, run: (c) => scrollBy({ top: -90 * c }) },
+			{ keys: 'd',   hint: 'half down', repeat: true, run: (c) => scrollBy({ top: half() * c }) },
+			{ keys: 'u',   hint: 'half up',   repeat: true, run: (c) => scrollBy({ top: -half() * c }) },
+			{ keys: 'g g', hint: 'top',       run: () => scrollTo({ top: 0 }) },
+			{ keys: 'G',   hint: 'bottom',    run: () => scrollTo({ top: bottomY() }) },
+			{ keys: '?',   hint: 'help',      run: () => $('dochelp').classList.toggle('hidden') },
+			{ keys: 'escape', hidden: true,   run: () => $('dochelp').classList.add('hidden') },
+		]
+
+		let pending = [], count = ''
+		const seq = (b) => b.keys.split(' ')
+
+		function paint() {
+			$('sl-pending').textContent = count + pending.join('')
+			const wk = $('whichkey')
+			const cands = pending.length
+				? bindings.filter((b) => !b.hidden && seq(b).length > pending.length && pending.every((t, i) => seq(b)[i] === t))
+				: []
+			wk.innerHTML = cands.map((b) =>
+				`<div class="flex items-center justify-between gap-3 px-3 py-1.5">
+					<kbd>${seq(b).slice(pending.length).join(' ')}</kbd>
+					<span class="text-xs text-mute">${b.hint}</span>
+				</div>`).join('')
+			wk.classList.toggle('hidden', cands.length === 0)
+		}
+		function reset() { pending = []; count = ''; paint() }
+		function fire(b) { const n = Math.max(1, parseInt(count || '1', 10)); reset(); b.run(n) }
+
+		window.addEventListener('keydown', (e) => {
+			if (e.metaKey || e.ctrlKey || e.altKey) return
+			const t = e.target
+			if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+			const token = e.key === ' ' ? 'space' : e.key.length === 1 ? e.key : e.key.toLowerCase()
+			if (['shift', 'control', 'alt', 'meta'].includes(token)) return
+
+			if (token === 'escape' && (pending.length || count)) { reset(); e.preventDefault(); return }
+			if (!pending.length && /^[0-9]$/.test(token) && (token !== '0' || count)) { count += token; e.preventDefault(); paint(); return }
+
+			const attempted = [...pending, token]
+			const matches = bindings.filter((b) => seq(b).length >= attempted.length && attempted.every((x, i) => seq(b)[i] === x))
+			if (!matches.length) { const was = pending.length || count; reset(); if (was) e.preventDefault(); return }
+
+			e.preventDefault()
+			if (e.repeat) { const ex = matches.find((b) => seq(b).length === attempted.length); if (ex?.repeat && !pending.length) fire(ex); return }
+			const exact = matches.find((b) => seq(b).length === attempted.length)
+			const longer = matches.some((b) => seq(b).length > attempted.length)
+			if (exact && !longer) { fire(exact); return }
+			pending = attempted; paint()
+		})
+
+		// statusline: scroll position ruler, vim style
+		function ruler() {
+			const max = bottomY() - innerHeight
+			const y = scrollY
+			$('sl-pos').textContent = max <= 0 ? 'All' : y <= 2 ? 'Top' : y >= max - 2 ? 'Bot' : Math.round((y / max) * 100) + '%'
+		}
+		addEventListener('scroll', ruler, { passive: true }); ruler()
+
+		// meta touch: selecting text on the page = VISUAL mode
+		const badge = $('sl-mode')
+		document.addEventListener('selectionchange', () => {
+			const sel = String(getSelection() || '')
+			const visual = sel.length > 0
+			badge.textContent = visual ? 'VISUAL' : 'NORMAL'
+			badge.className = visual
+				? 'rounded bg-visual/15 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-visual'
+				: 'rounded bg-normal/15 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-normal'
+		})
+	</script>
+</body>
+</html>
