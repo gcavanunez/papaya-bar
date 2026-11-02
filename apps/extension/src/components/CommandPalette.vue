@@ -3,7 +3,7 @@
  * ⌘K command palette — the fast lane for the swap loop.
  * Swap contexts, run context commands, or jump to any open tab from the keyboard.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import {
 	Combobox,
@@ -23,7 +23,16 @@ import { useCommandPalette } from '@/hooks/useCommandPalette'
 import { useIntelligence } from '@/hooks/useIntelligence'
 import { getAllContextTabs } from '@/sync/store'
 import { isPaletteShortcut, paletteShortcutLabel } from '@/lib/platform'
+import { focusGroup, listOpenGroups, type OpenGroup } from '@/lib/tabGroups'
 
+interface GroupItem {
+	kind: 'group'
+	key: string
+	id: number
+	label: string
+	color: string
+	tabCount: number
+}
 interface ContextItem {
 	kind: 'context'
 	key: string
@@ -54,7 +63,7 @@ interface SavedTabItem {
 	favIconUrl?: string
 	contextName: string
 }
-type PaletteItem = ContextItem | CommandItem | TabItem | SavedTabItem
+type PaletteItem = GroupItem | ContextItem | CommandItem | TabItem | SavedTabItem
 
 const { switchableContexts, activeContext, resume, stashActive, createFromLive } = useContexts()
 const { loadedTabs } = useChromeTabs()
@@ -81,6 +90,26 @@ const optionClass = (active: boolean) => [
 ]
 
 const matches = (text: string) => text.toLowerCase().includes(query.value.trim().toLowerCase())
+
+// Chrome's tab groups, read fresh each time the palette opens
+const openGroups = ref<OpenGroup[]>([])
+watch(isOpen, async (open) => {
+	if (open) openGroups.value = await listOpenGroups()
+})
+
+const groupItems = computed<GroupItem[]>(() =>
+	openGroups.value
+		.filter((g) => matches(g.title || 'Unnamed group'))
+		.slice(0, 8)
+		.map((g) => ({
+			kind: 'group',
+			key: `group-${g.id}`,
+			id: g.id,
+			label: g.title || 'Unnamed group',
+			color: g.color,
+			tabCount: g.tabIds.length,
+		})),
+)
 
 const contextItems = computed<ContextItem[]>(() =>
 	switchableContexts.value
@@ -183,7 +212,8 @@ watchDebounced(
 
 const hasResults = computed(
 	() =>
-		contextItems.value.length +
+		groupItems.value.length +
+			contextItems.value.length +
 			commandItems.value.length +
 			tabItems.value.length +
 			savedTabResults.value.length >
@@ -205,7 +235,8 @@ function activateTab(id: number) {
 async function onSelect(item: PaletteItem | null) {
 	if (!item) return
 	close()
-	if (item.kind === 'context') await resume(item.id)
+	if (item.kind === 'group') await focusGroup(item.id)
+	else if (item.kind === 'context') await resume(item.id)
 	else if (item.kind === 'command') await item.run()
 	else if (item.kind === 'tab') activateTab(item.id)
 	else if (item.kind === 'savedtab') chrome.tabs.create({ url: item.url })
@@ -260,7 +291,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 								/>
 								<ComboboxInput
 									class="dark:placeholder:text-vercel-accents-4 h-12 w-full border-0 bg-transparent p-0 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 focus:outline-none dark:text-white"
-									placeholder="Jump to a context, command or open tab…"
+									placeholder="Jump to a group, context, command or open tab…"
 									autocomplete="off"
 									@change="query = $event.target.value"
 								/>
@@ -272,9 +303,48 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 								static
 								class="max-h-80 overflow-y-auto p-1.5 text-sm"
 							>
+								<!-- Open tab groups -->
+								<template v-if="groupItems.length">
+									<li class="section-label px-2.5 pt-2 pb-1" role="presentation">
+										Go to group
+									</li>
+									<ComboboxOption
+										v-for="item in groupItems"
+										:key="item.key"
+										v-slot="{ active }"
+										:value="item"
+										as="template"
+									>
+										<li :class="optionClass(active)">
+											<span
+												class="flex size-4 shrink-0 items-center justify-center"
+											>
+												<span
+													class="size-2.5 rounded-full"
+													:class="dot(item.color)"
+												/>
+											</span>
+											<span
+												class="flex-1 truncate text-slate-900 dark:text-white"
+											>
+												{{ item.label }}
+											</span>
+											<span
+												class="dark:text-vercel-accents-5 text-xs text-slate-400 tabular-nums"
+											>
+												{{ item.tabCount }} tabs
+											</span>
+										</li>
+									</ComboboxOption>
+								</template>
+
 								<!-- Contexts -->
 								<template v-if="contextItems.length">
-									<li class="section-label px-2.5 pt-2 pb-1" role="presentation">
+									<li
+										class="section-label px-2.5 pb-1"
+										:class="groupItems.length ? 'pt-3' : 'pt-2'"
+										role="presentation"
+									>
 										Contexts
 									</li>
 									<ComboboxOption

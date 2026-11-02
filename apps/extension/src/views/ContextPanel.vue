@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useContexts } from '@/hooks/useContexts'
-import { useIntelligence } from '@/hooks/useIntelligence'
-import type { SaveableTab } from '@/types'
+import { useOpenGroups } from '@/hooks/useOpenGroups'
+import { useSmartGroup } from '@/hooks/useSmartGroup'
 import {
 	ArchiveBoxArrowDownIcon,
+	ArrowsPointingInIcon,
 	ArrowUturnLeftIcon,
+	ChevronDownIcon,
 	EllipsisHorizontalIcon,
 	InboxIcon,
 	PencilIcon,
@@ -18,11 +20,15 @@ import {
 import { Menu, MenuButton } from '@headlessui/vue'
 import { button } from '@/lib/ui'
 import { pluralize } from '@/lib/format'
+import { AUTO_PARK_DAYS } from '@/lib/swapEngine'
+import type { Engine } from '@/lib/smartGroup'
+import { focusGroup } from '@/lib/tabGroups'
 import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
 import AppMenuItems from '@/components/menu/AppMenuItems.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SearchInput from '@/components/forms/SearchInput.vue'
+import TabFavicon from '@/components/TabFavicon.vue'
 
 const {
 	activeContext,
@@ -31,7 +37,6 @@ const {
 	resume,
 	stashActive,
 	createFromLive,
-	peelOff,
 	parkStaleTabs,
 	rename,
 	archive,
@@ -39,42 +44,55 @@ const {
 	refresh,
 	refreshLiveStats,
 } = useContexts()
-const { isSuggesting, suggestions, usedFallback, suggest, dismiss, removeSuggestion } =
-	useIntelligence()
+const { groups: openGroups, looseTabs, focusedGroupId, windowNumbers } = useOpenGroups()
+const {
+	review,
+	engine,
+	fallbackReason,
+	running,
+	progress,
+	leftLoose,
+	reviewTabCount,
+	modelStatus,
+	downloadFraction,
+	refreshModelStatus,
+	suggest,
+	cancel,
+	dismiss,
+	dropGroup,
+	dropTab,
+	mergeInto,
+	cycleColor,
+	apply,
+	download,
+} = useSmartGroup()
 
-const AUTO_PARK_DAYS = 7
 const autoPark = ref(false)
 const search = ref('')
 
-// Snapshot of current live tabs, used to map LLM suggestions back to real tabs.
-async function liveSaveableTabs(): Promise<SaveableTab[]> {
-	const tabs = await chrome.tabs.query({})
-	const prefix = `chrome-extension://${chrome.runtime.id}`
-	return tabs
-		.filter((t) => !(t.url || '').startsWith(prefix) && !(t.pendingUrl || '').startsWith(prefix))
-		.map((t) => ({
-			id: t.id,
-			stableId: `stableId-${t.id}`,
-			url: t.url,
-			title: t.title,
-			favIconUrl: t.favIconUrl,
-			windowId: t.windowId,
-			groupId: t.groupId,
-			active: t.active,
-		}))
+const visibleGroups = computed(() => {
+	const q = search.value.trim().toLowerCase()
+	if (!q) return openGroups.value
+	return openGroups.value.filter((g) => g.title.toLowerCase().includes(q))
+})
+
+function smartGroup(preferred: Engine | 'auto' = 'auto') {
+	expandedKey.value = null
+	void suggest(looseTabs.value, {
+		engine: preferred,
+		usedColors: openGroups.value.map((g) => g.color),
+	})
 }
 
-async function autoGroup() {
-	await suggest(await liveSaveableTabs())
+const expandedKey = ref<number | null>(null)
+function toggleExpanded(key: number) {
+	expandedKey.value = expandedKey.value === key ? null : key
 }
 
-async function applySuggestion(index: number) {
-	const group = suggestions.value[index]
-	if (!group) return
-	await peelOff(group.tabs, { name: group.name })
-	removeSuggestion(index)
-	void refreshLiveStats()
-}
+const percent = (fraction: number) => Math.round(fraction * 100)
+const groupingPercent = computed(() =>
+	progress.value.total ? percent(progress.value.done / progress.value.total) : 0,
+)
 
 async function loadAutoPark() {
 	const stored = await chrome.storage.local.get('papaya:autoPark')
@@ -154,6 +172,7 @@ function onTabsChanged() {
 
 onMounted(() => {
 	void loadAutoPark()
+	void refreshModelStatus()
 	chrome.tabs.onCreated.addListener(onTabsChanged)
 	chrome.tabs.onRemoved.addListener(onTabsChanged)
 	chrome.tabs.onUpdated.addListener(onTabsChanged)
@@ -176,12 +195,12 @@ onUnmounted(() => {
 			class="dark:border-vercel-accents-2 shrink-0 space-y-3 border-b border-slate-200 bg-white px-4 py-3 dark:bg-black"
 		>
 			<div class="flex items-center justify-between">
-				<h1 class="text-sm font-semibold">Contexts</h1>
+				<h1 class="text-sm font-semibold">Groups &amp; contexts</h1>
 				<span class="dark:text-vercel-accents-5 text-xs text-slate-500 tabular-nums">
 					{{ pluralize(liveStats.total, 'live tab') }}
 				</span>
 			</div>
-			<SearchInput v-model="search" size="sm" placeholder="Search contexts…" />
+			<SearchInput v-model="search" size="sm" placeholder="Search groups and contexts…" />
 		</header>
 
 		<div class="flex-1 space-y-4 overflow-y-auto p-4">
@@ -243,62 +262,284 @@ onUnmounted(() => {
 						<PlusIcon class="size-3.5" aria-hidden="true" />
 						Save current tabs as context
 					</AppButton>
-					<AppButton
-						size="sm"
-						class="mt-2 w-full"
-						:disabled="liveStats.total === 0 || isSuggesting"
-						@click="autoGroup"
-					>
-						<SparklesIcon class="size-3.5" aria-hidden="true" />
-						{{ isSuggesting ? 'Grouping…' : 'Auto-group tabs' }}
-					</AppButton>
 				</template>
 			</section>
 
-			<!-- LLM grouping suggestions -->
-			<section v-if="suggestions.length" class="space-y-2">
-				<div class="flex items-center justify-between">
-					<p class="section-label">Suggested groups</p>
-					<button
-						type="button"
-						class="dark:text-vercel-accents-5 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
-						@click="dismiss"
-					>
-						Dismiss
-					</button>
-				</div>
-				<p v-if="usedFallback" class="dark:text-vercel-accents-5 text-xs text-slate-500">
-					Grouped by site. Sign in and deploy the AI backend for smarter grouping.
-				</p>
-				<div class="card dark:divide-vercel-accents-2 divide-y divide-slate-100">
-					<div
-						v-for="(group, i) in suggestions"
-						:key="i"
-						class="flex items-center gap-2 py-2 pr-1.5 pl-3"
-					>
-						<SparklesIcon class="size-4 shrink-0 text-indigo-400" aria-hidden="true" />
-						<div class="min-w-0 flex-1">
-							<input
-								v-model="group.name"
-								class="w-full truncate rounded border-0 bg-transparent p-0 text-sm font-medium focus:ring-0 focus:outline-none"
-								aria-label="Suggested context name"
-							/>
-							<span class="dark:text-vercel-accents-5 text-xs text-slate-500">
-								{{ pluralize(group.tabs.length, 'tab') }}
-							</span>
-						</div>
-						<AppButton size="xs" @click="applySuggestion(i)">Create</AppButton>
-						<AppButton
-							intent="ghost"
-							size="xs"
-							square
-							title="Remove suggestion"
-							@click="removeSuggestion(i)"
+			<!-- Open groups: Chrome's tab groups. Clicking one focuses it and folds the rest. -->
+			<section v-if="visibleGroups.length">
+				<p class="section-label mb-2">Open groups · {{ visibleGroups.length }}</p>
+				<ul
+					role="list"
+					class="card dark:divide-vercel-accents-2 divide-y divide-slate-100 overflow-hidden"
+				>
+					<li v-for="group in visibleGroups" :key="group.id">
+						<button
+							type="button"
+							class="dark:hover:bg-vercel-accents-1 relative flex w-full items-center gap-2.5 py-2 pr-3 pl-3 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
+							:class="
+								group.id === focusedGroupId
+									? 'dark:bg-vercel-accents-1 bg-slate-50'
+									: ''
+							"
+							:aria-current="group.id === focusedGroupId ? 'true' : undefined"
+							:title="`Go to ${group.title || 'this group'} and fold the other groups`"
+							@click="focusGroup(group.id)"
 						>
-							<XMarkIcon class="size-3.5" aria-hidden="true" />
-						</AppButton>
-					</div>
+							<span
+								v-if="group.id === focusedGroupId"
+								class="bg-papaya-900 absolute inset-y-1.5 left-0 w-0.5 rounded-full"
+								aria-hidden="true"
+							/>
+							<span
+								class="size-2.5 shrink-0 rounded-full"
+								:class="dot(group.color)"
+							/>
+							<span
+								class="min-w-0 flex-1 truncate text-sm"
+								:class="
+									group.title
+										? 'font-medium'
+										: 'dark:text-vercel-accents-5 text-slate-500 italic'
+								"
+							>
+								{{ group.title || 'Unnamed group' }}
+							</span>
+							<span
+								v-if="windowNumbers"
+								class="dark:text-vercel-accents-5 text-[11px] text-slate-400"
+								:title="`Window ${windowNumbers.get(group.windowId)}`"
+							>
+								W{{ windowNumbers.get(group.windowId) }}
+							</span>
+							<span
+								class="dark:text-vercel-accents-5 text-xs text-slate-500 tabular-nums"
+							>
+								{{ group.tabIds.length }}
+							</span>
+						</button>
+					</li>
+				</ul>
+			</section>
+
+			<!-- Loose tabs and smart grouping. Applying creates tab groups; nothing closes. -->
+			<section v-if="looseTabs.length || review.length || running" class="space-y-2">
+				<div class="flex items-center justify-between gap-2">
+					<p class="section-label">Loose tabs · {{ looseTabs.length }}</p>
+					<AppButton
+						v-if="!review.length"
+						size="xs"
+						:disabled="looseTabs.length < 2 || running"
+						title="Suggest groups for these tabs. You review them before anything changes."
+						@click="smartGroup()"
+					>
+						<SparklesIcon class="size-3.5" aria-hidden="true" />
+						Smart group
+					</AppButton>
 				</div>
+
+				<div v-if="running" class="card space-y-2 p-3 text-xs" role="status">
+					<div class="flex items-center justify-between gap-2">
+						<span>
+							{{
+								modelStatus === 'available'
+									? 'Grouping by topic on this device…'
+									: 'Grouping…'
+							}}
+						</span>
+						<button
+							type="button"
+							class="dark:text-vercel-accents-5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+							@click="cancel"
+						>
+							Stop
+						</button>
+					</div>
+					<div
+						class="dark:bg-vercel-accents-2 h-1 overflow-hidden rounded-full bg-slate-100"
+					>
+						<div
+							class="bg-papaya-900 h-full transition-[width]"
+							:style="{ width: `${groupingPercent}%` }"
+						/>
+					</div>
+					<p class="dark:text-vercel-accents-5 text-slate-500 tabular-nums">
+						{{ progress.done }} of {{ pluralize(progress.total, 'tab') }}
+					</p>
+				</div>
+
+				<template v-if="review.length && !running">
+					<p class="dark:text-vercel-accents-5 text-xs text-slate-500">
+						<template v-if="engine === 'on-device'">
+							Grouped by topic with Chrome's on-device model.
+						</template>
+						<template v-else>Grouped by site.</template>
+						Rename, merge or drop groups, then apply. Nothing closes.
+					</p>
+					<ul
+						role="list"
+						class="card dark:divide-vercel-accents-2 divide-y divide-slate-100"
+						aria-label="Suggested groups"
+					>
+						<li v-for="group in review" :key="group.key">
+							<div class="flex items-center gap-1.5 py-1.5 pr-1.5 pl-1.5">
+								<button
+									type="button"
+									class="dark:hover:bg-vercel-accents-2 flex size-6 shrink-0 items-center justify-center rounded hover:bg-slate-100"
+									:title="`Color: ${group.color}. Click to change.`"
+									@click="cycleColor(group.key)"
+								>
+									<span class="size-2.5 rounded-full" :class="dot(group.color)" />
+									<span class="sr-only">Change color</span>
+								</button>
+								<input
+									v-model="group.name"
+									class="min-w-0 flex-1 truncate rounded border-0 bg-transparent p-0 text-sm font-medium focus:ring-0 focus:outline-none"
+									aria-label="Group name"
+									maxlength="40"
+								/>
+								<button
+									type="button"
+									class="dark:text-vercel-accents-5 flex shrink-0 items-center gap-0.5 rounded px-1 text-xs text-slate-500 tabular-nums hover:text-slate-900 dark:hover:text-white"
+									:aria-expanded="expandedKey === group.key"
+									:title="expandedKey === group.key ? 'Hide tabs' : 'Show tabs'"
+									@click="toggleExpanded(group.key)"
+								>
+									{{ group.tabs.length }}
+									<ChevronDownIcon
+										class="size-3 transition-transform"
+										:class="expandedKey === group.key ? 'rotate-180' : ''"
+										aria-hidden="true"
+									/>
+								</button>
+								<Menu v-if="review.length > 1" as="div" class="relative">
+									<MenuButton
+										:class="
+											button({ intent: 'ghost', size: 'xs', square: true })
+										"
+										title="Merge into another group"
+									>
+										<ArrowsPointingInIcon class="size-3.5" aria-hidden="true" />
+										<span class="sr-only">Merge into another group</span>
+									</MenuButton>
+									<AppMenuItems width="w-48">
+										<div class="menu-heading">Merge into</div>
+										<AppMenuItem
+											v-for="other in review.filter(
+												(g) => g.key !== group.key,
+											)"
+											:key="other.key"
+											@click="mergeInto(group.key, other.key)"
+										>
+											<template #leading>
+												<span
+													class="size-2 shrink-0 rounded-full"
+													:class="dot(other.color)"
+												/>
+											</template>
+											{{ other.name || 'Unnamed' }}
+										</AppMenuItem>
+									</AppMenuItems>
+								</Menu>
+								<AppButton
+									intent="ghost"
+									size="xs"
+									square
+									title="Drop this group (its tabs stay loose)"
+									@click="dropGroup(group.key)"
+								>
+									<XMarkIcon class="size-3.5" aria-hidden="true" />
+									<span class="sr-only">Drop group</span>
+								</AppButton>
+							</div>
+							<ul
+								v-if="expandedKey === group.key"
+								role="list"
+								class="max-h-60 overflow-y-auto pr-1.5 pb-1.5 pl-8"
+							>
+								<li
+									v-for="tab in group.tabs"
+									:key="tab.id"
+									class="group/tab flex items-center gap-2"
+								>
+									<TabFavicon :src="tab.favIconUrl" :url="tab.url" />
+									<span class="min-w-0 flex-1 truncate text-xs" :title="tab.url">
+										{{ tab.title || tab.url }}
+									</span>
+									<AppButton
+										intent="ghost"
+										size="xs"
+										square
+										class="opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100"
+										title="Leave this tab loose"
+										@click="dropTab(group.key, tab.id)"
+									>
+										<XMarkIcon class="size-3" aria-hidden="true" />
+										<span class="sr-only">Leave this tab loose</span>
+									</AppButton>
+								</li>
+							</ul>
+						</li>
+					</ul>
+					<p v-if="leftLoose" class="dark:text-vercel-accents-5 text-xs text-slate-500">
+						{{ pluralize(leftLoose, 'tab') }} fit no group and stay loose.
+					</p>
+					<p v-if="fallbackReason" class="text-xs text-amber-700 dark:text-amber-300">
+						The on-device model failed ({{ fallbackReason }}), so these are grouped by
+						site.
+					</p>
+					<div class="flex gap-2">
+						<AppButton intent="primary" size="sm" class="flex-1" @click="apply">
+							Group {{ pluralize(reviewTabCount, 'tab') }}
+						</AppButton>
+						<AppButton size="sm" @click="dismiss">Cancel</AppButton>
+					</div>
+					<button
+						v-if="engine === 'on-device'"
+						type="button"
+						class="dark:text-vercel-accents-5 text-xs text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline dark:hover:text-white"
+						@click="smartGroup('site')"
+					>
+						Group by site instead
+					</button>
+					<button
+						v-else-if="modelStatus === 'available'"
+						type="button"
+						class="dark:text-vercel-accents-5 text-xs text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline dark:hover:text-white"
+						@click="smartGroup('on-device')"
+					>
+						Group by topic instead
+					</button>
+				</template>
+
+				<p
+					v-if="
+						!running &&
+						(modelStatus === 'downloadable' ||
+							modelStatus === 'downloading' ||
+							downloadFraction !== null)
+					"
+					class="dark:text-vercel-accents-5 text-xs text-slate-500"
+				>
+					<template v-if="downloadFraction !== null">
+						Downloading Chrome's on-device model…
+						<span class="tabular-nums">{{ percent(downloadFraction) }}%</span>
+					</template>
+					<template v-else-if="modelStatus === 'downloading'">
+						Chrome is downloading its on-device model. Until it's ready, Smart group
+						groups by site.
+					</template>
+					<template v-else>
+						To group by topic instead of by site, Chrome can download its on-device
+						model (a one-time download of a few GB).
+						<button
+							type="button"
+							class="font-medium text-slate-900 underline underline-offset-2 dark:text-white"
+							@click="download"
+						>
+							Download
+						</button>
+					</template>
+				</p>
 			</section>
 
 			<!-- Nudge -->
@@ -336,7 +577,7 @@ onUnmounted(() => {
 
 			<!-- Switcher list -->
 			<section v-if="filtered.length">
-				<p class="section-label mb-2">Stashed</p>
+				<p class="section-label mb-2">Contexts</p>
 				<ul role="list" class="card dark:divide-vercel-accents-2 divide-y divide-slate-100">
 					<li v-for="ctx in filtered" :key="ctx.id">
 						<div
@@ -434,10 +675,10 @@ onUnmounted(() => {
 
 			<!-- Empty state -->
 			<EmptyState
-				v-if="!filtered.length && !activeContext"
+				v-if="!filtered.length && !activeContext && !visibleGroups.length"
 				compact
 				:icon="RectangleStackIcon"
-				:title="search ? 'No matching contexts' : 'No contexts yet'"
+				:title="search ? 'No matching groups or contexts' : 'No contexts yet'"
 				:description="
 					search
 						? 'Try a different name.'

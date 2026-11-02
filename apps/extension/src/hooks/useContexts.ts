@@ -34,6 +34,7 @@ import {
 import { initializeTinyBaseStore } from '@/hooks/useTinyBaseStore'
 import { useSessionsData } from '@/hooks/useSessionsData'
 import { drainStoreOps, OPS_KEY, publishMirror } from '@/lib/contextBridge'
+import { AUTO_PARK_DAYS, isParkable } from '@/lib/swapEngine'
 import type { Group, SaveableTab } from '@/types'
 
 // ==================== Shared (per-document) state ====================
@@ -42,8 +43,6 @@ const contexts = ref<AssembledContext[]>([])
 const activeContextId = ref('')
 const isReady = ref(false)
 const liveStats = ref<{ total: number; stale: number }>({ total: 0, stale: 0 })
-
-const STALE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000 // 3 days
 
 // ==================== Chrome capture helpers ====================
 
@@ -70,9 +69,10 @@ function mapToSaveable(tab: chrome.tabs.Tab): SaveableTab {
 	}
 }
 
+// Pinned tabs are never saved: swaps don't close them, so restoring them would duplicate them.
 async function queryLiveTabs(): Promise<SaveableTab[]> {
 	const tabs = await chrome.tabs.query({})
-	return tabs.filter((t) => !isOwnPage(t)).map(mapToSaveable)
+	return tabs.filter((t) => !isOwnPage(t) && !t.pinned).map(mapToSaveable)
 }
 
 /**
@@ -132,8 +132,8 @@ export function useContexts() {
 	async function refreshLiveStats(): Promise<void> {
 		const tabs = await chrome.tabs.query({})
 		const normal = tabs.filter((t) => !isOwnPage(t))
-		const now = Date.now()
-		const stale = normal.filter((t) => (t.lastAccessed ?? now) < now - STALE_THRESHOLD_MS).length
+		// Same rule as parking, so "Park N" parks exactly N
+		const stale = normal.filter((t) => isParkable(t)).length
 		liveStats.value = { total: normal.length, stale }
 	}
 
@@ -270,17 +270,9 @@ export function useContexts() {
 	// ---------- Parking (taming sprawl) ----------
 
 	/** Move tabs untouched for `days`+ into the Parked context and close them. */
-	async function parkStaleTabs(days = 7): Promise<number> {
-		const threshold = Date.now() - days * 24 * 60 * 60 * 1000
+	async function parkStaleTabs(days = AUTO_PARK_DAYS): Promise<number> {
 		const tabs = await chrome.tabs.query({})
-		const stale = tabs.filter(
-			(t) =>
-				t.id != null &&
-				!isOwnPage(t) &&
-				!t.pinned &&
-				!t.active &&
-				(t.lastAccessed ?? Date.now()) < threshold,
-		)
+		const stale = tabs.filter((t) => isParkable(t, days))
 		if (!stale.length) return 0
 
 		const parkedId = ensureParkedContext()

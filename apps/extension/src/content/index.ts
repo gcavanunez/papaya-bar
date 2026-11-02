@@ -43,6 +43,7 @@ function installPalette(): void {
 	w.__papayaPaletteInstalled = true
 
 	interface Model {
+		groups: { id: number; title: string; color: string; tabCount: number }[]
 		activeContextId: string
 		contexts: { id: string; name: string; color: string; tabCount: number }[]
 		savedTabs: { key: string; title: string; url: string; favIconUrl: string; contextName: string }[]
@@ -123,6 +124,19 @@ function installPalette(): void {
 		const out: Item[] = []
 		const q = query.trim()
 		const cmd = '<span class="dot" style="background:#94a3b8"></span>'
+
+		;(model.groups || [])
+			.filter((g) => matches(g.title || 'Unnamed group'))
+			.slice(0, 8)
+			.forEach((g) =>
+				out.push({
+					label: g.title || 'Unnamed group',
+					sub: `group · ${g.tabCount} tabs`,
+					icon: `<span class="dot" style="background:${COLORS[g.color] || COLORS.grey}"></span>`,
+					run: () => act({ type: 'palette.focusGroup', groupId: g.id }),
+				}),
+			)
+
 		const cmds: Item[] = []
 		if (model.activeContextId)
 			cmds.push({ label: 'Stash current context & clear', sub: 'command', icon: cmd, run: () => act({ type: 'palette.stash' }) })
@@ -199,7 +213,7 @@ function installPalette(): void {
 		const overlay = document.createElement('div')
 		overlay.className = 'overlay'
 		overlay.innerHTML =
-			'<div class="box"><div class="search"><span class="hint">⌥K</span><input type="text" placeholder="Swap context, jump to a tab, find a saved tab…" /></div><div class="list"></div></div>'
+			'<div class="box"><div class="search"><span class="hint">⌥K</span><input type="text" placeholder="Go to a group, swap context, jump to a tab…" /></div><div class="list"></div></div>'
 		overlay.addEventListener('click', (e) => {
 			if (e.target === overlay) close()
 		})

@@ -1,4 +1,11 @@
-import { captureLiveData, getCloseableTabIds, restoreContext } from './src/lib/swapEngine'
+import {
+	AUTO_PARK_DAYS,
+	captureLiveData,
+	getCloseableTabIds,
+	isParkable,
+	restoreContext,
+} from './src/lib/swapEngine'
+import { cycleGroup, focusGroup, listOpenGroups } from './src/lib/tabGroups'
 
 // Get the current tab
 const getCurrentTab = async () => {
@@ -56,19 +63,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 	const { 'papaya:autoPark': cfg } = await chrome.storage.local.get('papaya:autoPark')
 	if (!cfg?.enabled) return
 
-	const days = cfg.days ?? 7
-	const threshold = Date.now() - days * 24 * 60 * 60 * 1000
-	const extPrefix = 'chrome-extension://' + chrome.runtime.id
-
+	const days = cfg.days ?? AUTO_PARK_DAYS
 	const tabs = await chrome.tabs.query({})
-	const stale = tabs.filter(
-		(t) =>
-			t.id != null &&
-			!t.active &&
-			!t.pinned &&
-			!(t.url || '').startsWith(extPrefix) &&
-			(t.lastAccessed ?? Date.now()) < threshold,
-	)
+	const stale = tabs.filter((t) => isParkable(t, days))
 	if (!stale.length) return
 
 	const { 'papaya:parkQueue': existing } = await chrome.storage.local.get('papaya:parkQueue')
@@ -122,7 +119,14 @@ async function paletteGetModel() {
 	const openTabs = tabs
 		.filter((t) => !(t.url || '').startsWith(extPrefix))
 		.map((t) => ({ id: t.id, title: t.title, url: t.url, favIconUrl: t.favIconUrl }))
+	const groups = (await listOpenGroups()).map((g) => ({
+		id: g.id,
+		title: g.title,
+		color: g.color,
+		tabCount: g.tabIds.length,
+	}))
 	return {
+		groups,
 		activeContextId: mirror.activeContextId,
 		contexts: (mirror.contexts || []).map((c) => ({
 			id: c.id,
@@ -204,6 +208,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 				break
 			case 'palette.jumpTab':
 				sendResponse(await paletteJumpTab(message.tabId))
+				break
+			case 'palette.focusGroup':
+				await focusGroup(message.groupId)
+				sendResponse({ ok: true })
 				break
 			case 'palette.openUrl':
 				await chrome.tabs.create({ url: message.url })
@@ -288,6 +296,12 @@ chrome.commands.onCommand.addListener((command, openedTab) => {
 			break
 		case 'open-panel':
 			handleOpenPanel(openedTab)
+			break
+		case 'next-group':
+			void cycleGroup(1, openedTab?.windowId)
+			break
+		case 'previous-group':
+			void cycleGroup(-1, openedTab?.windowId)
 			break
 	}
 })

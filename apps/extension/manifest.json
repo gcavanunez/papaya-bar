@@ -84,6 +84,12 @@
 			},
 			"description": "Open Contexts panel",
 			"global": false
+		},
+		"next-group": {
+			"description": "Go to the next tab group"
+		},
+		"previous-group": {
+			"description": "Go to the previous tab group"
 		}
 	},
 	"action": {

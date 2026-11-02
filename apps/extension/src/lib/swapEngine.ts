@@ -48,9 +48,27 @@ export function mapToSaveable(tab: ChromeTab): SaveableTab {
 	}
 }
 
+/**
+ * Tabs a capture saves. Pinned tabs are left out: a swap never closes them, so saving
+ * them would reopen a duplicate every time the context comes back.
+ */
 export async function queryLiveTabs(): Promise<SaveableTab[]> {
 	const tabs = await chrome.tabs.query({})
-	return tabs.filter((t) => !isOwnPage(t)).map(mapToSaveable)
+	return tabs.filter((t) => !isOwnPage(t) && !t.pinned).map(mapToSaveable)
+}
+
+export const AUTO_PARK_DAYS = 7
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Tabs parking may close: untouched for `days`+, not pinned, not active, not Papaya's own. */
+export function isParkable(tab: ChromeTab, days = AUTO_PARK_DAYS, now = Date.now()): boolean {
+	return (
+		tab.id != null &&
+		!tab.pinned &&
+		!tab.active &&
+		!isOwnPage(tab) &&
+		(tab.lastAccessed ?? now) < now - days * DAY_MS
+	)
 }
 
 /** IDs of tabs a swap is allowed to close (not extension pages, not pinned). */
