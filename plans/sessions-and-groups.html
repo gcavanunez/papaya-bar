@@ -665,6 +665,90 @@
 				margin-bottom: 0;
 			}
 
+			/* ---------- Status and consolidation ---------- */
+			.state {
+				display: inline-block;
+				font-size: 12px;
+				font-weight: 700;
+				border-radius: 4px;
+				padding: 1px 7px;
+				margin-right: 4px;
+				background: var(--sunken);
+				color: var(--muted);
+			}
+			.state.done {
+				background: var(--ok-soft);
+				color: var(--ok);
+			}
+			.state.partial,
+			.state.next {
+				background: var(--accent-soft);
+				color: var(--accent);
+			}
+			table.status td:first-child {
+				white-space: normal;
+				width: 28%;
+			}
+			table.status td:nth-child(2) {
+				white-space: nowrap;
+			}
+			.consolidate {
+				display: grid;
+				grid-template-columns: 2fr auto 1fr;
+				gap: 18px;
+				align-items: center;
+			}
+			.consolidate .before {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 12px;
+			}
+			.consolidate h3 {
+				margin: 2px 0 8px;
+				font-size: 18px;
+			}
+			.consolidate ul {
+				margin: 0;
+				padding-left: 18px;
+				font-size: 14px;
+			}
+			.consolidate li {
+				margin: 3px 0;
+			}
+			.old-thing {
+				border: 1px dashed var(--line);
+				border-radius: 10px;
+				padding: 14px;
+				height: 100%;
+			}
+			.after {
+				border: 2px solid var(--accent);
+				border-radius: 12px;
+				padding: 14px;
+			}
+			.after .label {
+				color: var(--accent);
+			}
+			.consolidate .arrow {
+				font-size: 28px;
+				color: var(--accent);
+			}
+			.consolidate .where {
+				margin: 10px 0 0;
+				font-size: 12.5px;
+				color: var(--faint);
+			}
+			@media (max-width: 860px) {
+				.consolidate,
+				.consolidate .before {
+					grid-template-columns: 1fr;
+				}
+				.consolidate .arrow {
+					transform: rotate(90deg);
+					justify-self: center;
+				}
+			}
+
 			/* ---------- Bars ---------- */
 			.bars {
 				display: grid;
@@ -884,7 +968,7 @@
 	<body>
 		<main>
 			<header>
-				<p class="label">Papaya Bar · plan v2.1 · reviewed Nov 2, 2026</p>
+				<p class="label">Papaya Bar · plan v2.2 · updated Nov 11, 2026</p>
 				<h1>Sessions and groups: one model for organizing, switching and the past</h1>
 				<p class="meta">
 					Supersedes the v1 markdown plan and folds in your review of it. Replaces the separate
@@ -897,6 +981,8 @@
 					and open it again later.
 				</p>
 				<nav class="toc" aria-label="Contents">
+					<a href="#status">Where we are</a>
+					<a href="#consolidate">Two things become one</a>
 					<a href="#changes">What changed</a>
 					<a href="#model">The model</a>
 					<a href="#morning">A morning with 547 tabs</a>
@@ -911,6 +997,174 @@
 					<a href="#risks">Risks</a>
 				</nav>
 			</header>
+
+			<section id="status" aria-labelledby="status-h">
+				<h2 id="status-h">Where we are</h2>
+				<p class="prose">
+					Four local commits on <code>gc/next-phase-of-new-design</code>, none pushed yet. Open
+					questions are <a href="#q-order">B–D below</a>; nothing in flight depends on them.
+				</p>
+				<div class="table-wrap">
+					<table class="status">
+						<thead>
+							<tr>
+								<th scope="col">Phase</th>
+								<th scope="col">State</th>
+								<th scope="col">What's left</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>1 · Smart grouping and switching</td>
+								<td><span class="state done">Built</span> <code>14c13d2</code></td>
+								<td>
+									Run Smart group on your full pile with the on-device model. Two follow-ups:
+									<a href="#q-windows">question D</a> and the Inbox card's wording, which Home
+									replaces in phase 4.
+								</td>
+							</tr>
+							<tr>
+								<td>2 · Foundation and migration</td>
+								<td>
+									<span class="state partial">Groundwork done</span> <code>290fbdb</code>
+									<code>af04fb4</code>
+								</td>
+								<td>
+									Rerun the dry run on a fresh backup. The switch-over itself
+									<a href="#split">moves to the start of phase 4</a>.
+								</td>
+							</tr>
+							<tr>
+								<td>4 · The sessions library</td>
+								<td><span class="state next">Next</span> (proposed order)</td>
+								<td>Switch-over, library screen, switching sessions, Home, versions.</td>
+							</tr>
+							<tr>
+								<td>3 · Stash and the sidebar</td>
+								<td><span class="state later">Not started</span></td>
+								<td>Proposed to follow phase 4 (<a href="#q-order">question B</a>).</td>
+							</tr>
+							<tr>
+								<td>5 · Agent and sync</td>
+								<td><span class="state later">Separate plan</span></td>
+								<td>—</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="consolidate" aria-labelledby="consolidate-h">
+				<h2 id="consolidate-h">Two things become one</h2>
+				<p class="prose">
+					Today Papaya has two features that save the same thing (tabs, groups, windows) in two
+					places that never meet. That's why "Save all as session" and "Save current tabs as
+					context" feel like the same button with different consequences.
+				</p>
+				<div class="figure consolidate">
+					<div class="before">
+						<div class="old-thing">
+							<p class="label">Today · saved sessions</p>
+							<h3>A copy</h3>
+							<ul>
+								<li>Listed on the Sessions page</li>
+								<li>Never changes after you save it</li>
+								<li>"Open" adds its tabs next to what's open</li>
+								<li>No history</li>
+							</ul>
+							<p class="where">Stored in <code>chrome.storage</code></p>
+						</div>
+						<div class="old-thing">
+							<p class="label">Today · contexts</p>
+							<h3>A workspace</h3>
+							<ul>
+								<li>Only in the side panel and the palettes</li>
+								<li>The active one keeps up with your open tabs</li>
+								<li>Switching saves what's open, closes it, reopens another</li>
+								<li>Last 10 versions, but no screen shows them</li>
+							</ul>
+							<p class="where">Stored in the TinyBase database</p>
+						</div>
+					</div>
+					<div class="arrow" aria-hidden="true">→</div>
+					<div class="after">
+						<p class="label">After · one library</p>
+						<h3>Sessions</h3>
+						<ul>
+							<li>Every session in one list: the Sessions page, the sidebar and <kbd>⌘K</kbd></li>
+							<li>One open at a time; you start in Home</li>
+							<li><strong>Switch to</strong> any of them, old saved sessions included</li>
+							<li>Versions for every session, with a screen to see and restore them</li>
+							<li>Rename, notes, archive, download; edit the tabs of a closed one (proposed)</li>
+						</ul>
+						<p class="where">One store, its own; the old one stays as the rollback copy</p>
+					</div>
+				</div>
+
+				<h3>What the migration does to your data</h3>
+				<p class="prose">
+					A dry run on your backup from July 6, 2026 (the newest one on your Mac). It reads the
+					file and writes nothing.
+				</p>
+				<div class="table-wrap">
+					<table>
+						<tbody>
+							<tr>
+								<td>Saved sessions found</td>
+								<td>162, from September 2022 to July 2026</td>
+							</tr>
+							<tr>
+								<td>Become library sessions</td>
+								<td><strong>162 of 162</strong>, plus Home as the open session</td>
+							</tr>
+							<tr>
+								<td>Tabs kept</td>
+								<td><strong>15,048 of 15,048</strong></td>
+							</tr>
+							<tr>
+								<td>Dropped</td>
+								<td>
+									1 copy the old save code wrote to both stores, and 8 empty copies of the same
+									kind
+								</td>
+							</tr>
+							<tr>
+								<td>Repaired</td>
+								<td>
+									15 tabs that pointed at a group that was never saved come back ungrouped; 5
+									oversized icons show a letter instead
+								</td>
+							</tr>
+							<tr>
+								<td>Size and speed</td>
+								<td>
+									4.4 MB (the backup is 7.8 MB); planned in 20 ms; all 163 sessions listed in
+									0.4 ms
+								</td>
+							</tr>
+							<tr>
+								<td>Largest session</td>
+								<td>627 tabs; reopens completely and in order (tested against a fake browser)</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<p class="prose">
+					The July backup has no contexts yet, since that feature came later. Before the
+					switch-over, the dry run runs again on a fresh backup, which will include your contexts
+					and their versions.
+				</p>
+
+				<h3 id="split">One change to the phase split</h3>
+				<p class="prose">
+					Phase 2 was going to end with today's screens running on the new data. Your data rules
+					that out: the contexts code rebuilds every context from every saved tab on each
+					refresh, and the side panel refreshes on every tab change, so 162 sessions holding
+					15,048 tabs would make it crawl. So the old screens keep the old store until the new
+					library screen replaces them, and the switch-over happens then, as the first step of
+					phase 4. Until that moment nothing about your stored data changes.
+				</p>
+			</section>
 
 			<section id="changes" aria-labelledby="changes-h">
 				<h2 id="changes-h"><span class="num">1</span>What changed since v1</h2>
@@ -930,8 +1184,8 @@
 						Chrome's own on-device model can group tabs, with replies checked against a schema.
 					</li>
 					<li>
-						Your answers from both reviews are recorded as <a href="#decisions">decisions</a>; only
-						the default for switching is still open. Your follow-up questions (loading big
+						Your answers from both reviews are recorded as <a href="#decisions">decisions</a>; four
+						questions are open (A–D). Your follow-up questions (loading big
 						sessions, the Chrome API behind it, pinned tabs) are answered
 						<a href="#answers">below</a>, and the keys for switching are
 						<a href="#switching">spelled out</a>.
@@ -1635,19 +1889,66 @@
 						<li>Swap by default; <kbd>Shift</kbd> to just focus</li>
 					</ol>
 				</div>
+				<div class="question" id="q-order">
+					<h3>B. Build the sessions library (phase 4) before stashing groups (phase 3)?</h3>
+					<p>
+						The library is what makes old saved sessions something you can switch into, which is
+						the part that's confusing today. Switching sessions doesn't need stashed groups;
+						stashed groups slot into the open session afterwards.
+					</p>
+					<ol>
+						<li>
+							Phase 4 next, then phase 3<span class="rec">Recommended</span>
+						</li>
+						<li>Keep the original order: phase 3, then 4</li>
+					</ol>
+				</div>
+				<div class="question" id="q-edit">
+					<h3>C. Can you edit the tabs of a closed session?</h3>
+					<p>
+						Today a saved session's title and notes can be edited, but not its tabs. Editing
+						would save a new version, so the old one stays one click away.
+					</p>
+					<ol>
+						<li>
+							Yes, in phase 4: remove tabs or whole groups, and rename groups<span class="rec"
+								>Recommended</span
+							>
+						</li>
+						<li>Not now: open the session, change it in Chrome, switch away</li>
+					</ol>
+				</div>
+				<div class="question" id="q-windows">
+					<h3>D. Smart group across windows: what about the strays?</h3>
+					<p>
+						Smart group never moves tabs between windows, so a topic spread over two windows
+						becomes two groups with the same name, sometimes one of them a single tab (you saw
+						"AI Agents" in W1 and W2).
+					</p>
+					<ol>
+						<li>
+							Move the strays into the window that holds most of the group<span class="rec"
+								>Recommended</span
+							>
+						</li>
+						<li>Leave the strays loose and group only the main window's tabs</li>
+						<li>Keep it as it is</li>
+					</ol>
+				</div>
 			</section>
 
 			<section id="phases" aria-labelledby="phases-h">
 				<h2 id="phases-h"><span class="num">10</span>Phases</h2>
 				<p class="prose">
 					Reordered so the features you asked for first come first. Phase 1 changes no stored data,
-					so it can ship before the migration.
+					so it can ship before the migration. Kept in their original numbering; the proposed order
+					from here is 4, then 3 (<a href="#q-order">question B</a>).
 				</p>
 				<ol class="phases">
 					<li>
 						<span class="pn" aria-hidden="true">1</span>
 						<div>
-							<h3>Smart grouping and switching</h3>
+							<h3>Smart grouping and switching <span class="state done">Built</span></h3>
 							<p class="needs">Needs nothing else. Uses Chrome tab groups only; no storage changes.</p>
 							<ul>
 								<li>Sidebar lists the open tab groups; click to focus.</li>
@@ -1673,29 +1974,38 @@
 					<li>
 						<span class="pn" aria-hidden="true">2</span>
 						<div>
-							<h3>Foundation and migration</h3>
+							<h3>Foundation and migration <span class="state partial">Groundwork done</span></h3>
 							<p class="needs">No visible change. Needed before anything is stored differently.</p>
 							<ul>
-								<li>Tests: Vitest with a fake <code>chrome</code>. The project has none today.</li>
 								<li>
-									One restore engine (about 330 duplicated lines today) and one session module.
+									<s>Tests: Vitest with a fake <code>chrome</code>.</s> Done: 56 tests, plus a dry
+									run against a real backup.
 								</li>
 								<li>
-									The new data model, migrated from contexts and saved sessions with a rollback
-									copy and a dry run.
+									<s>One restore engine.</s> Done. It also fixed three bugs in the old copies:
+									Parked tabs never reopened, tabs with the same address landed in the wrong
+									group, and one unopenable page failed the whole restore.
 								</li>
+								<li>
+									<s>The new data model, its store, and the migration with a dry run.</s> Done; the
+									old store stays untouched as the rollback copy.
+								</li>
+								<li>Left: the dry run on a fresh backup that includes your contexts.</li>
 							</ul>
 							<p class="done">
-								<b>Done when</b> the migration passes against a backup of your real data and the
-								current UI runs unchanged on top of it.
+								<b>Done when</b> the migration passes against a backup of your real data.
+								<em
+									>Changed: the old screens no longer run on the new data; the switch-over moves
+									to phase 4 (<a href="#split">why</a>).</em
+								>
 							</p>
 						</div>
 					</li>
 					<li>
 						<span class="pn" aria-hidden="true">3</span>
 						<div>
-							<h3>Stash and the sidebar</h3>
-							<p class="needs">Needs phase 2.</p>
+							<h3>Stash and the sidebar <span class="state later">Not started</span></h3>
+							<p class="needs">Needs phase 2; proposed after phase 4.</p>
 							<ul>
 								<li>Stash and open groups, with unloaded opening.</li>
 								<li>Stashed list in the sidebar, Parked in it, Move to session.</li>
@@ -1710,15 +2020,20 @@
 					<li>
 						<span class="pn" aria-hidden="true">4</span>
 						<div>
-							<h3>Sessions and the past</h3>
-							<p class="needs">Needs phase 3.</p>
+							<h3>Sessions and the past <span class="state next">Next</span></h3>
+							<p class="needs">Needs phase 2. Proposed to come before phase 3.</p>
 							<ul>
+								<li>
+									The switch-over: confirm the dry run on your data, then the migration runs for
+									real. The old store stays as the rollback copy, with an Undo.
+								</li>
 								<li>Switch sessions, Home, history versions.</li>
 								<li>
-									The Sessions page becomes the library: past sessions, their history, Switch to,
-									Rename, Archive, Download.
+									The Sessions page becomes the library: every session, their versions, Switch to,
+									Rename, notes, Archive, Download, and editing a closed session's tabs
+									(<a href="#q-edit">question C</a>).
 								</li>
-								<li>The on-page palette gets the same commands.</li>
+								<li>The side panel and both palettes use the library.</li>
 							</ul>
 							<p class="done">
 								<b>Done when</b> you can put Home away, open an old saved session, and come back
@@ -1751,12 +2066,12 @@
 						<div class="entity">
 							<h4>sessions</h4>
 							<ul>
-								<li><b>name</b>, color</li>
-								<li><b>kind</b>: home · normal</li>
+								<li><b>name</b>, notes, color</li>
+								<li><b>kind</b>: home · normal · parked</li>
 								<li><b>status</b>: open · closed · archived</li>
-								<li>lastOpenedAt, order</li>
+								<li>headVersionId, tabCount, lastOpenedAt</li>
 							</ul>
-							<p>One row has status open.</p>
+							<p>One row has status open. Built.</p>
 						</div>
 						<div class="entity">
 							<h4>groups</h4>
@@ -1766,7 +2081,7 @@
 								<li><b>state</b>: open · stashed · archived</li>
 								<li>kind: normal · parked</li>
 							</ul>
-							<p>While open, linked to its Chrome tab group.</p>
+							<p>Stashed groups of the open session. Phase 3.</p>
 						</div>
 						<div class="entity">
 							<h4>tabs</h4>
@@ -1775,16 +2090,16 @@
 								<li>url, title, icon</li>
 								<li>position, window</li>
 							</ul>
-							<p>Pinned tabs are never stored.</p>
+							<p>Tabs of stashed groups. Phase 3. Pinned tabs are never stored.</p>
 						</div>
 						<div class="entity">
 							<h4>versions</h4>
 							<ul>
 								<li><b>sessionId</b>, createdAt</li>
-								<li>reason: switch · close · manual</li>
+								<li>reason: switch · close · manual · migrated</li>
 								<li>full copy: groups, tabs, windows</li>
 							</ul>
-							<p>Last 10 per session.</p>
+							<p>Last 10 per session, each stored whole so lists never open them. Built.</p>
 						</div>
 					</div>
 					<div class="truth">
@@ -1794,28 +2109,31 @@
 					</div>
 				</div>
 
-				<h3>Migration, once, on update</h3>
+				<h3>Migration, once, at the switch-over</h3>
+				<p class="prose">Steps 1–5 are built and tested; running them for real is phase 4.</p>
 				<ol class="plain prose">
 					<li>
-						<strong>Rollback copy first.</strong> The full current data is saved before anything
-						changes. If a step fails, it's restored and the old UI keeps working.
+						<strong>Rollback copy.</strong> The library is its own store, and the old store is
+						left exactly as it was. Rolling back means using the old store again.
 					</li>
 					<li>
 						<strong>What's open now becomes Home.</strong> If a context is active, that context
-						becomes the open session instead. Existing Chrome tab groups become open groups; the rest
-						are loose tabs.
+						becomes the open session instead. Chrome stays the source of truth for what's open.
 					</li>
 					<li>
-						<strong>Each context becomes a closed session.</strong> Its saved tab groups become
-						stashed groups; ungrouped tabs stay loose in that session. Its snapshots become history.
+						<strong>Each context becomes a session.</strong> Its current tabs and its snapshots
+						become its versions, groups included. Archived stays archived; Parked keeps its role.
 					</li>
 					<li>
 						<strong>Each saved session becomes a closed session</strong> with one version, named
-						from its title or date. The duplicate copies the old code wrote are dropped.
+						from its title or, when it has none, its sites. Copies the old save code wrote to the
+						second store, exact duplicates and empty sessions are dropped; tabs pointing at a group
+						that was never saved come back ungrouped.
 					</li>
 					<li>
-						<strong>A dry run reports all of this first</strong>, and the old saved-sessions list
-						stays read-only until you confirm the result.
+						<strong>A dry run reports all of this first.</strong> Done on the July backup
+						(<a href="#consolidate">results</a>); it runs again on a fresh backup before the
+						switch-over, and you confirm the result.
 					</li>
 					<li>Backups export in the new format; importing an old backup runs the same migration.</li>
 				</ol>
@@ -1835,6 +2153,17 @@
 							<tr>
 								<td>Migrating your real data (547 tabs plus every saved session)</td>
 								<td>Rollback copy, tests against your exported backup, dry run, old list kept until you confirm.</td>
+							</tr>
+							<tr>
+								<td>The only backup on hand is from July and has no contexts</td>
+								<td>Rerun the dry run on a fresh backup before the switch-over.</td>
+							</tr>
+							<tr>
+								<td>Today's contexts code can't handle 162 sessions with 15,048 tabs</td>
+								<td>
+									The library lists sessions without opening them (0.4 ms for all 163); the old
+									screens never run on the migrated data.
+								</td>
 							</tr>
 							<tr>
 								<td>Re-linking open groups after Chrome restarts</td>
