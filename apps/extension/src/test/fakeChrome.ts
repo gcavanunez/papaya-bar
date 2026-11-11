@@ -46,6 +46,16 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	const tabs = new Map<number, FakeTab>()
 	const groups = new Map<number, FakeGroup>()
 	const storage = new Map<string, unknown>()
+	type StorageListener = (
+		changes: Record<string, chrome.storage.StorageChange>,
+		area: string,
+	) => void
+	const storageListeners = new Set<StorageListener>()
+	/** Like Chrome, listeners hear about a write after it lands, in every "document" */
+	function emitStorage(changes: Record<string, chrome.storage.StorageChange>) {
+		const copy = structuredClone(changes)
+		setTimeout(() => storageListeners.forEach((listener) => listener(copy, 'local')), 0)
+	}
 	let nextId = 1
 	const calls: { method: string; args: unknown }[] = []
 
@@ -257,11 +267,26 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 					)
 				},
 				async set(items: Record<string, unknown>) {
-					for (const [k, v] of Object.entries(items)) storage.set(k, structuredClone(v))
+					const changes: Record<string, chrome.storage.StorageChange> = {}
+					for (const [k, v] of Object.entries(items)) {
+						changes[k] = { oldValue: storage.get(k), newValue: v }
+						storage.set(k, structuredClone(v))
+					}
+					emitStorage(changes)
 				},
 				async remove(keys: string | string[]) {
-					for (const k of Array.isArray(keys) ? keys : [keys]) storage.delete(k)
+					const changes: Record<string, chrome.storage.StorageChange> = {}
+					for (const k of Array.isArray(keys) ? keys : [keys]) {
+						if (!storage.has(k)) continue
+						changes[k] = { oldValue: storage.get(k) }
+						storage.delete(k)
+					}
+					if (Object.keys(changes).length) emitStorage(changes)
 				},
+			},
+			onChanged: {
+				addListener: (listener: StorageListener) => storageListeners.add(listener),
+				removeListener: (listener: StorageListener) => storageListeners.delete(listener),
 			},
 		},
 	}
@@ -271,6 +296,7 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	return {
 		chrome: api,
 		calls,
+		storage,
 		/** Each window's tabs in strip order */
 		snapshot() {
 			return [...windows.values()].map((win) => ({

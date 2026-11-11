@@ -31,7 +31,7 @@ import {
 } from '@/sync/store'
 import { getCurrentUser, isAuthenticated, onAuthStateChange, type AuthUser } from '@/sync/auth'
 import type { SaveableTab } from '@/types'
-import type { SavedWindow } from '@/hooks/useSessionsData'
+import type { SavedWindow } from '@/types'
 
 // ==================== Types ====================
 

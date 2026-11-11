@@ -180,12 +180,12 @@ export async function cycleGroup(direction: 1 | -1, windowId?: number): Promise<
 }
 
 /**
- * Turn suggestions into Chrome tab groups where the tabs already are. A suggestion
- * spanning several windows becomes one group per window, so no tab changes window.
+ * Turn suggestions into Chrome tab groups. A suggestion spanning several windows
+ * becomes one group in the window that holds most of its tabs; the strays move there.
  * Tabs that closed, got pinned or were grouped since the suggestion are skipped, and
- * a window that fails doesn't stop the rest. New groups start collapsed unless they
+ * a group that fails doesn't stop the rest. New groups start collapsed unless they
  * hold the window's active tab. Returns what was grouped, and where those tabs were,
- * for undo (grouping pulls a group's tabs together in the tab strip).
+ * for undo (grouping pulls a group's tabs together, and strays change window).
  */
 export async function groupInPlace(plans: GroupPlan[]): Promise<GroupedResult> {
 	const live = new Map(
@@ -204,30 +204,44 @@ export async function groupInPlace(plans: GroupPlan[]): Promise<GroupedResult> {
 			list.push(tab)
 			byWindow.set(tab.windowId, list)
 		}
-		for (const [windowId, windowTabs] of byWindow) {
-			const ids = windowTabs.map((tab) => tab.id as number)
-			let groupId: number
-			try {
-				groupId = await chrome.tabs.group({
-					tabIds: ids as [number, ...number[]],
-					createProperties: { windowId },
-				})
-			} catch (error) {
-				console.warn('[papaya] could not group tabs', error)
-				continue
+		if (!byWindow.size) continue
+		// The window with most of the group's tabs (the earliest, on a tie) keeps them all
+		const [windowId] = [...byWindow].sort((a, b) => b[1].length - a[1].length)[0]
+		const windowTabs = [...byWindow.get(windowId)!]
+		const strays = [...byWindow].filter(([id]) => id !== windowId).flatMap(([, tabs]) => tabs)
+		try {
+			if (strays.length) {
+				await chrome.tabs.move(
+					strays.map((tab) => tab.id as number),
+					{ windowId, index: -1 },
+				)
+				windowTabs.push(...strays)
 			}
-			// Mark these tabs as used so a later suggestion can't steal them
-			for (const tab of windowTabs) live.set(tab.id, { ...tab, groupId })
-			groupIds.push(groupId)
-			tabIds.push(...ids)
-			await chrome.tabGroups
-				.update(groupId, {
-					title: plan.name,
-					color: (plan.color ?? 'grey') as chrome.tabGroups.Color,
-					collapsed: !windowTabs.some((tab) => tab.active),
-				})
-				.catch((error) => console.warn('[papaya] could not name group', error))
+		} catch (error) {
+			console.warn('[papaya] could not move tabs into one window', error)
 		}
+		const ids = windowTabs.map((tab) => tab.id as number)
+		let groupId: number
+		try {
+			groupId = await chrome.tabs.group({
+				tabIds: ids as [number, ...number[]],
+				createProperties: { windowId },
+			})
+		} catch (error) {
+			console.warn('[papaya] could not group tabs', error)
+			continue
+		}
+		// Mark these tabs as used so a later suggestion can't steal them
+		for (const tab of windowTabs) live.set(tab.id, { ...tab, windowId, groupId })
+		groupIds.push(groupId)
+		tabIds.push(...ids)
+		await chrome.tabGroups
+			.update(groupId, {
+				title: plan.name,
+				color: (plan.color ?? 'grey') as chrome.tabGroups.Color,
+				collapsed: !windowTabs.some((tab) => tab.active),
+			})
+			.catch((error) => console.warn('[papaya] could not name group', error))
 	}
 	const positions = tabIds.map((id) => {
 		const tab = before.get(id) as ChromeTab
@@ -238,28 +252,35 @@ export async function groupInPlace(plans: GroupPlan[]): Promise<GroupedResult> {
 
 /**
  * Undo for groupInPlace: ungroup whichever of these tabs still exist and put them back
- * where they were. They go to the end of their window first, then each drops into its
- * old slot in order, which restores the order whatever grouping did to it.
+ * where they were, moving strays back to their own window if it's still open. They go
+ * to the end of their window first, then each drops into its old slot in order, which
+ * restores the order whatever grouping did to it.
  */
 export async function ungroupTabs(tabIds: number[], positions: TabPosition[] = []): Promise<void> {
-	const existing = new Map((await chrome.tabs.query({})).map((tab) => [tab.id, tab]))
+	const tabs = await chrome.tabs.query({})
+	const existing = new Map(tabs.map((tab) => [tab.id, tab]))
 	const ids = tabIds.filter((id) => existing.has(id))
 	if (!ids.length) return
 	await chrome.tabs.ungroup(ids as [number, ...number[]])
 
+	// A window whose only tabs were moved out has closed; its strays stay where they are
+	const openWindows = new Set(tabs.map((tab) => tab.windowId))
 	const byWindow = new Map<number, TabPosition[]>()
 	for (const position of positions) {
-		if (existing.get(position.id)?.windowId !== position.windowId) continue
+		if (!existing.has(position.id) || !openWindows.has(position.windowId)) continue
 		const list = byWindow.get(position.windowId) ?? []
 		list.push(position)
 		byWindow.set(position.windowId, list)
 	}
+	// Every tab back to its own window first, so no stray still shifts another window's slots
 	for (const [windowId, list] of byWindow) {
 		list.sort((a, b) => a.index - b.index)
 		await chrome.tabs.move(
 			list.map((p) => p.id),
 			{ windowId, index: -1 },
 		)
+	}
+	for (const [windowId, list] of byWindow) {
 		for (const { id, index } of list) await chrome.tabs.move(id, { windowId, index })
 	}
 }

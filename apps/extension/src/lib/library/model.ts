@@ -9,7 +9,7 @@ import { getHostname } from '@/lib/format'
 
 export type SessionStatus = 'open' | 'closed' | 'archived'
 export type SessionKind = 'home' | 'normal' | 'parked'
-export type VersionReason = 'switch' | 'close' | 'manual' | 'migrated'
+export type VersionReason = 'switch' | 'close' | 'manual' | 'restore' | 'edit' | 'park' | 'migrated'
 /** Where a migrated session came from */
 export type SessionOrigin = 'home' | 'context' | 'saved-session' | 'synced-session'
 
@@ -28,6 +28,8 @@ export interface LibrarySession {
 	headVersionId: string
 	/** Tabs in the newest version, so lists never open versions */
 	tabCount: number
+	/** JSON of up to four { favIconUrl, url } from the newest version, for list previews */
+	preview: string
 	origin: SessionOrigin
 	/** The old context id, saved-session key or synced session id */
 	originId: string
@@ -91,6 +93,28 @@ export function deriveName(title: string | undefined, tabs: { url?: string }[]):
 	if (!hosts.length) return 'Untitled session'
 	const shown = hosts.slice(0, 2).join(', ')
 	return hosts.length > 2 ? `${shown} +${hosts.length - 2} more` : shown
+}
+
+/** Icons for a session's list row: the first tab of up to four different sites */
+export function makePreview(data: Pick<VersionData, 'tabs'>): string {
+	const seen = new Set<string>()
+	const icons: { favIconUrl: string; url: string }[] = []
+	for (const tab of data.tabs) {
+		const host = getHostname(tab.url)
+		if (!host || seen.has(host)) continue
+		seen.add(host)
+		icons.push({ favIconUrl: tab.favIconUrl, url: tab.url })
+		if (icons.length === 4) break
+	}
+	return JSON.stringify(icons)
+}
+
+export function parsePreview(preview: string | undefined): { favIconUrl: string; url: string }[] {
+	try {
+		return preview ? JSON.parse(preview) : []
+	} catch {
+		return []
+	}
 }
 
 /** The newest version first; the newest is the one a closed session reopens to */

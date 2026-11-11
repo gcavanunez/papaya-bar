@@ -86,7 +86,7 @@ async function runImport(file: File) {
 	try {
 		const summary = await importBackup(file, importMode.value)
 		toast(
-			`Imported ${pluralize(summary.contexts, 'context')} and ${pluralize(summary.legacySessions, 'session')}. Reloading…`,
+			`Imported ${pluralize(summary.sessions, 'session')} and ${pluralize(summary.versions, 'version')}. Reloading…`,
 		)
 		setTimeout(() => location.reload(), 900)
 	} catch (e) {
@@ -113,7 +113,7 @@ function onFileChange(e: Event) {
 		triggerConfirm(() => void runImport(file), {
 			title: 'Replace all your data?',
 			message:
-				'Every context and session on this device will be replaced by the backup. This cannot be undone.',
+				'Every session on this device will be replaced by the backup. Download a backup first if you might want them back.',
 			confirmLabel: 'Replace everything',
 		})
 	}
@@ -186,8 +186,8 @@ function onFileChange(e: Event) {
 							</p>
 							<p class="dark:text-vercel-accents-5 mt-0.5 text-sm text-slate-500">
 								<template v-if="stats">
-									{{ pluralize(stats.contexts, 'context') }} ·
 									{{ pluralize(stats.sessions, 'session') }} ·
+									{{ pluralize(stats.versions, 'version') }} ·
 									{{ formatBytes(stats.bytes) }}
 								</template>
 								<template v-else>Calculating…</template>

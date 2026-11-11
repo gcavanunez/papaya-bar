@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, isSameYear } from 'date-fns'
+import { differenceInCalendarDays, format, formatDistanceToNowStrict, isSameYear } from 'date-fns'
 
 export function getHostname(url?: string): string {
 	if (!url) return ''
@@ -49,4 +49,11 @@ export function dayLabel(date: Date, now = new Date()): string {
 
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
 	return `${count} ${count === 1 ? singular : plural}`
+}
+
+/** "just now", "5 minutes ago", "3 days ago"; '' for no time */
+export function timeAgo(ts: number, now = Date.now()): string {
+	if (!ts) return ''
+	if (now - ts < 60_000) return 'just now'
+	return formatDistanceToNowStrict(ts, { addSuffix: true })
 }

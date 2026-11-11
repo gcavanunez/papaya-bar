@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * ⌘K command palette — the fast lane for the swap loop.
- * Swap contexts, run context commands, or jump to any open tab from the keyboard.
+ * Switch sessions or groups, run session commands, or jump to any open or saved tab.
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
@@ -15,13 +15,18 @@ import {
 	TransitionChild,
 	TransitionRoot,
 } from '@headlessui/vue'
-import { ArchiveBoxArrowDownIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/vue/16/solid'
+import {
+	ArchiveBoxArrowDownIcon,
+	BookmarkIcon,
+	HomeIcon,
+	MagnifyingGlassIcon,
+	PlusIcon,
+} from '@heroicons/vue/16/solid'
 import TabFavicon from './TabFavicon.vue'
-import { useContexts } from '@/hooks/useContexts'
+import { useLibrary } from '@/hooks/useLibrary'
 import { useChromeTabs } from '@/hooks/useChromeTabs'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
 import { useIntelligence } from '@/hooks/useIntelligence'
-import { getAllContextTabs } from '@/sync/store'
 import { isPaletteShortcut, paletteShortcutLabel } from '@/lib/platform'
 import { focusGroup, listOpenGroups, type OpenGroup } from '@/lib/tabGroups'
 
@@ -33,18 +38,20 @@ interface GroupItem {
 	color: string
 	tabCount: number
 }
-interface ContextItem {
-	kind: 'context'
+interface SessionItem {
+	kind: 'session'
 	key: string
 	id: string
 	label: string
 	color: string
 	tabCount: number
+	isHome: boolean
 }
 interface CommandItem {
 	kind: 'command'
 	key: string
 	label: string
+	icon: typeof PlusIcon
 	run: () => void | Promise<void>
 }
 interface TabItem {
@@ -61,11 +68,12 @@ interface SavedTabItem {
 	label: string
 	url: string
 	favIconUrl?: string
-	contextName: string
+	sessionName: string
 }
-type PaletteItem = GroupItem | ContextItem | CommandItem | TabItem | SavedTabItem
+type PaletteItem = GroupItem | SessionItem | CommandItem | TabItem | SavedTabItem
 
-const { switchableContexts, activeContext, resume, stashActive, createFromLive } = useContexts()
+const { switchable, openSession, homeId, library, switchTo, saveVersion, saveOpenAs, putAway } =
+	useLibrary()
 const { loadedTabs } = useChromeTabs()
 const { isOpen, close, toggle } = useCommandPalette()
 const { semanticSearch } = useIntelligence()
@@ -111,35 +119,48 @@ const groupItems = computed<GroupItem[]>(() =>
 		})),
 )
 
-const contextItems = computed<ContextItem[]>(() =>
-	switchableContexts.value
-		.filter((c) => matches(c.name))
+const sessionItems = computed<SessionItem[]>(() =>
+	switchable.value
+		.filter((s) => matches(s.name))
 		.slice(0, 6)
-		.map((c) => ({
-			kind: 'context',
-			key: `ctx-${c.id}`,
-			id: c.id,
-			label: c.name,
-			color: c.color,
-			tabCount: c.tabCount,
+		.map((s) => ({
+			kind: 'session',
+			key: `session-${s.id}`,
+			id: s.id,
+			label: s.name,
+			color: s.color,
+			tabCount: s.tabCount,
+			isHome: s.id === homeId,
 		})),
 )
 
 const commandItems = computed<CommandItem[]>(() => {
 	const cmds: CommandItem[] = []
-	if (activeContext.value) {
-		cmds.push({
-			kind: 'command',
-			key: 'cmd-stash',
-			label: `Stash “${activeContext.value.name}” & clear`,
-			run: stashActive,
-		})
+	const open = openSession.value
+	if (open && open.id !== homeId) {
+		cmds.push(
+			{
+				kind: 'command',
+				key: 'cmd-version',
+				label: `Save a version of “${open.name}”`,
+				icon: BookmarkIcon,
+				run: saveVersion,
+			},
+			{
+				kind: 'command',
+				key: 'cmd-away',
+				label: `Put “${open.name}” away`,
+				icon: ArchiveBoxArrowDownIcon,
+				run: putAway,
+			},
+		)
 	}
 	cmds.push({
 		kind: 'command',
 		key: 'cmd-new',
-		label: 'Save current tabs as new context…',
-		run: promptNewContext,
+		label: 'Save open tabs as a new session…',
+		icon: PlusIcon,
+		run: promptNewSession,
 	})
 	return cmds.filter((c) => matches(c.label))
 })
@@ -164,15 +185,39 @@ const tabItems = computed<TabItem[]>(() => {
 const savedTabResults = ref<SavedTabItem[]>([])
 let savedSearchSeq = 0
 
-function toSavedItem(entry: { key: string; title: string; url: string; favIconUrl: string; contextName: string }): SavedTabItem {
+interface SavedEntry {
+	key: string
+	title: string
+	url: string
+	favIconUrl: string
+	sessionName: string
+}
+
+function toSavedItem(entry: SavedEntry): SavedTabItem {
 	return {
 		kind: 'savedtab',
 		key: `saved-${entry.key}`,
 		label: entry.title || entry.url,
 		url: entry.url,
 		favIconUrl: entry.favIconUrl,
-		contextName: entry.contextName,
+		sessionName: entry.sessionName,
 	}
+}
+
+/** Every tab in every closed session's newest version (contents load once, then cache) */
+async function savedEntries(): Promise<SavedEntry[]> {
+	const lib = await library()
+	const heads = switchable.value.filter((s) => s.headVersionId)
+	const data = await lib.blobs.getMany(heads.map((s) => s.headVersionId))
+	return heads.flatMap((s) =>
+		(data.get(s.headVersionId)?.tabs ?? []).map((tab, i) => ({
+			key: `${s.id}-${i}`,
+			title: tab.title,
+			url: tab.url,
+			favIconUrl: tab.favIconUrl,
+			sessionName: s.name,
+		})),
+	)
 }
 
 watchDebounced(
@@ -185,7 +230,8 @@ watchDebounced(
 			return
 		}
 
-		const all = getAllContextTabs(300)
+		const all = await savedEntries()
+		if (seq !== savedSearchSeq) return
 
 		// 1. Instant local substring results.
 		const lower = term.toLowerCase()
@@ -196,7 +242,7 @@ watchDebounced(
 		if (term.length < 2) return
 		const ranked = await semanticSearch(
 			term,
-			all.map((e) => ({ stableId: e.key, title: e.title, url: e.url })),
+			all.slice(0, 300).map((e) => ({ stableId: e.key, title: e.title, url: e.url })),
 		)
 		if (!ranked || seq !== savedSearchSeq) return // stale or unavailable
 
@@ -213,16 +259,16 @@ watchDebounced(
 const hasResults = computed(
 	() =>
 		groupItems.value.length +
-			contextItems.value.length +
+			sessionItems.value.length +
 			commandItems.value.length +
 			tabItems.value.length +
 			savedTabResults.value.length >
 		0,
 )
 
-async function promptNewContext() {
-	const name = window.prompt('Name this context')
-	if (name?.trim()) await createFromLive(name.trim(), { activate: true })
+async function promptNewSession() {
+	const name = window.prompt('Name this session')
+	if (name?.trim()) await saveOpenAs(name.trim())
 }
 
 function activateTab(id: number) {
@@ -236,7 +282,7 @@ async function onSelect(item: PaletteItem | null) {
 	if (!item) return
 	close()
 	if (item.kind === 'group') await focusGroup(item.id)
-	else if (item.kind === 'context') await resume(item.id)
+	else if (item.kind === 'session') await switchTo(item.id)
 	else if (item.kind === 'command') await item.run()
 	else if (item.kind === 'tab') activateTab(item.id)
 	else if (item.kind === 'savedtab') chrome.tabs.create({ url: item.url })
@@ -291,7 +337,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 								/>
 								<ComboboxInput
 									class="dark:placeholder:text-vercel-accents-4 h-12 w-full border-0 bg-transparent p-0 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 focus:outline-none dark:text-white"
-									placeholder="Jump to a group, context, command or open tab…"
+									placeholder="Jump to a group, session, command or open tab…"
 									autocomplete="off"
 									@change="query = $event.target.value"
 								/>
@@ -338,17 +384,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 									</ComboboxOption>
 								</template>
 
-								<!-- Contexts -->
-								<template v-if="contextItems.length">
+								<!-- Sessions -->
+								<template v-if="sessionItems.length">
 									<li
 										class="section-label px-2.5 pb-1"
 										:class="groupItems.length ? 'pt-3' : 'pt-2'"
 										role="presentation"
 									>
-										Contexts
+										Switch to session
 									</li>
 									<ComboboxOption
-										v-for="item in contextItems"
+										v-for="item in sessionItems"
 										:key="item.key"
 										v-slot="{ active }"
 										:value="item"
@@ -358,7 +404,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 											<span
 												class="flex size-4 shrink-0 items-center justify-center"
 											>
+												<HomeIcon
+													v-if="item.isHome"
+													class="dark:text-vercel-accents-5 size-3.5 text-slate-400"
+													aria-hidden="true"
+												/>
 												<span
+													v-else
 													class="size-2.5 rounded-full"
 													:class="dot(item.color)"
 												/>
@@ -391,11 +443,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 									>
 										<li :class="optionClass(active)">
 											<component
-												:is="
-													item.key === 'cmd-stash'
-														? ArchiveBoxArrowDownIcon
-														: PlusIcon
-												"
+												:is="item.icon"
 												class="dark:text-vercel-accents-5 size-4 shrink-0 text-slate-400"
 											/>
 											<span
@@ -430,10 +478,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 									</ComboboxOption>
 								</template>
 
-								<!-- Saved tabs across all contexts -->
+								<!-- Saved tabs across all sessions -->
 								<template v-if="savedTabResults.length">
 									<li class="section-label px-2.5 pt-3 pb-1" role="presentation">
-										Saved in contexts
+										Saved in sessions
 									</li>
 									<ComboboxOption
 										v-for="item in savedTabResults"
@@ -452,7 +500,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 											<span
 												class="dark:bg-vercel-accents-2 dark:text-vercel-accents-6 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500"
 											>
-												{{ item.contextName }}
+												{{ item.sessionName }}
 											</span>
 										</li>
 									</ComboboxOption>

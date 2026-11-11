@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { AUTO_PARK_DAYS, isParkable, queryLiveTabs } from './swapEngine'
+import { AUTO_PARK_DAYS, getCloseableTabIds, isParkable } from './liveTabs'
 
 const DAY = 24 * 60 * 60 * 1000
 const NOW = 1_800_000_000_000
@@ -42,7 +42,7 @@ describe('isParkable', () => {
 	})
 })
 
-describe('queryLiveTabs', () => {
+describe('getCloseableTabIds', () => {
 	it('leaves out pinned tabs and Papaya pages', async () => {
 		liveTabs = [
 			tab({ id: 1 }),
@@ -50,6 +50,6 @@ describe('queryLiveTabs', () => {
 			tab({ id: 3, url: OWN }),
 			tab({ id: 4 }),
 		]
-		expect((await queryLiveTabs()).map((t) => t.id)).toEqual([1, 4])
+		expect(await getCloseableTabIds()).toEqual([1, 4])
 	})
 })

@@ -38,3 +38,18 @@ export type TabSection = {
 }
 export type LookUpTab = Record<string, chrome.history.VisitItem[]>
 export type WindowsMap = Map<number, string>
+
+/** Window bounds as saved with a session */
+export type SavedWindow = {
+	width?: number
+	left?: number
+	height?: number
+	top?: number
+	id?: number
+}
+export type SavedDisplay = {
+	height: number
+	left: number
+	top: number
+	width: number
+}

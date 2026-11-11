@@ -23,6 +23,7 @@ const routes: RouteRecordRaw[] = [
 						path: ':uid',
 						component: () => import('@/views/SessionsShow.vue'),
 						name: 'sessions.show',
+						props: true,
 					},
 				],
 			},
@@ -55,7 +56,7 @@ const routes: RouteRecordRaw[] = [
 	},
 	{
 		path: '/panel',
-		component: () => import('@/views/ContextPanel.vue'),
+		component: () => import('@/views/SessionPanel.vue'),
 		name: 'panel',
 	},
 	{

@@ -105,7 +105,7 @@ describe('planMigration: contexts', () => {
 	const result = planMigration({ store, savedSessions: [], now: NOW })
 
 	it('turns each context into a session, the active one open', () => {
-		expect(result.sessions['context:work']).toMatchObject({
+		expect(result.sessions['ctx-work']).toMatchObject({
 			name: 'Work',
 			color: 'blue',
 			status: 'open',
@@ -114,11 +114,11 @@ describe('planMigration: contexts', () => {
 			origin: 'context',
 			originId: 'work',
 		})
-		expect(result.sessions['context:trip'].status).toBe('archived')
-		expect(result.sessions['context:parked'].kind).toBe('parked')
+		expect(result.sessions['ctx-trip'].status).toBe('archived')
+		expect(result.sessions['ctx-parked'].kind).toBe('parked')
 		expect(result.values).toEqual({
-			openSessionId: 'context:work',
-			parkedSessionId: 'context:parked',
+			openSessionId: 'ctx-work',
+			parkedSessionId: 'ctx-parked',
 			homeSessionId: '',
 		})
 		expect(result.report.created.home).toBe(false)
@@ -126,14 +126,14 @@ describe('planMigration: contexts', () => {
 
 	it('keeps snapshots as older versions, with the current tab set newest', () => {
 		const work = Object.entries(result.versions)
-			.filter(([, v]) => v.sessionId === 'context:work')
+			.filter(([, v]) => v.sessionId === 'ctx-work')
 			.sort((a, b) => b[1].createdAt - a[1].createdAt)
 		expect(work.map(([, v]) => [v.reason, v.tabCount])).toEqual([
 			['migrated', 2],
 			['switch', 1],
 			['switch', 1],
 		])
-		expect(result.sessions['context:work'].headVersionId).toBe(work[0][0])
+		expect(result.sessions['ctx-work'].headVersionId).toBe(work[0][0])
 		// Tabs come back in their saved order, not row order
 		expect(parseVersion(work[0][1]).tabs.map((t) => t.url)).toEqual([
 			'https://a.com',
@@ -166,7 +166,7 @@ describe('planMigration: saved sessions', () => {
 			],
 			now: NOW,
 		})
-		const taxes = result.sessions['saved:08:35 am 09/24/2022']
+		const taxes = result.sessions['saved-08-35-am-09-24-2022']
 		expect(taxes).toMatchObject({
 			name: 'Taxes',
 			description: 'W-2s',
@@ -175,7 +175,7 @@ describe('planMigration: saved sessions', () => {
 			origin: 'saved-session',
 		})
 		expect(new Date(taxes.createdAt).toISOString()).toMatch(/^2022-09-24T/)
-		expect(result.sessions['saved:04:21 pm 10/05/2022'].name).toBe(
+		expect(result.sessions['saved-04-21-pm-10-05-2022'].name).toBe(
 			'github.com, reddit.com +2 more',
 		)
 		// Nothing was active, so Home is the open session
@@ -207,8 +207,8 @@ describe('planMigration: saved sessions', () => {
 		// The newer of the two duplicates is kept
 		expect(Object.keys(result.sessions).sort()).toEqual([
 			'home',
-			'saved:09:00 am 09/25/2022',
-			'synced:onlyHere',
+			'saved-09-00-am-09-25-2022',
+			'synced-onlyHere',
 		])
 	})
 
@@ -306,7 +306,7 @@ describe('planMigration: robustness', () => {
 			],
 			now: NOW,
 		})
-		const session = result.sessions['saved:08:35 am 09/24/2022']
+		const session = result.sessions['saved-08-35-am-09-24-2022']
 		await restoreSnapshot(parseVersion(result.versions[session.headVersionId]))
 		expect(fake.snapshot().map((w) => w.tabs)).toEqual([
 			[

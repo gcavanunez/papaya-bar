@@ -1,11 +1,8 @@
-import {
-	AUTO_PARK_DAYS,
-	captureLiveData,
-	getCloseableTabIds,
-	isParkable,
-	restoreContext,
-} from './src/lib/swapEngine'
+import { AUTO_PARK_DAYS, isParkable } from './src/lib/liveTabs'
 import { cycleGroup, focusGroup, listOpenGroups } from './src/lib/tabGroups'
+import { getLibrary } from './src/lib/library/runtime'
+import { parkTabs, putAway, saveOpenAs, saveVersion, switchTo } from './src/lib/library/actions'
+import { HOME_ID, getOpenSessionId, isMigrated, listSessions } from './src/lib/library/store'
 
 // Get the current tab
 const getCurrentTab = async () => {
@@ -49,9 +46,8 @@ chrome.tabs.onCreated.addListener(debouncedUpdateBadge)
 chrome.tabs.onRemoved.addListener(debouncedUpdateBadge)
 
 // ==================== Auto-park stale tabs (opt-in) ====================
-// When enabled in settings, periodically queue tabs untouched for N days and
-// close them. An open extension page drains the queue into the "Parked" context
-// (service workers can't touch the localStorage-backed TinyBase store directly).
+// When enabled in settings, periodically move tabs untouched for N days into the
+// Parked session and close them.
 
 const PARK_ALARM = 'papaya-auto-park'
 
@@ -63,57 +59,21 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 	const { 'papaya:autoPark': cfg } = await chrome.storage.local.get('papaya:autoPark')
 	if (!cfg?.enabled) return
 
+	// Nothing parks until saved sessions and contexts have moved into the library
+	const lib = await getLibrary()
+	if (!isMigrated(lib)) return
+
 	const days = cfg.days ?? AUTO_PARK_DAYS
 	const tabs = await chrome.tabs.query({})
-	const stale = tabs.filter((t) => isParkable(t, days))
-	if (!stale.length) return
-
-	const { 'papaya:parkQueue': existing } = await chrome.storage.local.get('papaya:parkQueue')
-	const queue = Array.isArray(existing) ? existing : []
-	stale.forEach((t) => queue.push({ url: t.url, title: t.title, favIconUrl: t.favIconUrl }))
-
-	await chrome.storage.local.set({ 'papaya:parkQueue': queue })
-	await chrome.tabs.remove(stale.map((t) => t.id))
+	await parkTabs(lib, tabs.filter((t) => isParkable(t, days)))
 })
 
-// ==================== Global palette router ====================
-// Serves the content-script palette: reads the contexts read-model (mirror),
-// runs swaps via the shared swapEngine, and queues store mutations for any open
-// extension page to reconcile into TinyBase.
-
-const MIRROR_KEY = 'papaya:mirror'
-const STORE_OPS_KEY = 'papaya:storeOps'
-
-async function getMirror() {
-	const s = await chrome.storage.local.get(MIRROR_KEY)
-	return s[MIRROR_KEY] || { activeContextId: '', contexts: [], savedTabs: [] }
-}
-
-async function enqueueStoreOp(op) {
-	const s = await chrome.storage.local.get(STORE_OPS_KEY)
-	const ops = Array.isArray(s[STORE_OPS_KEY]) ? s[STORE_OPS_KEY] : []
-	ops.push(op)
-	await chrome.storage.local.set({ [STORE_OPS_KEY]: ops })
-}
-
-// Update the mirror's active pointer and (optionally) refresh a context's restore
-// payload, so rapid back-to-back swaps stay correct even with no page open.
-async function updateMirror(activeContextId, freshenContextId, capture) {
-	const m = await getMirror()
-	m.activeContextId = activeContextId
-	if (freshenContextId && capture) {
-		const ctx = (m.contexts || []).find((c) => c.id === freshenContextId)
-		if (ctx) ctx.restore = { tabs: capture.tabs, windows: capture.windows, groups: capture.groups }
-	}
-	await chrome.storage.local.set({ [MIRROR_KEY]: m })
-}
-
-function paletteShortTime() {
-	return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
+// ==================== Website palette (⌥K) ====================
+// The content-script palette can't reach the library, so it asks here. The library
+// is shared with every extension page through chrome.storage.
 
 async function paletteGetModel() {
-	const mirror = await getMirror()
+	const lib = await getLibrary()
 	const tabs = await chrome.tabs.query({})
 	const extPrefix = 'chrome-extension://' + chrome.runtime.id
 	const openTabs = tabs
@@ -125,60 +85,44 @@ async function paletteGetModel() {
 		color: g.color,
 		tabCount: g.tabIds.length,
 	}))
-	return {
-		groups,
-		activeContextId: mirror.activeContextId,
-		contexts: (mirror.contexts || []).map((c) => ({
-			id: c.id,
-			name: c.name,
-			color: c.color,
-			tabCount: c.tabCount,
-		})),
-		savedTabs: mirror.savedTabs || [],
-		openTabs,
+	const migrated = isMigrated(lib)
+	const openSessionId = getOpenSessionId(lib)
+	const sessions = migrated
+		? listSessions(lib)
+				.filter((s) => s.status !== 'archived')
+				.map((s) => ({
+					id: s.id,
+					name: s.name,
+					color: s.color,
+					tabCount: s.tabCount,
+					open: s.id === openSessionId,
+					home: s.id === HOME_ID,
+				}))
+		: []
+	return { groups, migrated, sessions, openTabs }
+}
+
+/** Tabs saved in closed sessions that match a search (contents load once, then cache) */
+async function paletteSearchSaved(query) {
+	const q = (query || '').trim().toLowerCase()
+	if (q.length < 2) return []
+	const lib = await getLibrary()
+	const heads = listSessions(lib).filter((s) => s.status === 'closed' && s.headVersionId)
+	const data = await lib.blobs.getMany(heads.map((s) => s.headVersionId))
+	const found = []
+	for (const session of heads) {
+		for (const tab of data.get(session.headVersionId)?.tabs ?? []) {
+			if (!`${tab.title} ${tab.url}`.toLowerCase().includes(q)) continue
+			found.push({
+				title: tab.title,
+				url: tab.url,
+				favIconUrl: tab.favIconUrl,
+				sessionName: session.name,
+			})
+			if (found.length >= 6) return found
+		}
 	}
-}
-
-async function paletteResume(contextId) {
-	const mirror = await getMirror()
-	const target = (mirror.contexts || []).find((c) => c.id === contextId)
-	if (!target) return { ok: false }
-
-	const prev = mirror.activeContextId
-	const closeIds = await getCloseableTabIds()
-	const capture = await captureLiveData()
-
-	if (prev) {
-		await enqueueStoreOp({ type: 'setHead', contextId: prev, capture })
-	} else if (capture.tabs.length) {
-		await enqueueStoreOp({ type: 'create', name: `Unsorted · ${paletteShortTime()}`, capture })
-	}
-
-	await restoreContext(target.restore)
-	await enqueueStoreOp({ type: 'setActive', contextId })
-	await updateMirror(contextId, prev, capture)
-	if (closeIds.length) await chrome.tabs.remove(closeIds)
-	return { ok: true }
-}
-
-async function paletteStash() {
-	const mirror = await getMirror()
-	const prev = mirror.activeContextId
-	if (!prev) return { ok: false }
-
-	const closeIds = await getCloseableTabIds()
-	const capture = await captureLiveData()
-	await enqueueStoreOp({ type: 'setHead', contextId: prev, capture })
-	await enqueueStoreOp({ type: 'setActive', contextId: '' })
-	await updateMirror('', prev, capture)
-	if (closeIds.length) await chrome.tabs.remove(closeIds)
-	return { ok: true }
-}
-
-async function paletteCreateFromLive(name) {
-	const capture = await captureLiveData()
-	await enqueueStoreOp({ type: 'create', name, capture, activate: true })
-	return { ok: true }
+	return found
 }
 
 async function paletteJumpTab(tabId) {
@@ -188,39 +132,47 @@ async function paletteJumpTab(tabId) {
 	return { ok: true }
 }
 
+async function handlePaletteMessage(message) {
+	switch (message.type) {
+		case 'palette.getModel':
+			return paletteGetModel()
+		case 'palette.searchSaved':
+			return paletteSearchSaved(message.query)
+		case 'palette.switch':
+			await switchTo(await getLibrary(), message.sessionId)
+			return { ok: true }
+		case 'palette.saveVersion':
+			await saveVersion(await getLibrary())
+			return { ok: true }
+		case 'palette.saveAs':
+			await saveOpenAs(await getLibrary(), message.name)
+			return { ok: true }
+		case 'palette.putAway':
+			await putAway(await getLibrary())
+			return { ok: true }
+		case 'palette.jumpTab':
+			return paletteJumpTab(message.tabId)
+		case 'palette.focusGroup':
+			await focusGroup(message.groupId)
+			return { ok: true }
+		case 'palette.openUrl':
+			await chrome.tabs.create({ url: message.url })
+			return { ok: true }
+		default:
+			return { ok: false }
+	}
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 	if (!message || typeof message.type !== 'string' || !message.type.startsWith('palette.')) {
 		return
 	}
-	;(async () => {
-		switch (message.type) {
-			case 'palette.getModel':
-				sendResponse(await paletteGetModel())
-				break
-			case 'palette.resume':
-				sendResponse(await paletteResume(message.contextId))
-				break
-			case 'palette.stash':
-				sendResponse(await paletteStash())
-				break
-			case 'palette.createFromLive':
-				sendResponse(await paletteCreateFromLive(message.name))
-				break
-			case 'palette.jumpTab':
-				sendResponse(await paletteJumpTab(message.tabId))
-				break
-			case 'palette.focusGroup':
-				await focusGroup(message.groupId)
-				sendResponse({ ok: true })
-				break
-			case 'palette.openUrl':
-				await chrome.tabs.create({ url: message.url })
-				sendResponse({ ok: true })
-				break
-			default:
-				sendResponse({ ok: false })
-		}
-	})()
+	handlePaletteMessage(message)
+		.then(sendResponse)
+		.catch((error) => {
+			console.error('[papaya] palette', message.type, error)
+			sendResponse({ ok: false, error: String(error) })
+		})
 	return true // keep the message channel open for the async response
 })
 

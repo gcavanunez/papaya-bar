@@ -44,10 +44,22 @@ function installPalette(): void {
 
 	interface Model {
 		groups: { id: number; title: string; color: string; tabCount: number }[]
-		activeContextId: string
-		contexts: { id: string; name: string; color: string; tabCount: number }[]
-		savedTabs: { key: string; title: string; url: string; favIconUrl: string; contextName: string }[]
+		migrated: boolean
+		sessions: {
+			id: string
+			name: string
+			color: string
+			tabCount: number
+			open: boolean
+			home: boolean
+		}[]
 		openTabs: { id: number; title: string; url: string; favIconUrl: string }[]
+	}
+	interface SavedTab {
+		title: string
+		url: string
+		favIconUrl: string
+		sessionName: string
 	}
 	interface Item {
 		label: string
@@ -91,9 +103,12 @@ function installPalette(): void {
 	let items: Item[] = []
 	let activeIndex = 0
 	let query = ''
+	let saved: SavedTab[] = []
+	let savedTimer: ReturnType<typeof setTimeout> | undefined
+	let savedSeq = 0
 
-	const send = (message: Record<string, unknown>): Promise<Model> =>
-		new Promise((resolve) => chrome.runtime.sendMessage(message, (res) => resolve(res as Model)))
+	const send = <T = Model>(message: Record<string, unknown>): Promise<T> =>
+		new Promise((resolve) => chrome.runtime.sendMessage(message, (res) => resolve(res as T)))
 
 	const matches = (t: string) => (t || '').toLowerCase().includes(query.trim().toLowerCase())
 	const esc = (s: string) =>
@@ -137,29 +152,46 @@ function installPalette(): void {
 				}),
 			)
 
+		const open = model.sessions.find((x) => x.open)
 		const cmds: Item[] = []
-		if (model.activeContextId)
-			cmds.push({ label: 'Stash current context & clear', sub: 'command', icon: cmd, run: () => act({ type: 'palette.stash' }) })
-		cmds.push({
-			label: 'Save current tabs as context…',
-			sub: 'command',
-			icon: cmd,
-			run: () => {
-				const name = window.prompt('Name this context')
-				if (name && name.trim()) act({ type: 'palette.createFromLive', name: name.trim() })
-			},
-		})
+		if (open && !open.home) {
+			cmds.push(
+				{
+					label: `Save a version of “${open.name}”`,
+					sub: 'command',
+					icon: cmd,
+					run: () => act({ type: 'palette.saveVersion' }),
+				},
+				{
+					label: `Put “${open.name}” away`,
+					sub: 'command',
+					icon: cmd,
+					run: () => act({ type: 'palette.putAway' }),
+				},
+			)
+		}
+		if (model.migrated) {
+			cmds.push({
+				label: 'Save open tabs as a new session…',
+				sub: 'command',
+				icon: cmd,
+				run: () => {
+					const name = window.prompt('Name this session')
+					if (name && name.trim()) act({ type: 'palette.saveAs', name: name.trim() })
+				},
+			})
+		}
 		cmds.forEach((c) => matches(c.label) && out.push(c))
 
-		model.contexts
-			.filter((c) => c.id !== model!.activeContextId && matches(c.name))
+		model.sessions
+			.filter((x) => !x.open && matches(x.name))
 			.slice(0, 6)
-			.forEach((c) =>
+			.forEach((x) =>
 				out.push({
-					label: c.name,
-					sub: `${c.tabCount} tabs`,
-					icon: `<span class="dot" style="background:${COLORS[c.color] || COLORS.grey}"></span>`,
-					run: () => act({ type: 'palette.resume', contextId: c.id }),
+					label: x.name,
+					sub: `session · ${x.tabCount} tabs`,
+					icon: `<span class="dot" style="background:${x.home ? '#cbd5e1' : COLORS[x.color] || COLORS.grey}"></span>`,
+					run: () => act({ type: 'palette.switch', sessionId: x.id }),
 				}),
 			)
 
@@ -168,14 +200,21 @@ function installPalette(): void {
 				.filter((t) => matches(t.title) || matches(t.url))
 				.slice(0, 6)
 				.forEach((t) =>
-					out.push({ label: t.title || t.url, sub: 'open tab', icon: favIcon(t.favIconUrl), run: () => act({ type: 'palette.jumpTab', tabId: t.id }) }),
+					out.push({
+						label: t.title || t.url,
+						sub: 'open tab',
+						icon: favIcon(t.favIconUrl),
+						run: () => act({ type: 'palette.jumpTab', tabId: t.id }),
+					}),
 				)
-			model.savedTabs
-				.filter((t) => matches(t.title) || matches(t.url))
-				.slice(0, 6)
-				.forEach((t) =>
-					out.push({ label: t.title || t.url, sub: t.contextName, icon: favIcon(t.favIconUrl), run: () => act({ type: 'palette.openUrl', url: t.url }) }),
-				)
+			saved.forEach((t) =>
+				out.push({
+					label: t.title || t.url,
+					sub: t.sessionName,
+					icon: favIcon(t.favIconUrl),
+					run: () => act({ type: 'palette.openUrl', url: t.url }),
+				}),
+			)
 		}
 		return out.slice(0, 20)
 	}
@@ -208,12 +247,13 @@ function installPalette(): void {
 		if (!root) return
 		isOpen = true
 		query = ''
+		saved = []
 		activeIndex = 0
 		root.querySelectorAll('.overlay').forEach((n) => n.remove())
 		const overlay = document.createElement('div')
 		overlay.className = 'overlay'
 		overlay.innerHTML =
-			'<div class="box"><div class="search"><span class="hint">⌥K</span><input type="text" placeholder="Go to a group, swap context, jump to a tab…" /></div><div class="list"></div></div>'
+			'<div class="box"><div class="search"><span class="hint">⌥K</span><input type="text" placeholder="Go to a group, switch session, jump to a tab…" /></div><div class="list"></div></div>'
 		overlay.addEventListener('click', (e) => {
 			if (e.target === overlay) close()
 		})
@@ -223,6 +263,16 @@ function installPalette(): void {
 			query = input.value
 			activeIndex = 0
 			render()
+			// Tabs saved in sessions come from the background, a moment after typing stops
+			clearTimeout(savedTimer)
+			const seq = ++savedSeq
+			savedTimer = setTimeout(() => {
+				void send<SavedTab[]>({ type: 'palette.searchSaved', query }).then((found) => {
+					if (seq !== savedSeq || !isOpen) return
+					saved = Array.isArray(found) ? found : []
+					render()
+				})
+			}, 150)
 		})
 		input.focus()
 		render()

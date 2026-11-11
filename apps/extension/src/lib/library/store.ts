@@ -1,13 +1,18 @@
 /**
- * The library store: sessions and their versions, in their own TinyBase store so the
- * old one stays untouched until the switch-over (and serves as the rollback copy).
+ * The library: sessions and their versions.
  *
- * Every function takes the store as its first argument, so tests can use a fresh one.
- * Persistence and the switch-over live with the code that opens the store.
+ * The index (sessions and version metadata) is a TinyBase MergeableStore, so copies in
+ * different pages and the background worker merge instead of overwriting each other.
+ * Version contents live in `blobs`, one entry per version, so the index stays small.
+ * The old stores are never touched and serve as the rollback copy.
+ *
+ * Every function takes the library first, so tests can use a fresh one.
  */
 import { createMergeableStore, type MergeableStore } from 'tinybase'
+import { memoryBlobs, type VersionBlobs } from './blobs'
 import type { MigrationResult } from './migrate'
 import {
+	makePreview,
 	makeVersion,
 	parseVersion,
 	type LibrarySession,
@@ -21,8 +26,22 @@ export const LIBRARY_STORE_ID = 'papaya-library'
 export const LIBRARY_SCHEMA_VERSION = 1
 /** Versions kept per session, newest first */
 export const MAX_VERSIONS = 10
+export const HOME_ID = 'home'
 
-export function createLibraryStore(): MergeableStore {
+export interface Library {
+	store: MergeableStore
+	blobs: VersionBlobs
+}
+
+export interface SessionSummary extends LibrarySession {
+	id: string
+}
+
+export interface VersionSummary extends Omit<LibraryVersion, 'data'> {
+	id: string
+}
+
+export function createLibrary(blobs: VersionBlobs = memoryBlobs()): Library {
 	const store = createMergeableStore(LIBRARY_STORE_ID)
 	store.setTablesSchema({
 		sessions: {
@@ -36,6 +55,7 @@ export function createLibraryStore(): MergeableStore {
 			lastOpenedAt: { type: 'number', default: 0 },
 			headVersionId: { type: 'string', default: '' },
 			tabCount: { type: 'number', default: 0 },
+			preview: { type: 'string', default: '[]' },
 			origin: { type: 'string', default: '' },
 			originId: { type: 'string', default: '' },
 		},
@@ -46,7 +66,6 @@ export function createLibraryStore(): MergeableStore {
 			tabCount: { type: 'number', default: 0 },
 			windowCount: { type: 'number', default: 0 },
 			groupCount: { type: 'number', default: 0 },
-			data: { type: 'string', default: '{"tabs":[],"groups":[],"windows":[]}' },
 		},
 	})
 	store.setValuesSchema({
@@ -56,190 +75,221 @@ export function createLibraryStore(): MergeableStore {
 		schemaVersion: { type: 'number', default: 0 },
 		migratedAt: { type: 'number', default: 0 },
 	})
-	return store
-}
-
-export interface SessionSummary extends LibrarySession {
-	id: string
-}
-
-export interface VersionSummary extends Omit<LibraryVersion, 'data'> {
-	id: string
+	return { store, blobs }
 }
 
 // ==================== Reading ====================
 
-export function getSession(store: MergeableStore, id: string): SessionSummary | null {
-	const row = store.getRow('sessions', id)
+export function getSession(lib: Library, id: string): SessionSummary | null {
+	const row = lib.store.getRow('sessions', id)
 	return Object.keys(row).length ? ({ id, ...row } as SessionSummary) : null
 }
 
+/** When a session was last used: opened, switched away from, or saved */
+export const lastUsed = (s: Pick<LibrarySession, 'lastOpenedAt' | 'updatedAt'>) =>
+	Math.max(s.lastOpenedAt, s.updatedAt)
+
 /** Sessions without their contents, most recently used first */
 export function listSessions(
-	store: MergeableStore,
+	lib: Library,
 	filter: { status?: SessionStatus | SessionStatus[] } = {},
 ): SessionSummary[] {
 	const statuses = filter.status == null ? null : [filter.status].flat()
-	return Object.entries(store.getTable('sessions'))
+	return Object.entries(lib.store.getTable('sessions'))
 		.map(([id, row]) => ({ id, ...row }) as SessionSummary)
 		.filter((s) => !statuses || statuses.includes(s.status))
-		.sort(
-			(a, b) => Math.max(b.lastOpenedAt, b.updatedAt) - Math.max(a.lastOpenedAt, a.updatedAt),
-		)
+		.sort((a, b) => lastUsed(b) - lastUsed(a))
 }
 
 /** A session's versions without their contents, newest first */
-export function listVersions(store: MergeableStore, sessionId: string): VersionSummary[] {
-	return Object.entries(store.getTable('versions'))
+export function listVersions(lib: Library, sessionId: string): VersionSummary[] {
+	return Object.entries(lib.store.getTable('versions'))
 		.filter(([, row]) => row.sessionId === sessionId)
-		.map(([id, row]) => {
-			const { data: _data, ...rest } = row as unknown as LibraryVersion
-			return { id, ...rest }
-		})
+		.map(([id, row]) => ({ id, ...row }) as VersionSummary)
 		.sort((a, b) => b.createdAt - a.createdAt)
 }
 
-export function getVersionData(store: MergeableStore, versionId: string): VersionData | null {
-	const data = store.getCell('versions', versionId, 'data')
-	return typeof data === 'string' ? parseVersion({ data }) : null
+export function getVersionData(lib: Library, versionId: string): Promise<VersionData | null> {
+	return lib.blobs.get(versionId)
 }
 
 /** What a closed session reopens to: its newest version */
-export function getSessionData(store: MergeableStore, sessionId: string): VersionData | null {
-	const head = store.getCell('sessions', sessionId, 'headVersionId')
-	return typeof head === 'string' && head ? getVersionData(store, head) : null
+export async function getSessionData(lib: Library, sessionId: string): Promise<VersionData | null> {
+	const head = getSession(lib, sessionId)?.headVersionId
+	return head ? getVersionData(lib, head) : null
 }
 
-export function getOpenSessionId(store: MergeableStore): string {
-	return (store.getValue('openSessionId') as string) || ''
+export function getOpenSessionId(lib: Library): string {
+	return (lib.store.getValue('openSessionId') as string) || ''
+}
+
+export function isMigrated(lib: Library): boolean {
+	return !!lib.store.getValue('migratedAt')
 }
 
 // ==================== Writing ====================
 
 const newId = () => crypto.randomUUID()
 
-export function createSession(
-	store: MergeableStore,
-	fields: { name: string; description?: string; color?: string; status?: SessionStatus },
+export async function createSession(
+	lib: Library,
+	fields: {
+		name: string
+		description?: string
+		color?: string
+		status?: Exclude<SessionStatus, 'open'>
+		kind?: LibrarySession['kind']
+		id?: string
+	},
 	data?: VersionData,
 	now = Date.now(),
-): string {
-	const id = newId()
-	store.transaction(() => {
-		store.setRow('sessions', id, {
-			name: fields.name,
-			description: fields.description ?? '',
-			color: fields.color ?? 'grey',
-			kind: 'normal',
-			status: fields.status ?? 'closed',
-			createdAt: now,
-			updatedAt: now,
-			lastOpenedAt: 0,
-			headVersionId: '',
-			tabCount: 0,
-			origin: '',
-			originId: '',
-		})
-		if (data) addVersion(store, id, data, 'manual', now)
+): Promise<string> {
+	const id = fields.id ?? newId()
+	lib.store.setRow('sessions', id, {
+		name: fields.name,
+		description: fields.description ?? '',
+		color: fields.color ?? 'grey',
+		kind: fields.kind ?? 'normal',
+		status: fields.status ?? 'closed',
+		createdAt: now,
+		updatedAt: now,
+		lastOpenedAt: 0,
+		headVersionId: '',
+		tabCount: 0,
+		preview: '[]',
+		origin: '',
+		originId: '',
 	})
+	if (data) await addVersion(lib, id, data, 'manual', now)
 	return id
 }
 
 /**
  * Save a new version of a session; it becomes what the session reopens to. Only the
- * newest MAX_VERSIONS are kept.
+ * newest MAX_VERSIONS are kept. The contents are written before the index points at
+ * them, so a failed write never leaves a session pointing at nothing.
  */
-export function addVersion(
-	store: MergeableStore,
+export async function addVersion(
+	lib: Library,
 	sessionId: string,
 	data: VersionData,
 	reason: VersionReason,
 	now = Date.now(),
-): string {
+): Promise<string> {
 	const id = newId()
-	store.transaction(() => {
-		const version = makeVersion(sessionId, data, reason, now)
-		store.setRow('versions', id, { ...version })
-		store.setPartialRow('sessions', sessionId, {
+	const { data: _json, ...meta } = makeVersion(sessionId, data, reason, now)
+	await lib.blobs.set({ [id]: data })
+	let pruned: string[] = []
+	lib.store.transaction(() => {
+		lib.store.setRow('versions', id, { ...meta })
+		lib.store.setPartialRow('sessions', sessionId, {
 			headVersionId: id,
-			tabCount: version.tabCount,
+			tabCount: meta.tabCount,
+			preview: makePreview(data),
 			updatedAt: now,
 		})
-		for (const old of listVersions(store, sessionId).slice(MAX_VERSIONS)) {
-			store.delRow('versions', old.id)
-		}
+		pruned = listVersions(lib, sessionId)
+			.slice(MAX_VERSIONS)
+			.map((v) => v.id)
+		for (const old of pruned) lib.store.delRow('versions', old)
 	})
+	await lib.blobs.delete(pruned)
 	return id
 }
 
 /** Make an older version the newest again, keeping the one it replaces */
-export function restoreVersion(
-	store: MergeableStore,
+export async function restoreVersion(
+	lib: Library,
 	sessionId: string,
 	versionId: string,
 	now = Date.now(),
-): string | null {
-	const data = getVersionData(store, versionId)
-	return data ? addVersion(store, sessionId, data, 'manual', now) : null
+): Promise<string | null> {
+	const data = await getVersionData(lib, versionId)
+	return data ? addVersion(lib, sessionId, data, 'restore', now) : null
 }
 
 export function updateSession(
-	store: MergeableStore,
+	lib: Library,
 	id: string,
 	fields: Partial<Pick<LibrarySession, 'name' | 'description' | 'color'>>,
 	now = Date.now(),
 ): void {
-	store.setPartialRow('sessions', id, { ...fields, updatedAt: now })
+	lib.store.setPartialRow('sessions', id, { ...fields, updatedAt: now })
 }
 
 export function setStatus(
-	store: MergeableStore,
+	lib: Library,
 	id: string,
 	status: Exclude<SessionStatus, 'open'>,
 	now = Date.now(),
 ): void {
-	store.setPartialRow('sessions', id, { status, updatedAt: now })
-	if (getOpenSessionId(store) === id) store.setValue('openSessionId', '')
+	lib.store.transaction(() => {
+		lib.store.setPartialRow('sessions', id, { status, updatedAt: now })
+		if (getOpenSessionId(lib) === id) lib.store.setValue('openSessionId', '')
+	})
 }
 
 /** Mark a session as the open one; the previously open session becomes closed */
-export function markOpen(store: MergeableStore, id: string, now = Date.now()): void {
-	store.transaction(() => {
-		const previous = getOpenSessionId(store)
-		if (previous && previous !== id)
-			store.setPartialRow('sessions', previous, { status: 'closed' })
-		store.setPartialRow('sessions', id, { status: 'open', lastOpenedAt: now })
-		store.setValue('openSessionId', id)
+export function markOpen(lib: Library, id: string, now = Date.now()): void {
+	lib.store.transaction(() => {
+		const previous = getOpenSessionId(lib)
+		if (previous && previous !== id && getSession(lib, previous)?.status === 'open') {
+			lib.store.setPartialRow('sessions', previous, { status: 'closed' })
+		}
+		lib.store.setPartialRow('sessions', id, { status: 'open', lastOpenedAt: now })
+		lib.store.setValue('openSessionId', id)
 	})
 }
 
-export function deleteSession(store: MergeableStore, id: string): void {
-	store.transaction(() => {
-		for (const version of listVersions(store, id)) store.delRow('versions', version.id)
-		store.delRow('sessions', id)
+export async function deleteSession(lib: Library, id: string): Promise<void> {
+	const versionIds = listVersions(lib, id).map((v) => v.id)
+	lib.store.transaction(() => {
+		for (const versionId of versionIds) lib.store.delRow('versions', versionId)
+		lib.store.delRow('sessions', id)
 		for (const key of ['openSessionId', 'parkedSessionId', 'homeSessionId'] as const) {
-			if (store.getValue(key) === id) store.setValue(key, '')
+			if (lib.store.getValue(key) === id) lib.store.setValue(key, '')
 		}
 	})
+	await lib.blobs.delete(versionIds)
 }
 
-/** Write a planned migration into an empty library store */
-export function applyMigration(
-	store: MergeableStore,
+/** Home: where you are when no other session is open. Created on first need. */
+export function ensureHome(lib: Library, now = Date.now()): string {
+	if (!getSession(lib, HOME_ID)) {
+		lib.store.setRow('sessions', HOME_ID, {
+			name: 'Home',
+			kind: 'home',
+			status: 'closed',
+			createdAt: now,
+			updatedAt: now,
+			origin: 'home',
+		})
+		lib.store.setValue('homeSessionId', HOME_ID)
+	}
+	return HOME_ID
+}
+
+/**
+ * Write a planned migration into the library. Ids come from the old data, so applying
+ * it twice (two pages at once, say) writes the same rows twice and nothing more.
+ */
+export async function applyMigration(
+	lib: Library,
 	result: MigrationResult,
 	now = Date.now(),
-): void {
-	if (Object.keys(store.getTable('sessions')).length) {
-		throw new Error('The library already has sessions; migrate into an empty store')
-	}
-	store.transaction(() => {
+): Promise<void> {
+	await lib.blobs.set(
+		Object.fromEntries(Object.entries(result.versions).map(([id, v]) => [id, parseVersion(v)])),
+	)
+	lib.store.transaction(() => {
 		for (const [id, session] of Object.entries(result.sessions)) {
-			store.setRow('sessions', id, { ...session })
+			lib.store.setRow('sessions', id, { ...session })
 		}
 		for (const [id, version] of Object.entries(result.versions)) {
-			store.setRow('versions', id, { ...version })
+			const { data: _json, ...meta } = version
+			lib.store.setRow('versions', id, { ...meta })
 		}
-		store.setValues({
+		lib.store.setValues({
 			...result.values,
 			schemaVersion: LIBRARY_SCHEMA_VERSION,
 			migratedAt: now,

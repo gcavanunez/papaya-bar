@@ -51,10 +51,9 @@ import { button } from '@/lib/ui'
 import { browserReservedCtrlKeys, isMac, paletteShortcutLabel } from '@/lib/platform'
 import type { Group, HistoryMap, LookUpTab, Tab, TabGroupBy, TabSection, WindowsMap } from '@/types'
 import { useSettings } from '@/hooks/useSettings'
-import { useSessionsData } from '@/hooks/useSessionsData'
+import { useLibrary } from '@/hooks/useLibrary'
 import { tabGroupHex, useGlobalModals } from '@/hooks/useGlobalModals'
 import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
-import { useContexts } from '@/hooks/useContexts'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
 import { useKeymap, type CtrlLayer, type KeyBinding, type KeymapMode } from '@/hooks/useKeymap'
 import AppButton from '@/components/AppButton.vue'
@@ -73,22 +72,23 @@ import KeymapHelpOverlay from '@/components/KeymapHelpOverlay.vue'
 
 const { triggerConfirm } = useGlobalConfirm()
 const { onEditGroup, onCreateNewGroup } = useGlobalModals()
-const { storeSession } = useSessionsData()
+const { saveCopy, switchable, moveTabs: moveToSession } = useLibrary()
 const { settings, loadSettings } = useSettings()
-const { contexts, peelOff } = useContexts()
 const { open: openPalette } = useCommandPalette()
 
-// Contexts available as peel-off targets (everything not archived).
-const peelTargets = computed(() => contexts.value.filter((c) => c.status !== 'archived'))
+// Sessions the selection can move into (everything not open or archived)
+const moveTargets = computed(() => switchable.value)
+const selectedIds = () =>
+	selectedGroup.value.map((tab) => tab.id).filter((id): id is number => id != null)
 
-async function stashSelectedTo(contextId: string) {
-	await peelOff(selectedGroup.value, { contextId })
+async function moveSelectedTo(sessionId: string) {
+	await moveToSession(selectedIds(), { sessionId })
 	tabsSelected.value.clear()
 }
-async function stashSelectedToNew() {
-	const name = window.prompt('Name the new context')
+async function moveSelectedToNew() {
+	const name = window.prompt('Name the new session')
 	if (!name?.trim()) return
-	await peelOff(selectedGroup.value, { name: name.trim() })
+	await moveToSession(selectedIds(), { name: name.trim() })
 	tabsSelected.value.clear()
 }
 
@@ -556,9 +556,10 @@ const closeUnSelectedTabs = () => {
 	closeTabs(managedTabs.value.filter((row) => !tabsSelected.value.has(row.stableId)))
 }
 
+const tabIds = (tabs: Tab[]) => tabs.map((tab) => tab.id).filter((id): id is number => id != null)
+
 const saveAll = () => {
-	storeSession(managedTabs.value)
-	toast(`Saved ${pluralize(managedTabs.value.length, 'tab')} as a session`)
+	if (managedTabs.value.length) void saveCopy(undefined, tabIds(managedTabs.value))
 }
 
 const removeDuplicates = () => {
@@ -569,9 +570,10 @@ const removeDuplicates = () => {
 
 const saveAndCloseAll = async () => {
 	const tabs = managedTabs.value
-	await storeSession(tabs)
+	if (!tabs.length) return
+	await saveCopy(undefined, tabIds(tabs), { quiet: true })
 	closeTab(tabs)
-	toast('Session saved and all tabs closed')
+	toast(`Saved ${pluralize(tabs.length, 'tab')} as a session and closed them`)
 }
 
 const closeAll = () => {
@@ -967,8 +969,7 @@ const togglePin = async (tabs: Tab[]) => {
 const saveTargets = () => {
 	const targets = tabsSelected.value.size > 0 ? selectedGroup.value : flatTabs.value
 	if (!targets.length) return
-	storeSession(targets)
-	toast(`Saved ${pluralize(targets.length, 'tab')} as a session`)
+	void saveCopy(undefined, tabIds(targets))
 }
 
 /** Progressive escape: visual mode is handled separately; then selection, then search. */
@@ -2107,19 +2108,19 @@ onMounted(() => {
 				<Menu as="div" class="relative">
 					<MenuButton :class="button({ intent: 'ghost', size: 'sm' })">
 						<RectangleStackIcon class="size-3.5" aria-hidden="true" />
-						Context
+						Session
 					</MenuButton>
 					<AppMenuItems placement="top" align="left" width="w-60">
-						<AppMenuItem :icon="PlusIcon" @click="stashSelectedToNew">
-							New context…
+						<AppMenuItem :icon="PlusIcon" @click="moveSelectedToNew">
+							Move to a new session…
 						</AppMenuItem>
-						<template v-if="peelTargets.length">
+						<template v-if="moveTargets.length">
 							<div class="menu-separator" />
-							<p class="menu-heading">Move to context</p>
+							<p class="menu-heading">Move to session</p>
 							<AppMenuItem
-								v-for="ctx in peelTargets"
+								v-for="ctx in moveTargets.slice(0, 12)"
 								:key="ctx.id"
-								@click="stashSelectedTo(ctx.id)"
+								@click="moveSelectedTo(ctx.id)"
 							>
 								{{ ctx.name }}
 								<template #trailing>

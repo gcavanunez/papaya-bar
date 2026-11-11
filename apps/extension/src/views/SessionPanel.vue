@@ -1,49 +1,55 @@
 <script setup lang="ts">
+/**
+ * The side panel: the open session, its tab groups and loose tabs, and the sessions you
+ * can switch to.
+ */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useContexts } from '@/hooks/useContexts'
+import { useLibrary } from '@/hooks/useLibrary'
 import { useOpenGroups } from '@/hooks/useOpenGroups'
 import { useSmartGroup } from '@/hooks/useSmartGroup'
 import {
 	ArchiveBoxArrowDownIcon,
 	ArrowsPointingInIcon,
-	ArrowUturnLeftIcon,
+	ArrowTopRightOnSquareIcon,
+	BookmarkIcon,
 	ChevronDownIcon,
 	EllipsisHorizontalIcon,
-	InboxIcon,
+	HomeIcon,
 	PencilIcon,
 	PlusIcon,
 	RectangleStackIcon,
 	SparklesIcon,
-	TrashIcon,
 	XMarkIcon,
 } from '@heroicons/vue/16/solid'
 import { Menu, MenuButton } from '@headlessui/vue'
 import { button } from '@/lib/ui'
-import { pluralize } from '@/lib/format'
-import { AUTO_PARK_DAYS } from '@/lib/swapEngine'
+import { pluralize, timeAgo } from '@/lib/format'
+import { AUTO_PARK_DAYS, isOwnPage, isParkable } from '@/lib/liveTabs'
 import type { Engine } from '@/lib/smartGroup'
 import { focusGroup } from '@/lib/tabGroups'
 import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
 import AppMenuItems from '@/components/menu/AppMenuItems.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LibraryMoveCard from '@/components/LibraryMoveCard.vue'
 import SearchInput from '@/components/forms/SearchInput.vue'
 import TabFavicon from '@/components/TabFavicon.vue'
 
 const {
-	activeContext,
-	switchableContexts,
-	liveStats,
-	resume,
-	stashActive,
-	createFromLive,
-	parkStaleTabs,
+	migrated,
+	openSession,
+	switchable,
+	homeId,
+	lastUsed,
+	switchTo,
+	saveVersion,
+	saveOpenAs,
+	putAway,
+	openCopy,
+	park,
 	rename,
 	archive,
-	remove,
-	refresh,
-	refreshLiveStats,
-} = useContexts()
+} = useLibrary()
 const { groups: openGroups, looseTabs, focusedGroupId, windowNumbers } = useOpenGroups()
 const {
 	review,
@@ -67,14 +73,33 @@ const {
 	download,
 } = useSmartGroup()
 
+const SESSIONS_SHOWN = 8
 const autoPark = ref(false)
 const search = ref('')
+const showAll = ref(false)
+const liveStats = ref({ total: 0, stale: 0 })
+
+const query = computed(() => search.value.trim().toLowerCase())
 
 const visibleGroups = computed(() => {
-	const q = search.value.trim().toLowerCase()
-	if (!q) return openGroups.value
-	return openGroups.value.filter((g) => g.title.toLowerCase().includes(q))
+	if (!query.value) return openGroups.value
+	return openGroups.value.filter((g) => g.title.toLowerCase().includes(query.value))
 })
+
+const matchingSessions = computed(() =>
+	query.value
+		? switchable.value.filter((s) =>
+				`${s.name} ${s.description}`.toLowerCase().includes(query.value),
+			)
+		: switchable.value,
+)
+const visibleSessions = computed(() =>
+	query.value || showAll.value
+		? matchingSessions.value
+		: matchingSessions.value.slice(0, SESSIONS_SHOWN),
+)
+
+const isHome = computed(() => !openSession.value || openSession.value.id === homeId)
 
 function smartGroup(preferred: Engine | 'auto' = 'auto') {
 	expandedKey.value = null
@@ -94,6 +119,41 @@ const groupingPercent = computed(() =>
 	progress.value.total ? percent(progress.value.done / progress.value.total) : 0,
 )
 
+// ---------- The open session ----------
+
+const naming = ref(false)
+const newName = ref('')
+async function onSaveAs() {
+	const name = newName.value.trim()
+	if (!name) return
+	await saveOpenAs(name)
+	newName.value = ''
+	naming.value = false
+}
+
+const editingId = ref<string | null>(null)
+const editingName = ref('')
+function startRename(id: string, current: string) {
+	editingId.value = id
+	editingName.value = current
+}
+function commitRename() {
+	if (editingId.value && editingName.value.trim()) {
+		void rename(editingId.value, editingName.value.trim())
+	}
+	editingId.value = null
+}
+
+function openLibrary() {
+	void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#/sessions') })
+}
+
+// ---------- Parking ----------
+
+async function refreshLiveStats() {
+	const tabs = (await chrome.tabs.query({})).filter((t) => !isOwnPage(t))
+	liveStats.value = { total: tabs.length, stale: tabs.filter((t) => isParkable(t)).length }
+}
 async function loadAutoPark() {
 	const stored = await chrome.storage.local.get('papaya:autoPark')
 	autoPark.value = !!(stored['papaya:autoPark'] as { enabled?: boolean } | undefined)?.enabled
@@ -105,19 +165,10 @@ async function toggleAutoPark() {
 	})
 }
 async function parkNow() {
-	await parkStaleTabs(AUTO_PARK_DAYS)
+	await park((await chrome.tabs.query({})).filter((t) => isParkable(t)))
 	void refreshLiveStats()
 }
-const showNew = ref(false)
-const newName = ref('')
-const editingId = ref<string | null>(null)
-const editingName = ref('')
-
-const filtered = computed(() => {
-	const q = search.value.trim().toLowerCase()
-	if (!q) return switchableContexts.value
-	return switchableContexts.value.filter((c) => c.name.toLowerCase().includes(q))
-})
+const showNudge = computed(() => liveStats.value.total >= 15 || liveStats.value.stale > 0)
 
 // Tailwind classes for the chrome tab-group color palette.
 const COLOR_DOT: Record<string, string> = {
@@ -133,56 +184,29 @@ const COLOR_DOT: Record<string, string> = {
 }
 const dot = (color: string) => COLOR_DOT[color] ?? COLOR_DOT.grey
 
-const showNudge = computed(() => liveStats.value.total >= 15 || liveStats.value.stale > 0)
+const ago = (ts: number) => timeAgo(ts) || 'never'
 
-async function onCreate() {
-	const name = newName.value.trim()
-	if (!name) return
-	await createFromLive(name, { activate: true })
-	newName.value = ''
-	showNew.value = false
-}
-
-function startRename(id: string, current: string) {
-	editingId.value = id
-	editingName.value = current
-}
-function commitRename() {
-	if (editingId.value && editingName.value.trim()) {
-		rename(editingId.value, editingName.value.trim())
-	}
-	editingId.value = null
-}
-
-function relativeTime(ts: number): string {
-	const diff = Date.now() - ts
-	const mins = Math.round(diff / 60000)
-	if (mins < 1) return 'just now'
-	if (mins < 60) return `${mins}m ago`
-	const hrs = Math.round(mins / 60)
-	if (hrs < 24) return `${hrs}h ago`
-	return `${Math.round(hrs / 24)}d ago`
-}
-
-// Keep live tab stats fresh while the panel is open.
+let statsTimer: ReturnType<typeof setTimeout> | undefined
 function onTabsChanged() {
-	void refreshLiveStats()
-	refresh()
+	clearTimeout(statsTimer)
+	statsTimer = setTimeout(() => void refreshLiveStats(), 200)
 }
+const tabEvents = [
+	chrome.tabs.onCreated,
+	chrome.tabs.onRemoved,
+	chrome.tabs.onUpdated,
+	chrome.tabs.onActivated,
+] as chrome.events.Event<() => void>[]
 
 onMounted(() => {
 	void loadAutoPark()
 	void refreshModelStatus()
-	chrome.tabs.onCreated.addListener(onTabsChanged)
-	chrome.tabs.onRemoved.addListener(onTabsChanged)
-	chrome.tabs.onUpdated.addListener(onTabsChanged)
-	chrome.tabs.onActivated.addListener(onTabsChanged)
+	void refreshLiveStats()
+	tabEvents.forEach((event) => event.addListener(onTabsChanged))
 })
 onUnmounted(() => {
-	chrome.tabs.onCreated.removeListener(onTabsChanged)
-	chrome.tabs.onRemoved.removeListener(onTabsChanged)
-	chrome.tabs.onUpdated.removeListener(onTabsChanged)
-	chrome.tabs.onActivated.removeListener(onTabsChanged)
+	clearTimeout(statsTimer)
+	tabEvents.forEach((event) => event.removeListener(onTabsChanged))
 })
 </script>
 
@@ -190,79 +214,121 @@ onUnmounted(() => {
 	<div
 		class="dark:bg-vercel-accents-1 flex h-screen flex-col bg-slate-50 text-slate-900 antialiased dark:text-white"
 	>
-		<!-- Header -->
 		<header
 			class="dark:border-vercel-accents-2 shrink-0 space-y-3 border-b border-slate-200 bg-white px-4 py-3 dark:bg-black"
 		>
 			<div class="flex items-center justify-between">
-				<h1 class="text-sm font-semibold">Groups &amp; contexts</h1>
-				<span class="dark:text-vercel-accents-5 text-xs text-slate-500 tabular-nums">
-					{{ pluralize(liveStats.total, 'live tab') }}
+				<h1 class="text-sm font-semibold">Sessions &amp; groups</h1>
+				<span class="dark:text-vercel-accents-5 text-xs tabular-nums text-slate-500">
+					{{ pluralize(liveStats.total, 'open tab') }}
 				</span>
 			</div>
-			<SearchInput v-model="search" size="sm" placeholder="Search groups and contexts…" />
+			<SearchInput v-model="search" size="sm" placeholder="Search sessions and groups…" />
 		</header>
 
 		<div class="flex-1 space-y-4 overflow-y-auto p-4">
-			<!-- Active context / Inbox card -->
-			<section class="card p-3">
-				<template v-if="activeContext">
-					<div class="flex items-center gap-2">
-						<span
-							class="size-2.5 shrink-0 rounded-full"
-							:class="dot(activeContext.color)"
-						/>
-						<span class="truncate text-sm font-medium">{{ activeContext.name }}</span>
-						<span
-							class="ml-auto rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400"
-						>
-							Active
-						</span>
-					</div>
-					<p class="dark:text-vercel-accents-5 mt-1 text-xs text-slate-500">
-						{{ pluralize(liveStats.total, 'tab') }} open
-					</p>
-					<AppButton intent="primary" size="sm" class="mt-3 w-full" @click="stashActive">
-						<ArchiveBoxArrowDownIcon class="size-3.5" aria-hidden="true" />
-						Stash &amp; clear
-					</AppButton>
-				</template>
+			<LibraryMoveCard compact />
 
-				<template v-else>
-					<div class="flex items-center gap-2">
-						<InboxIcon class="dark:text-vercel-accents-5 size-4 text-slate-400" />
-						<span class="text-sm font-medium">Inbox</span>
-						<span
-							class="dark:text-vercel-accents-5 ml-auto text-xs text-slate-500 tabular-nums"
-						>
-							{{ liveStats.total }} unsorted
-						</span>
-					</div>
-					<p class="dark:text-vercel-accents-5 mt-1 text-xs text-slate-500">
-						Your live tabs aren't in a context yet.
-					</p>
-					<form v-if="showNew" class="mt-3 flex gap-2" @submit.prevent="onCreate">
-						<input
-							v-model="newName"
-							autofocus
-							placeholder="Context name…"
-							class="field h-7 min-w-0 flex-1 px-2"
-							@keyup.esc="showNew = false"
-						/>
-						<AppButton intent="primary" size="sm" type="submit">Save</AppButton>
-					</form>
-					<AppButton
+			<!-- The open session -->
+			<section v-if="migrated" class="card p-3" aria-label="Open session">
+				<div class="flex items-center gap-2">
+					<HomeIcon
+						v-if="isHome"
+						class="dark:text-vercel-accents-5 size-4 shrink-0 text-slate-400"
+						aria-hidden="true"
+					/>
+					<span
 						v-else
-						intent="primary"
-						size="sm"
-						class="mt-3 w-full"
-						:disabled="liveStats.total === 0"
-						@click="showNew = true"
+						class="size-2.5 shrink-0 rounded-full"
+						:class="dot(openSession!.color)"
+					/>
+					<input
+						v-if="openSession && editingId === openSession.id"
+						v-model="editingName"
+						autofocus
+						class="field h-7 min-w-0 flex-1 px-2"
+						aria-label="Session name"
+						@keyup.enter="commitRename"
+						@keyup.esc="editingId = null"
+						@blur="commitRename"
+					/>
+					<span v-else class="min-w-0 flex-1 truncate text-sm font-medium">
+						{{ openSession?.name ?? 'Home' }}
+					</span>
+					<span
+						class="bg-papaya-900/10 text-papaya-900 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
 					>
-						<PlusIcon class="size-3.5" aria-hidden="true" />
-						Save current tabs as context
+						Open
+					</span>
+				</div>
+				<p class="dark:text-vercel-accents-5 mt-1 text-xs text-slate-500">
+					<template v-if="isHome">
+						Where you start. Name these tabs to make them a session you can leave and
+						come back to.
+					</template>
+					<template v-else>
+						Saved {{ ago(openSession!.updatedAt) }}. Switching away saves it as you left
+						it.
+					</template>
+				</p>
+
+				<form v-if="naming" class="mt-3 flex gap-2" @submit.prevent="onSaveAs">
+					<input
+						v-model="newName"
+						autofocus
+						placeholder="Session name…"
+						aria-label="Session name"
+						class="field h-7 min-w-0 flex-1 px-2"
+						@keyup.esc="naming = false"
+					/>
+					<AppButton intent="primary" size="sm" type="submit">Save</AppButton>
+				</form>
+				<AppButton
+					v-else-if="isHome"
+					intent="primary"
+					size="sm"
+					class="mt-3 w-full"
+					:disabled="liveStats.total === 0"
+					@click="naming = true"
+				>
+					<PlusIcon class="size-3.5" aria-hidden="true" />
+					Save as a session…
+				</AppButton>
+				<div v-else class="mt-3 flex gap-2">
+					<AppButton size="sm" class="flex-1" @click="saveVersion">
+						<BookmarkIcon class="size-3.5" aria-hidden="true" />
+						Save version
 					</AppButton>
-				</template>
+					<AppButton
+						size="sm"
+						class="flex-1"
+						title="Save it, close its tabs, and go Home"
+						@click="putAway"
+					>
+						<ArchiveBoxArrowDownIcon class="size-3.5" aria-hidden="true" />
+						Put away
+					</AppButton>
+					<Menu as="div" class="relative">
+						<MenuButton
+							:class="button({ intent: 'ghost', size: 'sm', square: true })"
+							title="More"
+						>
+							<EllipsisHorizontalIcon class="size-3.5" aria-hidden="true" />
+							<span class="sr-only">More actions</span>
+						</MenuButton>
+						<AppMenuItems width="w-52">
+							<AppMenuItem
+								:icon="PencilIcon"
+								@click="startRename(openSession!.id, openSession!.name)"
+							>
+								Rename
+							</AppMenuItem>
+							<AppMenuItem :icon="PlusIcon" @click="naming = true">
+								Save as a new session…
+							</AppMenuItem>
+						</AppMenuItems>
+					</Menu>
+				</div>
 			</section>
 
 			<!-- Open groups: Chrome's tab groups. Clicking one focuses it and folds the rest. -->
@@ -275,7 +341,7 @@ onUnmounted(() => {
 					<li v-for="group in visibleGroups" :key="group.id">
 						<button
 							type="button"
-							class="dark:hover:bg-vercel-accents-1 relative flex w-full items-center gap-2.5 py-2 pr-3 pl-3 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
+							class="dark:hover:bg-vercel-accents-1 relative flex w-full items-center gap-2.5 py-2 pl-3 pr-3 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
 							:class="
 								group.id === focusedGroupId
 									? 'dark:bg-vercel-accents-1 bg-slate-50'
@@ -299,7 +365,7 @@ onUnmounted(() => {
 								:class="
 									group.title
 										? 'font-medium'
-										: 'dark:text-vercel-accents-5 text-slate-500 italic'
+										: 'dark:text-vercel-accents-5 italic text-slate-500'
 								"
 							>
 								{{ group.title || 'Unnamed group' }}
@@ -312,7 +378,7 @@ onUnmounted(() => {
 								W{{ windowNumbers.get(group.windowId) }}
 							</span>
 							<span
-								class="dark:text-vercel-accents-5 text-xs text-slate-500 tabular-nums"
+								class="dark:text-vercel-accents-5 text-xs tabular-nums text-slate-500"
 							>
 								{{ group.tabIds.length }}
 							</span>
@@ -362,7 +428,7 @@ onUnmounted(() => {
 							:style="{ width: `${groupingPercent}%` }"
 						/>
 					</div>
-					<p class="dark:text-vercel-accents-5 text-slate-500 tabular-nums">
+					<p class="dark:text-vercel-accents-5 tabular-nums text-slate-500">
 						{{ progress.done }} of {{ pluralize(progress.total, 'tab') }}
 					</p>
 				</div>
@@ -381,7 +447,7 @@ onUnmounted(() => {
 						aria-label="Suggested groups"
 					>
 						<li v-for="group in review" :key="group.key">
-							<div class="flex items-center gap-1.5 py-1.5 pr-1.5 pl-1.5">
+							<div class="flex items-center gap-1.5 py-1.5 pl-1.5 pr-1.5">
 								<button
 									type="button"
 									class="dark:hover:bg-vercel-accents-2 flex size-6 shrink-0 items-center justify-center rounded hover:bg-slate-100"
@@ -393,13 +459,13 @@ onUnmounted(() => {
 								</button>
 								<input
 									v-model="group.name"
-									class="min-w-0 flex-1 truncate rounded border-0 bg-transparent p-0 text-sm font-medium focus:ring-0 focus:outline-none"
+									class="min-w-0 flex-1 truncate rounded border-0 bg-transparent p-0 text-sm font-medium focus:outline-none focus:ring-0"
 									aria-label="Group name"
 									maxlength="40"
 								/>
 								<button
 									type="button"
-									class="dark:text-vercel-accents-5 flex shrink-0 items-center gap-0.5 rounded px-1 text-xs text-slate-500 tabular-nums hover:text-slate-900 dark:hover:text-white"
+									class="dark:text-vercel-accents-5 flex shrink-0 items-center gap-0.5 rounded px-1 text-xs tabular-nums text-slate-500 hover:text-slate-900 dark:hover:text-white"
 									:aria-expanded="expandedKey === group.key"
 									:title="expandedKey === group.key ? 'Hide tabs' : 'Show tabs'"
 									@click="toggleExpanded(group.key)"
@@ -454,7 +520,7 @@ onUnmounted(() => {
 							<ul
 								v-if="expandedKey === group.key"
 								role="list"
-								class="max-h-60 overflow-y-auto pr-1.5 pb-1.5 pl-8"
+								class="max-h-60 overflow-y-auto pb-1.5 pl-8 pr-1.5"
 							>
 								<li
 									v-for="tab in group.tabs"
@@ -469,7 +535,7 @@ onUnmounted(() => {
 										intent="ghost"
 										size="xs"
 										square
-										class="opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100"
+										class="opacity-0 focus-visible:opacity-100 group-hover/tab:opacity-100"
 										title="Leave this tab loose"
 										@click="dropTab(group.key, tab.id)"
 									>
@@ -575,115 +641,114 @@ onUnmounted(() => {
 				</label>
 			</div>
 
-			<!-- Switcher list -->
-			<section v-if="filtered.length">
-				<p class="section-label mb-2">Contexts</p>
+			<!-- Sessions to switch to -->
+			<section v-if="migrated && visibleSessions.length">
+				<div class="mb-2 flex items-center justify-between">
+					<p class="section-label">Sessions · {{ matchingSessions.length }}</p>
+					<button
+						type="button"
+						class="dark:text-vercel-accents-5 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
+						@click="openLibrary"
+					>
+						All sessions
+						<ArrowTopRightOnSquareIcon class="size-3" aria-hidden="true" />
+					</button>
+				</div>
 				<ul role="list" class="card dark:divide-vercel-accents-2 divide-y divide-slate-100">
-					<li v-for="ctx in filtered" :key="ctx.id">
+					<li v-for="session in visibleSessions" :key="session.id">
 						<div
-							class="group dark:hover:bg-vercel-accents-1 flex items-center gap-2.5 py-2 pr-1.5 pl-3 hover:bg-slate-50"
+							class="dark:hover:bg-vercel-accents-1 group flex items-center gap-2.5 py-2 pl-3 pr-1.5 hover:bg-slate-50"
 						>
-							<span class="size-2.5 shrink-0 rounded-full" :class="dot(ctx.color)" />
-
-							<template v-if="editingId === ctx.id">
-								<input
-									v-model="editingName"
-									autofocus
-									class="field h-7 min-w-0 flex-1 px-2"
-									@keyup.enter="commitRename"
-									@keyup.esc="editingId = null"
-									@blur="commitRename"
-								/>
-							</template>
-							<template v-else>
-								<button
-									type="button"
-									class="min-w-0 flex-1 rounded text-left focus-visible:outline-2 focus-visible:outline-blue-500"
-									@click="resume(ctx.id)"
+							<HomeIcon
+								v-if="session.kind === 'home'"
+								class="dark:text-vercel-accents-5 size-3 shrink-0 text-slate-400"
+								aria-hidden="true"
+							/>
+							<span
+								v-else
+								class="size-2.5 shrink-0 rounded-full"
+								:class="dot(session.color)"
+							/>
+							<input
+								v-if="editingId === session.id"
+								v-model="editingName"
+								autofocus
+								class="field h-7 min-w-0 flex-1 px-2"
+								aria-label="Session name"
+								@keyup.enter="commitRename"
+								@keyup.esc="editingId = null"
+								@blur="commitRename"
+							/>
+							<button
+								v-else
+								type="button"
+								class="min-w-0 flex-1 rounded text-left focus-visible:outline-2 focus-visible:outline-blue-500"
+								:title="`Switch to ${session.name}`"
+								@click="switchTo(session.id)"
+							>
+								<span class="block truncate text-sm font-medium">{{
+									session.name
+								}}</span>
+								<span
+									class="dark:text-vercel-accents-5 block text-xs text-slate-500"
 								>
-									<span class="block truncate text-sm font-medium">{{
-										ctx.name
-									}}</span>
-									<span
-										class="dark:text-vercel-accents-5 block text-xs text-slate-500"
-									>
-										{{ pluralize(ctx.tabCount, 'tab') }} ·
-										{{ relativeTime(ctx.updatedAt) }}
-									</span>
-								</button>
-
-								<div
-									class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+									{{ pluralize(session.tabCount, 'tab') }} ·
+									{{ ago(lastUsed(session)) }}
+								</span>
+							</button>
+							<Menu
+								v-if="editingId !== session.id"
+								as="div"
+								class="relative opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+							>
+								<MenuButton
+									:class="button({ intent: 'ghost', size: 'xs', square: true })"
+									title="More"
 								>
-									<AppButton
-										intent="ghost"
-										size="xs"
-										square
-										title="Resume"
-										@click="resume(ctx.id)"
+									<EllipsisHorizontalIcon class="size-3.5" aria-hidden="true" />
+									<span class="sr-only">More actions</span>
+								</MenuButton>
+								<AppMenuItems width="w-48">
+									<AppMenuItem
+										:icon="ArrowTopRightOnSquareIcon"
+										@click="openCopy(session.id)"
 									>
-										<ArrowUturnLeftIcon class="size-3.5" aria-hidden="true" />
-										<span class="sr-only">Resume</span>
-									</AppButton>
-
-									<Menu as="div" class="relative">
-										<MenuButton
-											:class="
-												button({
-													intent: 'ghost',
-													size: 'xs',
-													square: true,
-												})
-											"
-											title="More"
-										>
-											<EllipsisHorizontalIcon
-												class="size-3.5"
-												aria-hidden="true"
-											/>
-											<span class="sr-only">More actions</span>
-										</MenuButton>
-										<AppMenuItems width="w-40">
-											<AppMenuItem
-												:icon="PencilIcon"
-												@click="startRename(ctx.id, ctx.name)"
-											>
-												Rename
-											</AppMenuItem>
-											<AppMenuItem
-												:icon="ArchiveBoxArrowDownIcon"
-												@click="archive(ctx.id)"
-											>
-												Archive
-											</AppMenuItem>
-											<div class="menu-separator" />
-											<AppMenuItem
-												:icon="TrashIcon"
-												danger
-												@click="remove(ctx.id)"
-											>
-												Delete
-											</AppMenuItem>
-										</AppMenuItems>
-									</Menu>
-								</div>
-							</template>
+										Open a copy
+									</AppMenuItem>
+									<AppMenuItem
+										:icon="PencilIcon"
+										@click="startRename(session.id, session.name)"
+									>
+										Rename
+									</AppMenuItem>
+									<AppMenuItem
+										v-if="session.kind !== 'home'"
+										:icon="ArchiveBoxArrowDownIcon"
+										@click="archive(session.id)"
+									>
+										Archive
+									</AppMenuItem>
+								</AppMenuItems>
+							</Menu>
 						</div>
 					</li>
 				</ul>
+				<button
+					v-if="!query && !showAll && matchingSessions.length > SESSIONS_SHOWN"
+					type="button"
+					class="dark:text-vercel-accents-5 mt-2 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
+					@click="showAll = true"
+				>
+					Show all {{ matchingSessions.length }}
+				</button>
 			</section>
 
-			<!-- Empty state -->
 			<EmptyState
-				v-if="!filtered.length && !activeContext && !visibleGroups.length"
+				v-if="query && !visibleSessions.length && !visibleGroups.length"
 				compact
 				:icon="RectangleStackIcon"
-				:title="search ? 'No matching groups or contexts' : 'No contexts yet'"
-				:description="
-					search
-						? 'Try a different name.'
-						: 'Save your current tabs as a context to switch between sets of work.'
-				"
+				title="No matching sessions or groups"
+				description="Try a different name."
 			/>
 		</div>
 	</div>

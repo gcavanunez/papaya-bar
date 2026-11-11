@@ -149,7 +149,10 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 					const list = order.get(createProperties.windowId)!
 					if (at === 'start') list.unshift(...tabIds)
 					else list.push(...tabIds)
-					for (const id of tabIds) tabs.get(id)!.groupId = groupId
+					for (const id of tabIds) {
+						tabs.get(id)!.groupId = groupId
+						tabs.get(id)!.windowId = createProperties.windowId
+					}
 					return groupId
 				},
 				ungroup: async (ids: number[]) => ids.forEach((id) => (tabs.get(id)!.groupId = -1)),
@@ -161,6 +164,7 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 					remove(list)
 					const target = order.get(windowId)!
 					target.splice(index === -1 ? target.length : index, 0, ...list)
+					for (const id of list) tabs.get(id)!.windowId = windowId
 				},
 			},
 			tabGroups: { update: async () => ({}) },
@@ -182,15 +186,35 @@ describe('groupInPlace and ungroupTabs', () => {
 		{ name: 'B', color: 'red', tabIds: [3, 8, 5] },
 	]
 
-	it('groups per window, never steals a tab twice, and skips pinned or grouped tabs', async () => {
+	it('never steals a tab twice, and skips pinned or grouped tabs', async () => {
 		const strip = fakeStrip({ 1: [1, 2, 3, 4, 5, 6, 7, 8], 2: [9, 10, 11] }, 'end')
 		strip.tabs.get(7)!.pinned = true
 		strip.tabs.get(8)!.groupId = 55
 		const result = await groupInPlace(plans)
-		// A splits into window 1 (2, 5) and window 2 (10); B keeps only 3
-		expect(result.groupIds).toHaveLength(3)
+		// A is 2 and 5 (window 1) plus 10 (window 2); B keeps only 3
+		expect(result.groupIds).toHaveLength(2)
 		expect(result.tabIds).toEqual([2, 5, 10, 3])
 		expect(strip.tabs.get(5)!.groupId).toBe(strip.tabs.get(2)!.groupId)
+	})
+
+	it('moves strays into the window holding most of the group', async () => {
+		const strip = fakeStrip({ 1: [1, 2, 3, 4], 2: [5, 6, 7] }, 'end')
+		const result = await groupInPlace([{ name: 'AI', tabIds: [6, 2, 3] }])
+		expect(result.groupIds).toHaveLength(1)
+		expect(strip.order(1)).toEqual([1, 4, 2, 3, 6])
+		expect(strip.order(2)).toEqual([5, 7])
+		expect(new Set([2, 3, 6].map((id) => strip.tabs.get(id)!.groupId)).size).toBe(1)
+		await ungroupTabs(result.tabIds, result.positions)
+		expect(strip.order(1)).toEqual([1, 2, 3, 4])
+		expect(strip.order(2)).toEqual([5, 6, 7])
+	})
+
+	it('leaves strays where they are on undo if their window has closed', async () => {
+		const strip = fakeStrip({ 1: [1, 2], 2: [3] }, 'end')
+		const result = await groupInPlace([{ name: 'All', tabIds: [1, 2, 3] }])
+		expect(strip.order(2)).toEqual([])
+		await ungroupTabs(result.tabIds, result.positions)
+		expect(strip.order(1)).toEqual([1, 2, 3])
 	})
 
 	for (const at of ['start', 'end'] as const) {

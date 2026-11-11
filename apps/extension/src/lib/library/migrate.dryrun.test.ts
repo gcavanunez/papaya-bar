@@ -11,7 +11,7 @@ import { installFakeChrome } from '@/test/fakeChrome'
 import { restoreSnapshot } from '@/lib/restore'
 import { parseVersion } from './model'
 import { planMigration, type OldSavedSession } from './migrate'
-import { applyMigration, createLibraryStore, listSessions } from './store'
+import { applyMigration, createLibrary, listSessions } from './store'
 
 const path = process.env.PAPAYA_BACKUP?.replace(/^~/, process.env.HOME ?? '~')
 
@@ -73,11 +73,14 @@ describe.skipIf(!path)('migration dry run on a real backup', () => {
 		}
 	})
 
-	it('loads into the library store and lists quickly', () => {
-		const store = createLibraryStore()
-		applyMigration(store, result!)
+	it('loads into the library and lists quickly', async () => {
+		const lib = createLibrary()
+		await applyMigration(lib, result!)
+		const indexBytes = JSON.stringify(lib.store.getMergeableContent()).length
+		console.log(`library index: ${(indexBytes / 1e3).toFixed(0)} kB`)
+		expect(indexBytes).toBeLessThan(1_000_000)
 		const started = performance.now()
-		const sessions = listSessions(store)
+		const sessions = listSessions(lib)
 		const listMs = performance.now() - started
 		console.log(`listed ${sessions.length} sessions in ${listMs.toFixed(1)} ms`)
 		expect(sessions).toHaveLength(Object.keys(result!.sessions).length)

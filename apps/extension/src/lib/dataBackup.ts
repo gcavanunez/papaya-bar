@@ -2,14 +2,18 @@
  * Manual data backup — "Download my data" / "Import data".
  *
  * Bundles everything that's *yours* into one JSON file:
- *  - tinybase:       contexts, sessions, tabs, groups, windows (the live store)
- *  - legacySessions: the older saved-sessions Map (chrome.storage.local)
+ *  - library:        your sessions and every version's contents
+ *  - tinybase:       the old contexts store, kept as the rollback copy
+ *  - legacySessions: the old saved-sessions list (chrome.storage.local)
  *  - settings:       UI preferences
  *
  * The auth token is deliberately NOT included.
  */
-import { store, getStoreContent } from '@/sync/store'
+import { initializeStore, store, getStoreContent } from '@/sync/store'
 import type { Content } from 'tinybase'
+import { exportLibrary, importLibrary, type LibraryBackup } from '@/lib/library/backup'
+import { planMigration, type OldStoreContent } from '@/lib/library/migrate'
+import { getLibrary } from '@/lib/library/runtime'
 
 const SESSIONS_KEY = 'sessions:saved'
 const SETTINGS_KEY = 'chonching-tabs-settings'
@@ -18,6 +22,7 @@ export interface BackupFile {
 	app: 'papaya-bar'
 	version: number
 	exportedAt: string
+	library?: LibraryBackup
 	tinybase: Content
 	legacySessions: unknown
 	settings: unknown
@@ -37,14 +42,18 @@ async function getLocal<T>(key: string, fallback: T): Promise<T> {
 
 /** Assemble the full backup object. */
 export async function buildBackup(): Promise<BackupFile> {
-	const [legacySessions, settings] = await Promise.all([
+	// The old store only loads on demand now; it's still part of every backup
+	await initializeStore()
+	const [legacySessions, settings, library] = await Promise.all([
 		getLocal<unknown>(SESSIONS_KEY, []),
 		getLocal<unknown>(SETTINGS_KEY, null),
+		getLibrary().then(exportLibrary),
 	])
 	return {
 		app: 'papaya-bar',
-		version: 1,
+		version: 2,
 		exportedAt: new Date().toISOString(),
+		library,
 		tinybase: getStoreContent(),
 		legacySessions,
 		settings,
@@ -67,10 +76,9 @@ export async function downloadBackup(): Promise<void> {
 }
 
 export interface BackupStats {
-	contexts: number
-	/** Legacy saved sessions — what the Sessions tab shows. */
+	/** Sessions in the library */
 	sessions: number
-	tinybaseSessions: number
+	versions: number
 	bytes: number
 }
 
@@ -78,24 +86,19 @@ export interface BackupStats {
 export async function getBackupStats(): Promise<BackupStats> {
 	const backup = await buildBackup()
 	const bytes = new Blob([JSON.stringify(backup)]).size
-	const tables = (backup.tinybase[0] ?? {}) as Record<
-		string,
-		Record<string, Record<string, unknown>>
-	>
-	const contexts = Object.keys(tables.contexts ?? {}).length
-	const tinybaseSessions = Object.values(tables.sessions ?? {}).filter(
-		(s) => !(s as { contextId?: string }).contextId,
-	).length
-	const sessions = Array.isArray(backup.legacySessions) ? backup.legacySessions.length : 0
-	return { contexts, sessions, tinybaseSessions, bytes }
+	const lib = await getLibrary()
+	return {
+		sessions: Object.keys(lib.store.getTable('sessions')).length,
+		versions: Object.keys(lib.store.getTable('versions')).length,
+		bytes,
+	}
 }
 
 export type ImportMode = 'replace' | 'merge'
 
 export interface ImportSummary {
-	contexts: number
 	sessions: number
-	legacySessions: number
+	versions: number
 }
 
 /**
@@ -111,6 +114,8 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
 		throw new Error('That doesn\u2019t look like a Papaya backup file.')
 	}
 
+	// The old store (the rollback copy) is restored too, so it must be loaded first
+	await initializeStore()
 	if (mode === 'replace') {
 		// Replace the whole TinyBase store. Autosave persists it.
 		store.setContent(data.tinybase)
@@ -145,11 +150,12 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
 		if (Object.keys(toSet).length) await chrome.storage.local.set(toSet)
 	}
 
-	const finalLegacy = await getLocal<unknown[]>(SESSIONS_KEY, [])
-	const tables = store.getTables()
-	return {
-		contexts: Object.keys(tables.contexts || {}).length,
-		sessions: Object.keys(tables.sessions || {}).length,
-		legacySessions: Array.isArray(finalLegacy) ? finalLegacy.length : 0,
-	}
+	// Sessions: a new backup carries the library; an old one goes through the migration
+	const source =
+		data.library ??
+		planMigration({
+			store: data.tinybase as OldStoreContent,
+			savedSessions: data.legacySessions ?? [],
+		})
+	return importLibrary(await getLibrary(), source, mode)
 }

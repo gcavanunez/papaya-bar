@@ -19,6 +19,7 @@ import {
 	MAX_FAVICON_CHARS,
 	NO_GROUP,
 	deriveName,
+	makePreview,
 	makeVersion,
 	type LibrarySession,
 	type LibraryVersion,
@@ -110,6 +111,13 @@ export interface MigrationResult {
 
 const SAVED_KEY_FORMAT = 'hh:mm aaa MM/dd/yyyy'
 export const HOME_ID = 'home'
+
+/** Saved-session keys are dates like "08:35 am 09/24/2022"; ids must be safe in links */
+const slug = (key: string) =>
+	key
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '')
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 const num = (v: unknown, fallback = 0) =>
@@ -221,6 +229,16 @@ function readStoreSession(
 	)
 }
 
+/** Clean up one saved-session file (the Download format) into version data, for Import */
+export function savedSessionToData(session: OldSavedSession): VersionData {
+	if (!Array.isArray(session?.tabs))
+		throw new Error('That file doesn’t look like a saved session')
+	return cleanData(session.tabs, session.groups, session.windows, {
+		missingGroups: 0,
+		bigFavicons: 0,
+	})
+}
+
 export function planMigration(input: MigrationInput): MigrationResult {
 	const now = input.now ?? Date.now()
 	const [tables = {}, values = {}] = (input.store ?? []) as [Record<string, Table>?, Row?]
@@ -251,7 +269,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 
 	function addSession(
 		id: string,
-		session: Omit<LibrarySession, 'headVersionId' | 'tabCount'>,
+		session: Omit<LibrarySession, 'headVersionId' | 'tabCount' | 'preview'>,
 		sessionVersions: {
 			id: string
 			data: VersionData
@@ -266,6 +284,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 			...session,
 			headVersionId: head?.id ?? '',
 			tabCount: head?.data.tabs.length ?? 0,
+			preview: makePreview(head?.data ?? { tabs: [] }),
 			updatedAt: Math.max(session.updatedAt, head?.createdAt ?? 0),
 		}
 	}
@@ -278,13 +297,13 @@ export function planMigration(input: MigrationInput): MigrationResult {
 	let contextVersions = 0
 
 	for (const [contextId, ctx] of Object.entries(contexts)) {
-		const id = `context:${contextId}`
+		const id = `ctx-${contextId}`
 		const headId = str(ctx.headSessionId)
 		const owned = Object.entries(oldSessions).filter(([, s]) => str(s.contextId) === contextId)
 		if (headId && !oldSessions[headId])
 			warnings.push(`Context "${str(ctx.name)}" had lost its tabs`)
 		const ctxVersions = owned.map(([sessionId, s]) => ({
-			id: `${id}/${sessionId}`,
+			id: `${id}-v-${sessionId}`,
 			data: readStoreSession(sessionId, byOwner, fixes),
 			reason: (sessionId === headId ? 'migrated' : 'switch') as VersionReason,
 			// Make sure the current tab set stays the newest
@@ -338,7 +357,8 @@ export function planMigration(input: MigrationInput): MigrationResult {
 		}
 		seenSaved.add(exact)
 		savedTabSets.add(tabSetKey(tabs))
-		const id = `saved:${key}`
+		let id = `saved-${slug(key)}`
+		while (sessions[id]) id += '-x'
 		const data = cleanData(tabs, s.groups, s.windows, fixes)
 		addSession(
 			id,
@@ -354,7 +374,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 				origin: 'saved-session',
 				originId: key,
 			},
-			[{ id: `${id}/v1`, data, reason: 'migrated', createdAt: at }],
+			[{ id: `${id}-v1`, data, reason: 'migrated', createdAt: at }],
 		)
 	}
 
@@ -378,7 +398,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 			continue
 		}
 		savedTabSets.add(tabSetKey(data.tabs))
-		const id = `synced:${sessionId}`
+		const id = `synced-${sessionId}`
 		const at = num(s.createdAt, now)
 		addSession(
 			id,
@@ -394,7 +414,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 				origin: 'synced-session' as SessionOrigin,
 				originId: sessionId,
 			},
-			[{ id: `${id}/v1`, data, reason: 'migrated', createdAt: at }],
+			[{ id: `${id}-v1`, data, reason: 'migrated', createdAt: at }],
 		)
 	}
 
