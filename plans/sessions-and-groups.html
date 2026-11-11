@@ -968,7 +968,7 @@
 	<body>
 		<main>
 			<header>
-				<p class="label">Papaya Bar · plan v2.2 · updated Nov 11, 2026</p>
+				<p class="label">Papaya Bar · plan v2.3 · updated Nov 11, 2026</p>
 				<h1>Sessions and groups: one model for organizing, switching and the past</h1>
 				<p class="meta">
 					Supersedes the v1 markdown plan and folds in your review of it. Replaces the separate
@@ -1001,8 +1001,8 @@
 			<section id="status" aria-labelledby="status-h">
 				<h2 id="status-h">Where we are</h2>
 				<p class="prose">
-					Four local commits on <code>gc/next-phase-of-new-design</code>, none pushed yet. Open
-					questions are <a href="#q-order">B–D below</a>; nothing in flight depends on them.
+					Seven local commits on <code>gc/next-phase-of-new-design</code>, none pushed yet. Every
+					question so far is <a href="#decisions">decided</a>.
 				</p>
 				<div class="table-wrap">
 					<table class="status">
@@ -1018,31 +1018,33 @@
 								<td>1 · Smart grouping and switching</td>
 								<td><span class="state done">Built</span> <code>14c13d2</code></td>
 								<td>
-									Run Smart group on your full pile with the on-device model. Two follow-ups:
-									<a href="#q-windows">question D</a> and the Inbox card's wording, which Home
-									replaces in phase 4.
+									Run Smart group on your full pile with the on-device model. Strays now move
+									into one window (<a href="#q-windows">D</a>); Home replaced the Inbox card.
 								</td>
 							</tr>
 							<tr>
 								<td>2 · Foundation and migration</td>
 								<td>
-									<span class="state partial">Groundwork done</span> <code>290fbdb</code>
+									<span class="state done">Done</span> <code>290fbdb</code>
 									<code>af04fb4</code>
 								</td>
 								<td>
-									Rerun the dry run on a fresh backup. The switch-over itself
-									<a href="#split">moves to the start of phase 4</a>.
+									The dry run now runs inside the extension: the move-in card shows what will
+									move from your current data before anything happens.
 								</td>
 							</tr>
 							<tr>
 								<td>4 · The sessions library</td>
-								<td><span class="state next">Next</span> (proposed order)</td>
-								<td>Switch-over, library screen, switching sessions, Home, versions.</td>
+								<td><span class="state partial">First part built</span> <code>cec2e97</code></td>
+								<td>
+									Built: the move-in, switching sessions, Home, the library page, versions,
+									editing. Left: your run on real data, and polish from it.
+								</td>
 							</tr>
 							<tr>
 								<td>3 · Stash and the sidebar</td>
 								<td><span class="state later">Not started</span></td>
-								<td>Proposed to follow phase 4 (<a href="#q-order">question B</a>).</td>
+								<td>Next, after phase 4 (<a href="#q-order">decided</a>).</td>
 							</tr>
 							<tr>
 								<td>5 · Agent and sync</td>
@@ -1184,8 +1186,8 @@
 						Chrome's own on-device model can group tabs, with replies checked against a schema.
 					</li>
 					<li>
-						Your answers from both reviews are recorded as <a href="#decisions">decisions</a>; four
-						questions are open (A–D). Your follow-up questions (loading big
+						Your answers from every review are recorded as <a href="#decisions">decisions</a>; none
+						are open. Your follow-up questions (loading big
 						sessions, the Chrome API behind it, pinned tabs) are answered
 						<a href="#answers">below</a>, and the keys for switching are
 						<a href="#switching">spelled out</a>.
@@ -1607,7 +1609,7 @@
 				<h2 id="switching-h"><span class="num">6</span>Switching between groups</h2>
 				<p class="prose">
 					Two ways to switch, shown here as the tab strip after you switch to "Docs". Which one is
-					the default is <a href="#q-switch">question A below</a>; the other is always one modifier
+					the default is <a href="#q-switch">decided: focus</a>; the other is always one modifier
 					away.
 				</p>
 				<div class="figure switch-grid">
@@ -1873,76 +1875,31 @@
 						<strong>Smart grouping escalates through three engines:</strong> by site always, the
 						on-device model when the machine supports it, your agent once the hub exists.
 					</li>
+					<li id="q-switch">
+						<strong>Switching to a group focuses it</strong> (the other groups fold up);
+						<kbd>Shift</kbd> swaps instead, once stashing exists.
+					</li>
+					<li id="q-order">
+						<strong>The sessions library (phase 4) comes before stashing groups</strong> (phase 3).
+					</li>
+					<li id="q-edit">
+						<strong>A closed session's tabs can be edited</strong>: remove tabs or groups, rename
+						groups. Edits save as a new version. Built.
+					</li>
+					<li id="q-windows">
+						<strong>Smart group moves strays</strong> into the window holding most of the group;
+						Undo moves them back. Built.
+					</li>
 				</ul>
 
-				<h3>Still open</h3>
-				<div class="question" id="q-switch">
-					<h3>A. What should switching to a group do by default?</h3>
-					<p>
-						This is the core move you described. Focus keeps everything open and just folds the
-						other groups up. Swap stashes the group you're leaving, so fewer tabs stay open.
-						<kbd>Shift</kbd> flips to the other one: <kbd>Shift</kbd>-click in the sidebar,
-						<kbd>Shift</kbd>+<kbd>Enter</kbd> in the palettes (<a href="#switching">the keys</a>).
-					</p>
-					<ol>
-						<li>Focus by default; <kbd>Shift</kbd> to swap<span class="rec">Recommended</span></li>
-						<li>Swap by default; <kbd>Shift</kbd> to just focus</li>
-					</ol>
-				</div>
-				<div class="question" id="q-order">
-					<h3>B. Build the sessions library (phase 4) before stashing groups (phase 3)?</h3>
-					<p>
-						The library is what makes old saved sessions something you can switch into, which is
-						the part that's confusing today. Switching sessions doesn't need stashed groups;
-						stashed groups slot into the open session afterwards.
-					</p>
-					<ol>
-						<li>
-							Phase 4 next, then phase 3<span class="rec">Recommended</span>
-						</li>
-						<li>Keep the original order: phase 3, then 4</li>
-					</ol>
-				</div>
-				<div class="question" id="q-edit">
-					<h3>C. Can you edit the tabs of a closed session?</h3>
-					<p>
-						Today a saved session's title and notes can be edited, but not its tabs. Editing
-						would save a new version, so the old one stays one click away.
-					</p>
-					<ol>
-						<li>
-							Yes, in phase 4: remove tabs or whole groups, and rename groups<span class="rec"
-								>Recommended</span
-							>
-						</li>
-						<li>Not now: open the session, change it in Chrome, switch away</li>
-					</ol>
-				</div>
-				<div class="question" id="q-windows">
-					<h3>D. Smart group across windows: what about the strays?</h3>
-					<p>
-						Smart group never moves tabs between windows, so a topic spread over two windows
-						becomes two groups with the same name, sometimes one of them a single tab (you saw
-						"AI Agents" in W1 and W2).
-					</p>
-					<ol>
-						<li>
-							Move the strays into the window that holds most of the group<span class="rec"
-								>Recommended</span
-							>
-						</li>
-						<li>Leave the strays loose and group only the main window's tabs</li>
-						<li>Keep it as it is</li>
-					</ol>
-				</div>
 			</section>
 
 			<section id="phases" aria-labelledby="phases-h">
 				<h2 id="phases-h"><span class="num">10</span>Phases</h2>
 				<p class="prose">
 					Reordered so the features you asked for first come first. Phase 1 changes no stored data,
-					so it can ship before the migration. Kept in their original numbering; the proposed order
-					from here is 4, then 3 (<a href="#q-order">question B</a>).
+					so it can ship before the migration. Kept in their original numbering; the order from here
+					is 4, then 3 (<a href="#q-order">decided</a>).
 				</p>
 				<ol class="phases">
 					<li>
@@ -1974,7 +1931,7 @@
 					<li>
 						<span class="pn" aria-hidden="true">2</span>
 						<div>
-							<h3>Foundation and migration <span class="state partial">Groundwork done</span></h3>
+							<h3>Foundation and migration <span class="state done">Done</span></h3>
 							<p class="needs">No visible change. Needed before anything is stored differently.</p>
 							<ul>
 								<li>
@@ -1990,7 +1947,10 @@
 									<s>The new data model, its store, and the migration with a dry run.</s> Done; the
 									old store stays untouched as the rollback copy.
 								</li>
-								<li>Left: the dry run on a fresh backup that includes your contexts.</li>
+								<li>
+									The dry run on current data happens in the extension itself, before you
+									confirm the move.
+								</li>
 							</ul>
 							<p class="done">
 								<b>Done when</b> the migration passes against a backup of your real data.
@@ -2004,8 +1964,8 @@
 					<li>
 						<span class="pn" aria-hidden="true">3</span>
 						<div>
-							<h3>Stash and the sidebar <span class="state later">Not started</span></h3>
-							<p class="needs">Needs phase 2; proposed after phase 4.</p>
+							<h3>Stash and the sidebar <span class="state next">Next</span></h3>
+							<p class="needs">Needs phase 2; follows phase 4.</p>
 							<ul>
 								<li>Stash and open groups, with unloaded opening.</li>
 								<li>Stashed list in the sidebar, Parked in it, Move to session.</li>
@@ -2020,8 +1980,8 @@
 					<li>
 						<span class="pn" aria-hidden="true">4</span>
 						<div>
-							<h3>Sessions and the past <span class="state next">Next</span></h3>
-							<p class="needs">Needs phase 2. Proposed to come before phase 3.</p>
+							<h3>Sessions and the past <span class="state partial">First part built</span></h3>
+							<p class="needs">Needs phase 2. Comes before phase 3.</p>
 							<ul>
 								<li>
 									The switch-over: confirm the dry run on your data, then the migration runs for
@@ -2031,7 +1991,7 @@
 								<li>
 									The Sessions page becomes the library: every session, their versions, Switch to,
 									Rename, notes, Archive, Download, and editing a closed session's tabs
-									(<a href="#q-edit">question C</a>).
+									(<a href="#q-edit">decided</a>).
 								</li>
 								<li>The side panel and both palettes use the library.</li>
 							</ul>
