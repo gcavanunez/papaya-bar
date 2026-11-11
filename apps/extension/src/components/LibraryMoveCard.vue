@@ -47,6 +47,11 @@ const lines = computed(() => {
 			`${pluralize(report.found.contexts, 'context')} with ${pluralize(report.found.contextVersions, 'version')}`,
 		)
 	}
+	if (report.found.pendingChanges || report.found.pendingParked) {
+		out.push(
+			`${pluralize(report.found.pendingChanges + report.found.pendingParked, 'change')} the background was still holding`,
+		)
+	}
 	out.push(`${report.created.tabs.toLocaleString()} tabs in all`)
 	const dropped = report.dropped.copies + report.dropped.duplicates + report.dropped.empty
 	if (dropped) {

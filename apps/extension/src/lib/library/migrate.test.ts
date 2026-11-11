@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { installFakeChrome } from '@/test/fakeChrome'
 import { restoreSnapshot } from '@/lib/restore'
 import { parseVersion } from './model'
-import { planMigration, type OldSavedSession, type OldStoreContent } from './migrate'
+import {
+	planMigration,
+	type OldSavedSession,
+	type OldStoreContent,
+	type PendingOp,
+} from './migrate'
 
 const NOW = Date.UTC(2026, 10, 11)
 
@@ -314,6 +319,79 @@ describe('planMigration: robustness', () => {
 				{ url: 'https://b.com', active: true, group: 'Docs/green/false' },
 			],
 			[{ url: 'https://c.com', active: true, group: null }],
+		])
+	})
+})
+
+describe('planMigration: changes the old background was still holding', () => {
+	const capture = (...urls: string[]) => ({
+		tabs: urls.map((url) => ({ url, windowId: 1, groupId: -1, active: false })),
+		groups: [],
+		windows: [{ id: 1, width: 1000, height: 700, left: 0, top: 0 }],
+	})
+	const store = oldStore({
+		contexts: { work: { name: 'Work', head: 'h1' }, trip: { name: 'Trip', head: 'h2' } },
+		sessions: {
+			h1: { contextId: 'work', urls: ['https://a.com'] },
+			h2: { contextId: 'trip', urls: ['https://flights.com'] },
+		},
+		active: 'work',
+	})
+
+	it('applies a website-palette switch nobody saved yet', () => {
+		// Switching Work -> Trip from a website: Work's tabs saved, Trip made active
+		const pendingOps: PendingOp[] = [
+			{
+				type: 'setHead',
+				contextId: 'work',
+				capture: capture('https://a.com', 'https://b.com'),
+			},
+			{ type: 'setActive', contextId: 'trip' },
+		]
+		const result = planMigration({ store, savedSessions: [], pendingOps, now: NOW })
+		expect(result.sessions['ctx-work']).toMatchObject({ status: 'closed', tabCount: 2 })
+		expect(result.sessions['ctx-trip'].status).toBe('open')
+		expect(result.values.openSessionId).toBe('ctx-trip')
+		expect(result.report.found.pendingChanges).toBe(2)
+	})
+
+	it('keeps the tabs of an "Unsorted" safety net and a stash back to nothing', () => {
+		const pendingOps: PendingOp[] = [
+			{ type: 'create', name: 'Unsorted · 10:32', capture: capture('https://loose.com') },
+			{ type: 'setActive', contextId: '' },
+		]
+		const result = planMigration({ store, savedSessions: [], pendingOps, now: NOW })
+		expect(
+			Object.values(result.sessions).find((s) => s.name === 'Unsorted · 10:32'),
+		).toMatchObject({
+			status: 'closed',
+			tabCount: 1,
+		})
+		// Nothing active afterwards, so Home is the open session
+		expect(result.values.openSessionId).toBe('home')
+		expect(Object.values(result.sessions).filter((s) => s.status === 'open')).toHaveLength(1)
+	})
+
+	it('adds tabs auto-park closed to Parked', () => {
+		const result = planMigration({
+			store,
+			savedSessions: [],
+			parkQueue: [
+				{ url: 'https://stale-1.com', title: 'Stale' },
+				{ url: 'https://stale-2.com' },
+			],
+			now: NOW,
+		})
+		const parked = result.sessions[result.values.parkedSessionId]
+		expect(parked).toMatchObject({ name: 'Parked', kind: 'parked', tabCount: 2 })
+		expect(
+			parseVersion(result.versions[parked.headVersionId]).tabs.map((t) => [
+				t.url,
+				t.windowId,
+			]),
+		).toEqual([
+			['https://stale-1.com', 0],
+			['https://stale-2.com', 0],
 		])
 	})
 })

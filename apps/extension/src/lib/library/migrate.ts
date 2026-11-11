@@ -56,10 +56,26 @@ export interface OldSavedSession {
 	windows?: { id?: number; left?: number; top?: number; width?: number; height?: number }[]
 }
 
+type OldCapture = Pick<OldSavedSession, 'tabs' | 'groups' | 'windows'>
+
+/**
+ * Changes the old background worker queued for a page to apply (context switches from
+ * the website palette, made while no Papaya page was open)
+ */
+export type PendingOp =
+	| { type: 'create'; name: string; capture: OldCapture; activate?: boolean }
+	| { type: 'setHead'; contextId: string; capture: OldCapture }
+	| { type: 'setActive'; contextId: string }
+	| { type: 'append'; contextId: string; tabs: OldSavedSession['tabs'] }
+
 export interface MigrationInput {
 	store: OldStoreContent
 	/** The Sessions page list: `[savedAt key, session]` pairs from chrome.storage */
 	savedSessions: [string, OldSavedSession][] | unknown
+	/** Queued context changes not applied yet (`papaya:storeOps`) */
+	pendingOps?: PendingOp[] | unknown
+	/** Tabs auto-park closed while no page was open (`papaya:parkQueue`) */
+	parkQueue?: { url?: string; title?: string; favIconUrl?: string }[] | unknown
 	/** Fallback for dates that can't be read */
 	now?: number
 }
@@ -70,6 +86,9 @@ export interface MigrationReport {
 		contextVersions: number
 		savedSessions: number
 		syncedSessions: number
+		/** Queued changes and parked tabs that were still waiting to be saved */
+		pendingChanges: number
+		pendingParked: number
 	}
 	created: {
 		sessions: number
@@ -418,6 +437,107 @@ export function planMigration(input: MigrationInput): MigrationResult {
 		)
 	}
 
+	// ---------- Changes still queued by the old background worker ----------
+	// Applied in order, as the old side panel would have, on top of everything above
+
+	/** Make `data` the newest version of a session */
+	function pushVersion(id: string, data: VersionData, reason: VersionReason, at: number) {
+		const versionId = `${id}-q${Object.keys(versions).length}`
+		versions[versionId] = makeVersion(id, data, reason, at)
+		Object.assign(sessions[id], {
+			headVersionId: versionId,
+			tabCount: data.tabs.length,
+			preview: makePreview(data),
+			updatedAt: Math.max(sessions[id].updatedAt, at),
+		})
+	}
+	const headData = (id: string): VersionData => {
+		const head = versions[sessions[id]?.headVersionId ?? '']
+		return head ? (JSON.parse(head.data) as VersionData) : { tabs: [], groups: [], windows: [] }
+	}
+	const newSession = (id: string, name: string, kind: LibrarySession['kind'], at: number) =>
+		addSession(
+			id,
+			{
+				name,
+				description: '',
+				color: 'grey',
+				kind,
+				status: 'closed',
+				createdAt: at,
+				updatedAt: at,
+				lastOpenedAt: 0,
+				origin: 'context',
+				originId: '',
+			},
+			[],
+		)
+
+	const pendingOps = Array.isArray(input.pendingOps) ? (input.pendingOps as PendingOp[]) : []
+	pendingOps.forEach((op, i) => {
+		const at = now + i + 1
+		if (op?.type === 'create') {
+			const id = `queued-${i}`
+			newSession(id, str(op.name) || 'Unsorted', 'normal', at)
+			pushVersion(
+				id,
+				cleanData(op.capture?.tabs, op.capture?.groups, op.capture?.windows, fixes),
+				'switch',
+				at,
+			)
+			if (op.activate) openSessionId = id
+		} else if (op?.type === 'setHead') {
+			let id = `ctx-${op.contextId}`
+			if (!sessions[id]) {
+				id = `queued-${i}`
+				newSession(id, 'Recovered tabs', 'normal', at)
+			}
+			pushVersion(
+				id,
+				cleanData(op.capture?.tabs, op.capture?.groups, op.capture?.windows, fixes),
+				'switch',
+				at,
+			)
+		} else if (op?.type === 'setActive') {
+			openSessionId =
+				op.contextId && sessions[`ctx-${op.contextId}`] ? `ctx-${op.contextId}` : ''
+		} else if (op?.type === 'append' && sessions[`ctx-${op.contextId}`]) {
+			const id = `ctx-${op.contextId}`
+			const current = headData(id)
+			const added = cleanData(op.tabs, [], [], fixes).tabs
+			pushVersion(id, { ...current, tabs: [...current.tabs, ...added] }, 'park', at)
+		}
+	})
+
+	const parkQueue = Array.isArray(input.parkQueue)
+		? (input.parkQueue as { url?: string; title?: string; favIconUrl?: string }[])
+		: []
+	if (parkQueue.length) {
+		if (!parkedSessionId || !sessions[parkedSessionId]) {
+			parkedSessionId = 'parked'
+			newSession(parkedSessionId, 'Parked', 'parked', now)
+		}
+		const current = headData(parkedSessionId)
+		const added = cleanData(
+			parkQueue.map((tab) => ({ ...tab, windowId: 0, groupId: NO_GROUP, active: false })),
+			[],
+			[],
+			fixes,
+		).tabs
+		pushVersion(
+			parkedSessionId,
+			{ ...current, tabs: [...current.tabs, ...added] },
+			'park',
+			now + pendingOps.length + 1,
+		)
+	}
+
+	// Exactly one open session: the one the queued changes (or the old store) left active
+	for (const [id, session] of Object.entries(sessions)) {
+		if (session.status === 'open' && id !== openSessionId) session.status = 'closed'
+	}
+	if (openSessionId) sessions[openSessionId].status = 'open'
+
 	// ---------- Home ----------
 	let homeSessionId = ''
 	if (!openSessionId) {
@@ -454,6 +574,8 @@ export function planMigration(input: MigrationInput): MigrationResult {
 			contextVersions,
 			savedSessions: savedSessions.length,
 			syncedSessions,
+			pendingChanges: pendingOps.length,
+			pendingParked: parkQueue.length,
 		},
 		created: {
 			sessions: all.length,
