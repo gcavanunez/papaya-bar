@@ -3,9 +3,10 @@
  * drop), then apply them as Chrome tab groups in place. Nothing closes, and Undo puts
  * the tabs back where they were. The engines live in lib/smartGroup.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { pluralize } from '@/lib/format'
+import { OPENCODE_KEY, askOpencode, loadConnection, type OpencodeConnection } from '@/lib/opencode'
 import {
 	downloadOnDeviceModel,
 	onDeviceStatus,
@@ -55,9 +56,21 @@ export function useSmartGroup() {
 	const reviewTabCount = computed(() => review.value.reduce((n, g) => n + g.tabs.length, 0))
 	const leftLoose = computed(() => Math.max(0, inputCount.value - reviewTabCount.value))
 
+	/** The paired opencode server, when it's turned on for Smart group */
+	const opencode = ref<OpencodeConnection | null>(null)
+
 	async function refreshModelStatus(): Promise<void> {
-		modelStatus.value = await onDeviceStatus()
+		const [status, connection] = await Promise.all([onDeviceStatus(), loadConnection()])
+		modelStatus.value = status
+		opencode.value = connection?.enabled ? connection : null
 	}
+
+	// Follow pairing changes made in Settings while this page is open
+	function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string) {
+		if (area === 'local' && OPENCODE_KEY in changes) void refreshModelStatus()
+	}
+	onMounted(() => chrome.storage.onChanged.addListener(onStorageChanged))
+	onUnmounted(() => chrome.storage.onChanged.removeListener(onStorageChanged))
 
 	async function suggest(
 		tabs: chrome.tabs.Tab[],
@@ -84,6 +97,7 @@ export function useSmartGroup() {
 				engine: options.engine,
 				signal: own.signal,
 				onProgress: (done, total) => (progress.value = { done, total }),
+				opencode: opencode.value ? askOpencode(opencode.value) : null,
 			})
 			if (own.signal.aborted) return
 			const colors = pickColors(result.suggestions.length, options.usedColors)
@@ -203,6 +217,7 @@ export function useSmartGroup() {
 		modelStatus,
 		downloadFraction,
 		refreshModelStatus,
+		opencode,
 		suggest,
 		cancel,
 		dismiss,

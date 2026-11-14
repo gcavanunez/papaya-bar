@@ -3,6 +3,7 @@ import {
 	buildPrompt,
 	groupBySite,
 	groupOnDevice,
+	groupWithOpencode,
 	mergeSuggestions,
 	parseReply,
 	siteLabel,
@@ -81,6 +82,11 @@ describe('parseReply', () => {
 			{ name: 'A', tabIds: [101, 102] },
 			{ name: 'B', tabIds: [104] },
 		])
+	})
+
+	it('finds the JSON when a model wraps it in prose or a code fence', () => {
+		const wrapped = 'Here you go:\n```json\n{"groups":[{"name":"A","tabs":[1,2]}]}\n```\nDone.'
+		expect(parseReply(wrapped, ids)).toEqual([{ name: 'A', tabIds: [101, 102] }])
 	})
 
 	it('returns nothing for malformed replies', () => {
@@ -206,8 +212,70 @@ describe('suggestGroups', () => {
 		const { lm, destroyed } = fakeModel({ fail: true })
 		const result = await suggestGroups(pile(6), { lm })
 		expect(result.engine).toBe('site')
-		expect(result.fallbackReason).toBe('model crashed')
+		expect(result.fallbackReason).toBe('on-device model: model crashed')
 		expect(result.suggestions).toHaveLength(3)
 		expect(destroyed()).toBeGreaterThan(0)
+	})
+})
+
+describe('the opencode engine', () => {
+	/** A fake opencode model: groups by the first word of each title, like the fake above */
+	function fakeOpencode(options: { fail?: string } = {}) {
+		const prompts: string[] = []
+		const ask = async (prompt: string) => {
+			prompts.push(prompt)
+			if (options.fail) throw new Error(options.fail)
+			const groups = new Map<string, number[]>()
+			for (const line of prompt.split('\n').filter((l) => /^\d+\. /.test(l))) {
+				const [n, word] = line.split(/\.? /)
+				groups.set(word, [...(groups.get(word) ?? []), Number(n)])
+			}
+			// Hosted models like to explain themselves
+			return `Sure!\n${JSON.stringify({ groups: [...groups].map(([name, tabs]) => ({ name, tabs })) })}`
+		}
+		return { ask, prompts }
+	}
+
+	it('is preferred when connected, and sends instructions with each batch', async () => {
+		const opencode = fakeOpencode()
+		const result = await suggestGroups(pile(6), { opencode: opencode.ask, lm: fakeModel().lm })
+		expect(result.engine).toBe('opencode')
+		expect(result.suggestions.map((s) => s.name).sort()).toEqual(['Rust', 'Taxes'])
+		expect(opencode.prompts[0]).toContain('Reply only with JSON')
+		expect(opencode.prompts[0]).toContain('{"groups":[{"name":"...","tabs":[1,2]}]}')
+	})
+
+	it('sends big piles in batches of 150', async () => {
+		const opencode = fakeOpencode()
+		await groupWithOpencode(pile(320), opencode.ask)
+		expect(opencode.prompts).toHaveLength(3)
+	})
+
+	it('falls back to the on-device model, then by site, saying why', async () => {
+		const failing = fakeOpencode({ fail: 'pairing expired' })
+		const onDevice = await suggestGroups(pile(6), { opencode: failing.ask, lm: fakeModel().lm })
+		expect(onDevice).toMatchObject({
+			engine: 'on-device',
+			fallbackReason: 'opencode: pairing expired',
+		})
+		const bySite = await suggestGroups(pile(6), { opencode: failing.ask, lm: null })
+		expect(bySite).toMatchObject({
+			engine: 'site',
+			fallbackReason: 'opencode: pairing expired',
+		})
+	})
+
+	it('is skipped when another engine is asked for', async () => {
+		const opencode = fakeOpencode()
+		expect(
+			(await suggestGroups(pile(6), { opencode: opencode.ask, engine: 'site' })).engine,
+		).toBe('site')
+		const onDevice = await suggestGroups(pile(6), {
+			opencode: opencode.ask,
+			engine: 'on-device',
+			lm: fakeModel().lm,
+		})
+		expect(onDevice.engine).toBe('on-device')
+		expect(opencode.prompts).toEqual([])
 	})
 })

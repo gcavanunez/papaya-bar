@@ -3,8 +3,9 @@
  *
  * Every engine returns the same thing: groups of tab ids with a name. "By site" always
  * works. "On-device" asks Chrome's built-in model (the Prompt API) to group by topic,
- * with replies forced to a JSON schema and checked against the real tabs. The Prompt
- * API isn't available in workers, so the on-device engine only runs on extension pages.
+ * with replies forced to a JSON schema. "opencode" asks the model your opencode server
+ * uses. Model replies are always checked against the real tabs. The Prompt API isn't
+ * available in workers, so the on-device engine only runs on extension pages.
  */
 
 export interface GroupableTab {
@@ -18,7 +19,10 @@ export interface Suggestion {
 	tabIds: number[]
 }
 
-export type Engine = 'site' | 'on-device'
+export type Engine = 'site' | 'on-device' | 'opencode'
+
+/** Send one prompt to a model and return its text reply */
+export type Ask = (prompt: string, signal?: AbortSignal) => Promise<string>
 export type OnDeviceStatus = 'available' | 'downloadable' | 'downloading' | 'unavailable'
 
 export interface SuggestResult {
@@ -32,6 +36,8 @@ export interface SuggestResult {
 export const MIN_GROUP_SIZE = 2
 const MAX_NAME_LENGTH = 32
 const BATCH_SIZE = 30
+/** Hosted models read far more at once than the on-device one */
+const OPENCODE_BATCH_SIZE = 150
 const MAX_TITLE_LENGTH = 90
 const MAX_KNOWN_NAMES = 40
 
@@ -210,14 +216,25 @@ function cleanName(value: unknown): string {
 	return value.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH).trim()
 }
 
+/** The JSON object in a reply, even if a model wrapped it in prose or a code fence */
+function extractJson(reply: string): unknown {
+	try {
+		return JSON.parse(reply)
+	} catch {
+		const start = reply.indexOf('{')
+		const end = reply.lastIndexOf('}')
+		if (start === -1 || end <= start) return null
+		try {
+			return JSON.parse(reply.slice(start, end + 1))
+		} catch {
+			return null
+		}
+	}
+}
+
 /** Map one batch's reply back to tab ids. Unknown numbers, repeats and nameless groups are dropped. */
 export function parseReply(reply: string, batchIds: number[]): Suggestion[] {
-	let data: unknown
-	try {
-		data = JSON.parse(reply)
-	} catch {
-		return []
-	}
+	const data = extractJson(reply)
 	const groups = (data as { groups?: unknown } | null)?.groups
 	if (!Array.isArray(groups)) return []
 
@@ -249,10 +266,48 @@ function knownNames(found: Suggestion[]): string[] {
 }
 
 /**
- * Group tabs with the on-device model. The model's context window is small, so tabs go
- * in batches, each in a fresh copy of the session; names found so far are passed along
- * so batches agree. A batch too big for the window is split in half and retried.
+ * Group tabs with a model, in batches; names found so far are passed along so batches
+ * agree. A batch too big for the model's context window is split in half and retried.
  */
+export async function groupWithModel(
+	tabs: GroupableTab[],
+	ask: Ask,
+	options: {
+		signal?: AbortSignal
+		onProgress?: (done: number, total: number) => void
+		batchSize: number
+		/** Text put before each batch's tab list */
+		preamble?: string
+	},
+): Promise<Suggestion[]> {
+	const { signal, batchSize } = options
+	const found: Suggestion[] = []
+	const queue: GroupableTab[][] = []
+	for (let i = 0; i < tabs.length; i += batchSize) queue.push(tabs.slice(i, i + batchSize))
+	let done = 0
+	while (queue.length) {
+		const batch = queue.shift()!
+		try {
+			const prompt = `${options.preamble ?? ''}${buildPrompt(batch, knownNames(found))}`
+			const reply = await ask(prompt, signal)
+			found.push(
+				...parseReply(
+					reply,
+					batch.map((tab) => tab.id),
+				),
+			)
+			done += batch.length
+			options.onProgress?.(done, tabs.length)
+		} catch (error) {
+			if (!isQuotaError(error) || batch.length < 2) throw error
+			const half = Math.ceil(batch.length / 2)
+			queue.unshift(batch.slice(0, half), batch.slice(half))
+		}
+	}
+	return mergeSuggestions(found)
+}
+
+/** Group tabs with Chrome's on-device model; each batch runs in a fresh copy of the session */
 export async function groupOnDevice(
 	tabs: GroupableTab[],
 	options: {
@@ -265,51 +320,57 @@ export async function groupOnDevice(
 	const lm = options.lm === undefined ? languageModel() : options.lm
 	if (!lm) throw new Error('This browser has no on-device model')
 	const { signal } = options
-	const batchSize = options.batchSize ?? BATCH_SIZE
-
 	const base = await lm.create({
 		...MODEL_OPTIONS,
 		initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
 		signal,
 	})
-	const found: Suggestion[] = []
 	try {
-		const queue: GroupableTab[][] = []
-		for (let i = 0; i < tabs.length; i += batchSize) queue.push(tabs.slice(i, i + batchSize))
-		let done = 0
-		while (queue.length) {
-			const batch = queue.shift()!
-			const session = await base.clone({ signal })
-			try {
-				const reply = await session.prompt(buildPrompt(batch, knownNames(found)), {
-					responseConstraint: RESPONSE_SCHEMA,
-					signal,
-				})
-				found.push(
-					...parseReply(
-						reply,
-						batch.map((tab) => tab.id),
-					),
-				)
-				done += batch.length
-				options.onProgress?.(done, tabs.length)
-			} catch (error) {
-				if (!isQuotaError(error) || batch.length < 2) throw error
-				const half = Math.ceil(batch.length / 2)
-				queue.unshift(batch.slice(0, half), batch.slice(half))
-			} finally {
-				session.destroy()
-			}
-		}
+		return await groupWithModel(
+			tabs,
+			async (prompt) => {
+				const session = await base.clone({ signal })
+				try {
+					return await session.prompt(prompt, {
+						responseConstraint: RESPONSE_SCHEMA,
+						signal,
+					})
+				} finally {
+					session.destroy()
+				}
+			},
+			{ ...options, batchSize: options.batchSize ?? BATCH_SIZE },
+		)
 	} finally {
 		base.destroy()
 	}
-	return mergeSuggestions(found)
 }
 
+/** The instructions sent with every opencode batch (it has no system prompt or schema option) */
+export const OPENCODE_PREAMBLE = `${SYSTEM_PROMPT}
+The reply must be one JSON object and nothing else: {"groups":[{"name":"...","tabs":[1,2]}]}
+
+`
+
+/** Group tabs with the model your opencode server uses */
+export function groupWithOpencode(
+	tabs: GroupableTab[],
+	ask: Ask,
+	options: { signal?: AbortSignal; onProgress?: (done: number, total: number) => void } = {},
+): Promise<Suggestion[]> {
+	return groupWithModel(tabs, ask, {
+		...options,
+		batchSize: OPENCODE_BATCH_SIZE,
+		preamble: OPENCODE_PREAMBLE,
+	})
+}
+
+const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
 /**
- * Use the on-device model when it's ready, by site otherwise (or if it fails).
- * Blank and new tab pages are left out.
+ * Pick an engine and group. "auto" escalates: opencode when it's connected, else the
+ * on-device model when it's ready, else by site. If a model fails, the next engine
+ * down is used and the reply says why. Blank and new tab pages are left out.
  */
 export async function suggestGroups(
 	allTabs: GroupableTab[],
@@ -318,29 +379,42 @@ export async function suggestGroups(
 		signal?: AbortSignal
 		onProgress?: (done: number, total: number) => void
 		lm?: LanguageModelApi | null
+		/** How to reach opencode, when it's connected and turned on */
+		opencode?: Ask | null
 	} = {},
 ): Promise<SuggestResult> {
 	const tabs = allTabs.filter((tab) => !isBlankPage(tab.url))
 	const lm = options.lm === undefined ? languageModel() : options.lm
-	const wantOnDevice = (options.engine ?? 'auto') !== 'site'
-	if (
-		wantOnDevice &&
-		tabs.length >= MIN_GROUP_SIZE &&
-		(await onDeviceStatus(lm)) === 'available'
-	) {
+	const wanted = options.engine ?? 'auto'
+	const reasons: string[] = []
+	const enough = tabs.length >= MIN_GROUP_SIZE
+
+	if (enough && options.opencode && (wanted === 'auto' || wanted === 'opencode')) {
+		try {
+			return {
+				engine: 'opencode',
+				suggestions: await groupWithOpencode(tabs, options.opencode, options),
+			}
+		} catch (error) {
+			if (options.signal?.aborted) throw error
+			reasons.push(`opencode: ${message(error)}`)
+		}
+	}
+	if (enough && wanted !== 'site' && (await onDeviceStatus(lm)) === 'available') {
 		try {
 			return {
 				engine: 'on-device',
 				suggestions: await groupOnDevice(tabs, { ...options, lm }),
+				...(reasons.length ? { fallbackReason: reasons.join('; ') } : {}),
 			}
 		} catch (error) {
 			if (options.signal?.aborted) throw error
-			return {
-				engine: 'site',
-				suggestions: groupBySite(tabs),
-				fallbackReason: error instanceof Error ? error.message : String(error),
-			}
+			reasons.push(`on-device model: ${message(error)}`)
 		}
 	}
-	return { engine: 'site', suggestions: groupBySite(tabs) }
+	return {
+		engine: 'site',
+		suggestions: groupBySite(tabs),
+		...(reasons.length ? { fallbackReason: reasons.join('; ') } : {}),
+	}
 }

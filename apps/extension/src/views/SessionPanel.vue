@@ -71,6 +71,7 @@ const {
 	modelStatus,
 	downloadFraction,
 	refreshModelStatus,
+	opencode,
 	suggest,
 	cancel,
 	dismiss,
@@ -150,6 +151,19 @@ function smartGroup(preferred: Engine | 'auto' = 'auto') {
 		usedColors: openGroups.value.map((g) => g.color),
 	})
 }
+
+/** The other ways to group, offered under a suggestion */
+const otherEngines = computed(() => {
+	const options: { engine: Engine; label: string }[] = []
+	if (opencode.value && engine.value !== 'opencode') {
+		options.push({ engine: 'opencode', label: `Group with ${opencode.value.model} instead` })
+	}
+	if (modelStatus.value === 'available' && engine.value !== 'on-device') {
+		options.push({ engine: 'on-device', label: 'Group on this device instead' })
+	}
+	if (engine.value !== 'site') options.push({ engine: 'site', label: 'Group by site instead' })
+	return options
+})
 
 const expandedKey = ref<number | null>(null)
 function toggleExpanded(key: number) {
@@ -550,9 +564,11 @@ onUnmounted(() => {
 					<div class="flex items-center justify-between gap-2">
 						<span>
 							{{
-								modelStatus === 'available'
-									? 'Grouping by topic on this device…'
-									: 'Grouping…'
+								opencode
+									? `Grouping by topic with ${opencode.model} (opencode)…`
+									: modelStatus === 'available'
+										? 'Grouping by topic on this device…'
+										: 'Grouping…'
 							}}
 						</span>
 						<button
@@ -578,7 +594,11 @@ onUnmounted(() => {
 
 				<template v-if="review.length && !running">
 					<p class="dark:text-vercel-accents-5 text-xs text-slate-500">
-						<template v-if="engine === 'on-device'">
+						<template v-if="engine === 'opencode'">
+							Grouped by topic with {{ opencode?.model ?? 'your model' }} through
+							opencode.
+						</template>
+						<template v-else-if="engine === 'on-device'">
 							Grouped by topic with Chrome's on-device model.
 						</template>
 						<template v-else>Grouped by site.</template>
@@ -693,8 +713,8 @@ onUnmounted(() => {
 						{{ pluralize(leftLoose, 'tab') }} fit no group and stay loose.
 					</p>
 					<p v-if="fallbackReason" class="text-xs text-amber-700 dark:text-amber-300">
-						The on-device model failed ({{ fallbackReason }}), so these are grouped by
-						site.
+						{{ fallbackReason }}. So these are grouped
+						{{ engine === 'on-device' ? 'on this device' : 'by site' }} instead.
 					</p>
 					<div class="flex gap-2">
 						<AppButton intent="primary" size="sm" class="flex-1" @click="apply">
@@ -702,22 +722,17 @@ onUnmounted(() => {
 						</AppButton>
 						<AppButton size="sm" @click="dismiss">Cancel</AppButton>
 					</div>
-					<button
-						v-if="engine === 'on-device'"
-						type="button"
-						class="dark:text-vercel-accents-5 text-xs text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline dark:hover:text-white"
-						@click="smartGroup('site')"
-					>
-						Group by site instead
-					</button>
-					<button
-						v-else-if="modelStatus === 'available'"
-						type="button"
-						class="dark:text-vercel-accents-5 text-xs text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline dark:hover:text-white"
-						@click="smartGroup('on-device')"
-					>
-						Group by topic instead
-					</button>
+					<div class="flex flex-wrap gap-x-3 gap-y-1">
+						<button
+							v-for="other in otherEngines"
+							:key="other.engine"
+							type="button"
+							class="dark:text-vercel-accents-5 text-xs text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline dark:hover:text-white"
+							@click="smartGroup(other.engine)"
+						>
+							{{ other.label }}
+						</button>
+					</div>
 				</template>
 
 				<p

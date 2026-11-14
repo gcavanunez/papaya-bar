@@ -22,6 +22,7 @@ import {
 import { pluralize } from '@/lib/format'
 import AppButton from '@/components/AppButton.vue'
 import AppSwitch from '@/components/forms/AppSwitch.vue'
+import OpencodeSettings from '@/components/OpencodeSettings.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import SegmentedControl from '@/components/forms/SegmentedControl.vue'
 
@@ -170,6 +171,8 @@ function onFileChange(e: Event) {
 					</div>
 				</div>
 			</section>
+
+			<OpencodeSettings />
 
 			<section>
 				<h2 class="text-sm font-semibold text-slate-900 dark:text-white">Your data</h2>
