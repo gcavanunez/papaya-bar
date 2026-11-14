@@ -1,6 +1,7 @@
 /**
- * Version contents, stored apart from the library index: one chrome.storage entry per
- * version. Versions never change once written, so reads are cached for good.
+ * Contents stored apart from the library index: one chrome.storage entry per version or
+ * stashed group (keys keep the original "version" prefix). Entries never change once
+ * written, so reads are cached for good.
  */
 import type { VersionData } from './model'
 

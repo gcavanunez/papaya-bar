@@ -1,5 +1,6 @@
 /**
- * The library's part of a backup file: the index, plus every version's contents.
+ * The library's part of a backup file: the index, plus the contents of every version and
+ * stashed group.
  *
  * Importing writes fresh rows rather than loading the file's store as-is: other open
  * pages merge what they hear, so only new writes (and deletions, for Replace) are
@@ -16,7 +17,11 @@ export interface LibraryBackup {
 }
 
 export async function exportLibrary(lib: Library): Promise<LibraryBackup> {
-	const ids = Object.keys(lib.store.getTable('versions'))
+	// Contents of every version and every stashed group
+	const ids = [
+		...Object.keys(lib.store.getTable('versions')),
+		...Object.keys(lib.store.getTable('stashed')),
+	]
 	const versions = await lib.blobs.getMany(ids)
 	return { index: lib.store.getMergeableContent(), versions: Object.fromEntries(versions) }
 }
@@ -62,7 +67,13 @@ export async function importLibrary(
 ): Promise<{ sessions: number; versions: number }> {
 	const { tables, values, versions } = rowsOf(source)
 	await lib.blobs.set(versions)
-	const replaced = mode === 'replace' ? Object.keys(lib.store.getTable('versions')) : []
+	const replaced =
+		mode === 'replace'
+			? [
+					...Object.keys(lib.store.getTable('versions')),
+					...Object.keys(lib.store.getTable('stashed')),
+				]
+			: []
 	lib.store.transaction(() => {
 		if (mode === 'replace') lib.store.delTables()
 		for (const [tableId, rows] of Object.entries(tables)) {

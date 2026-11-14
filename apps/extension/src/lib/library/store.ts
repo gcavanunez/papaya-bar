@@ -1,9 +1,10 @@
 /**
  * The library: sessions and their versions.
  *
- * The index (sessions and version metadata) is a TinyBase MergeableStore, so copies in
- * different pages and the background worker merge instead of overwriting each other.
- * Version contents live in `blobs`, one entry per version, so the index stays small.
+ * The index (sessions, version metadata, stashed groups) is a TinyBase MergeableStore, so
+ * copies in different pages and the background worker merge instead of overwriting each
+ * other. Contents (a version's tabs, a stashed group's tabs) live in `blobs`, one entry
+ * each, so the index stays small.
  * The old stores are never touched and serve as the rollback copy.
  *
  * Every function takes the library first, so tests can use a fresh one.
@@ -20,6 +21,7 @@ import {
 	type SessionStatus,
 	type VersionData,
 	type VersionReason,
+	type VersionTab,
 } from './model'
 
 export const LIBRARY_STORE_ID = 'papaya-library'
@@ -39,6 +41,18 @@ export interface SessionSummary extends LibrarySession {
 
 export interface VersionSummary extends Omit<LibraryVersion, 'data'> {
 	id: string
+}
+
+/** A group put away inside a session: its tabs are closed and kept here */
+export interface StashedGroup {
+	id: string
+	sessionId: string
+	name: string
+	color: string
+	tabCount: number
+	/** JSON of up to four { favIconUrl, url }, as for sessions */
+	preview: string
+	createdAt: number
 }
 
 export function createLibrary(blobs: VersionBlobs = memoryBlobs()): Library {
@@ -66,6 +80,14 @@ export function createLibrary(blobs: VersionBlobs = memoryBlobs()): Library {
 			tabCount: { type: 'number', default: 0 },
 			windowCount: { type: 'number', default: 0 },
 			groupCount: { type: 'number', default: 0 },
+		},
+		stashed: {
+			sessionId: { type: 'string', default: '' },
+			name: { type: 'string', default: '' },
+			color: { type: 'string', default: 'grey' },
+			tabCount: { type: 'number', default: 0 },
+			preview: { type: 'string', default: '[]' },
+			createdAt: { type: 'number', default: 0 },
 		},
 	})
 	store.setValuesSchema({
@@ -243,14 +265,69 @@ export function markOpen(lib: Library, id: string, now = Date.now()): void {
 
 export async function deleteSession(lib: Library, id: string): Promise<void> {
 	const versionIds = listVersions(lib, id).map((v) => v.id)
+	const stashIds = listStashed(lib, id).map((g) => g.id)
 	lib.store.transaction(() => {
 		for (const versionId of versionIds) lib.store.delRow('versions', versionId)
+		for (const stashId of stashIds) lib.store.delRow('stashed', stashId)
 		lib.store.delRow('sessions', id)
 		for (const key of ['openSessionId', 'parkedSessionId', 'homeSessionId'] as const) {
 			if (lib.store.getValue(key) === id) lib.store.setValue(key, '')
 		}
 	})
-	await lib.blobs.delete(versionIds)
+	await lib.blobs.delete([...versionIds, ...stashIds])
+}
+
+// ==================== Stashed groups ====================
+
+/** A session's stashed groups, most recently stashed first; every session's without an id */
+export function listStashed(lib: Library, sessionId?: string): StashedGroup[] {
+	return Object.entries(lib.store.getTable('stashed'))
+		.map(([id, row]) => ({ id, ...row }) as StashedGroup)
+		.filter((g) => sessionId == null || g.sessionId === sessionId)
+		.sort((a, b) => b.createdAt - a.createdAt)
+}
+
+export function getStashed(lib: Library, id: string): StashedGroup | null {
+	const row = lib.store.getRow('stashed', id)
+	return Object.keys(row).length ? ({ id, ...row } as StashedGroup) : null
+}
+
+export async function getStashedTabs(lib: Library, id: string): Promise<VersionTab[]> {
+	return (await lib.blobs.get(id))?.tabs ?? []
+}
+
+/** Keep a group's tabs in a session. The tabs are written before the index lists them. */
+export async function addStashed(
+	lib: Library,
+	sessionId: string,
+	group: { name: string; color: string },
+	tabs: VersionTab[],
+	now = Date.now(),
+): Promise<string> {
+	const id = `stash-${newId()}`
+	await lib.blobs.set({ [id]: { tabs, groups: [], windows: [] } })
+	lib.store.setRow('stashed', id, {
+		sessionId,
+		name: group.name,
+		color: group.color,
+		tabCount: tabs.length,
+		preview: makePreview({ tabs }),
+		createdAt: now,
+	})
+	return id
+}
+
+export function updateStashed(
+	lib: Library,
+	id: string,
+	fields: Partial<Pick<StashedGroup, 'name' | 'color' | 'sessionId'>>,
+): void {
+	lib.store.setPartialRow('stashed', id, fields)
+}
+
+export async function removeStashed(lib: Library, id: string): Promise<void> {
+	lib.store.delRow('stashed', id)
+	await lib.blobs.delete([id])
 }
 
 /** Home: where you are when no other session is open. Created on first need. */

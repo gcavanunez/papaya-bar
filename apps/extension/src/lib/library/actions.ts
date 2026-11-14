@@ -19,13 +19,15 @@ import {
 	getSession,
 	getSessionData,
 	getVersionData,
+	listStashed,
 	markOpen,
+	updateStashed,
 	type Library,
 } from './store'
 
 const EMPTY: VersionData = { tabs: [], groups: [], windows: [] }
 
-function toVersionTab(tab: chrome.tabs.Tab, windowId = tab.windowId): VersionTab {
+export function toVersionTab(tab: chrome.tabs.Tab, windowId = tab.windowId): VersionTab {
 	const favIconUrl = tab.favIconUrl ?? ''
 	return {
 		url: tab.url || tab.pendingUrl || '',
@@ -129,14 +131,16 @@ export async function saveVersion(lib: Library, now = Date.now()): Promise<strin
 
 /**
  * Name what's open: it becomes a new session, and the open one. Coming from Home, Home
- * is left empty, since its tabs now belong to the new session.
+ * is left empty, since its tabs and stashed groups now belong to the new session.
  */
 export async function saveOpenAs(lib: Library, name: string, now = Date.now()): Promise<string> {
 	const fromId = getOpenSessionId(lib)
 	const capture = await captureOpen()
 	const id = await createSession(lib, { name }, capture, now)
-	if (fromId === HOME_ID && getSession(lib, HOME_ID)?.tabCount) {
-		await addVersion(lib, HOME_ID, EMPTY, 'manual', now)
+	if (fromId === HOME_ID || !fromId) {
+		if (getSession(lib, HOME_ID)?.tabCount) await addVersion(lib, HOME_ID, EMPTY, 'manual', now)
+		for (const group of listStashed(lib, HOME_ID))
+			updateStashed(lib, group.id, { sessionId: id })
 	}
 	markOpen(lib, id, now)
 	return id

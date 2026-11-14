@@ -51,6 +51,7 @@ const {
 	archive,
 	unarchive,
 	remove,
+	stashedCount,
 } = useLibrary()
 const { triggerConfirm } = useGlobalConfirm()
 
@@ -259,6 +260,14 @@ async function onFileChange(event: Event) {
 									class="dark:text-vercel-accents-5 mt-0.5 flex items-center gap-1.5 truncate text-xs text-slate-500"
 								>
 									<span>{{ pluralize(session.tabCount, 'tab') }}</span>
+									<template v-if="stashedCount(session.id)">
+										<span aria-hidden="true">·</span>
+										<span>
+											{{
+												pluralize(stashedCount(session.id), 'stashed group')
+											}}
+										</span>
+									</template>
 									<span aria-hidden="true">·</span>
 									<time :title="exact(lastUsed(session))">
 										{{

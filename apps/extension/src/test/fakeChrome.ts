@@ -23,6 +23,7 @@ interface FakeTab {
 	active: boolean
 	pinned: boolean
 	discarded: boolean
+	createdAt: number
 }
 
 interface FakeGroup {
@@ -37,11 +38,18 @@ export interface FakeChromeOptions {
 	displays?: { left: number; top: number; width: number; height: number }[]
 	/** URLs that chrome.tabs.create and chrome.windows.create refuse to open */
 	blockedUrls?: string[]
+	/**
+	 * How long a new tab takes to commit its address. Until then `url` is empty (only
+	 * `pendingUrl` is set), and unloading the tab loses its address, as in Chrome.
+	 */
+	commitDelayMs?: number
 }
 
 export function installFakeChrome(options: FakeChromeOptions = {}) {
 	const displays = options.displays ?? [{ left: 0, top: 0, width: 1728, height: 1117 }]
 	const blocked = new Set(options.blockedUrls ?? [])
+	const commitDelay = options.commitDelayMs ?? 0
+	const committed = (tab: FakeTab) => Date.now() - tab.createdAt >= commitDelay
 	const windows = new Map<number, FakeWindow>()
 	const tabs = new Map<number, FakeTab>()
 	const groups = new Map<number, FakeGroup>()
@@ -62,6 +70,7 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	const tabView = (tab: FakeTab): chrome.tabs.Tab =>
 		({
 			...tab,
+			url: committed(tab) ? tab.url : '',
 			index: windows.get(tab.windowId)!.tabIds.indexOf(tab.id),
 			status: 'loading',
 			pendingUrl: tab.url,
@@ -99,6 +108,7 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 			active: false,
 			pinned: false,
 			discarded: false,
+			createdAt: Date.now(),
 		}
 		tabs.set(tab.id, tab)
 		const at =
@@ -111,6 +121,8 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	function activate(tabId: number) {
 		const tab = tabs.get(tabId)!
 		for (const id of windows.get(tab.windowId)!.tabIds) tabs.get(id)!.active = id === tabId
+		// Like Chrome, showing an unloaded tab loads it
+		tab.discarded = false
 	}
 
 	function removeTab(tabId: number) {
@@ -157,6 +169,12 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 			},
 			async getAll() {
 				return [...windows.values()].map(windowView)
+			},
+			async getLastFocused() {
+				const win =
+					[...windows.values()].find((w) => w.focused) ?? [...windows.values()].at(-1)
+				if (!win) throw new Error('No window')
+				return windowView(win)
 			},
 			async get(id: number) {
 				const win = windows.get(id)
@@ -208,6 +226,8 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 			async discard(id: number) {
 				const tab = tabs.get(id)!
 				if (tab.active) throw new Error('Cannot discard the active tab')
+				// Unloaded before committing, a tab forgets its address
+				if (!committed(tab)) tab.url = ''
 				tab.discarded = true
 				return tabView(tab)
 			},
@@ -243,10 +263,17 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 			},
 		},
 		tabGroups: {
-			async query(info: { windowId?: number } = {}) {
+			async query(info: { windowId?: number; collapsed?: boolean } = {}) {
 				return [...groups.values()].filter(
-					(g) => info.windowId == null || g.windowId === info.windowId,
+					(g) =>
+						(info.windowId == null || g.windowId === info.windowId) &&
+						(info.collapsed == null || g.collapsed === info.collapsed),
 				)
+			},
+			async get(id: number) {
+				const group = groups.get(id)
+				if (!group) throw new Error(`No group with id: ${id}.`)
+				return { ...group }
 			},
 			async update(id: number, props: Partial<FakeGroup>) {
 				const group = groups.get(id)
@@ -312,6 +339,10 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 					}
 				}),
 			}))
+		},
+		/** Addresses of the tabs Chrome holds unloaded */
+		discardedUrls() {
+			return [...tabs.values()].filter((t) => t.discarded).map((t) => t.url)
 		},
 		/** Open a window with tabs, as if the user already had them */
 		async seedWindow(urls: string[]) {

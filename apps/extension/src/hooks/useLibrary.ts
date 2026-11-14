@@ -6,32 +6,42 @@ import { computed, ref, shallowRef } from 'vue'
 import { toast } from 'vue-sonner'
 import { pluralize } from '@/lib/format'
 import * as actions from '@/lib/library/actions'
+import * as stash from '@/lib/library/stash'
 import type { MigrationResult } from '@/lib/library/migrate'
 import type { VersionData } from '@/lib/library/model'
 import { getLibrary } from '@/lib/library/runtime'
 import {
 	HOME_ID,
+	addStashed,
 	addVersion,
 	deleteSession,
 	getOpenSessionId,
 	getSession,
 	getSessionData,
+	getStashed,
+	getStashedTabs,
 	getVersionData,
 	isMigrated,
 	lastUsed,
 	listSessions,
+	listStashed,
 	listVersions,
+	removeStashed,
 	restoreVersion,
 	setStatus,
 	updateSession,
+	updateStashed,
 	type Library,
 	type SessionSummary,
+	type StashedGroup,
 } from '@/lib/library/store'
 
 // ==================== Shared (per-document) state ====================
 
 const lib = shallowRef<Library | null>(null)
 const sessions = ref<SessionSummary[]>([])
+/** Every session's stashed groups */
+const stashedAll = ref<StashedGroup[]>([])
 const openId = ref('')
 const migrated = ref(false)
 const ready = ref(false)
@@ -42,6 +52,7 @@ let starting: Promise<Library> | null = null
 function refresh(): void {
 	if (!lib.value) return
 	sessions.value = listSessions(lib.value)
+	stashedAll.value = listStashed(lib.value)
 	openId.value = getOpenSessionId(lib.value)
 	migrated.value = isMigrated(lib.value)
 	revision.value++
@@ -62,6 +73,11 @@ function start(): Promise<Library> {
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const nameOf = (id: string) => getSession(lib.value!, id)?.name ?? 'session'
 
+/** The window this page lives in (a side panel's window, or a tab's), where groups reopen */
+async function thisWindow(): Promise<number | undefined> {
+	return (await chrome.windows.getCurrent().catch(() => null))?.id
+}
+
 // ==================== Composable ====================
 
 export function useLibrary() {
@@ -73,6 +89,122 @@ export function useLibrary() {
 		sessions.value.filter((s) => s.id !== openId.value && s.status !== 'archived'),
 	)
 	const archived = computed(() => sessions.value.filter((s) => s.status === 'archived'))
+	/** Groups stashed in the open session (Home's when nothing else is open) */
+	const stashed = computed(() =>
+		stashedAll.value.filter((g) => g.sessionId === (openId.value || HOME_ID)),
+	)
+	const stashedCount = (sessionId: string) =>
+		stashedAll.value.filter((g) => g.sessionId === sessionId).length
+
+	// ---------- Stashing groups ----------
+
+	async function stashGroup(groupId: number): Promise<void> {
+		const library = await start()
+		try {
+			const result = await stash.stashGroup(library, groupId)
+			toast(`Stashed ${result.name}`, {
+				action: {
+					label: 'Undo',
+					onClick: () => void openStashed(result.stashId, result.windowId),
+				},
+			})
+		} catch (error) {
+			toast.error(`Couldn't stash it: ${errorText(error)}`)
+		}
+	}
+
+	async function stashGroups(groupIds: number[]): Promise<void> {
+		const library = await start()
+		const results = await stash.stashGroups(library, groupIds)
+		if (!results.length) return
+		toast(`Stashed ${pluralize(results.length, 'group')}`, {
+			action: {
+				label: 'Undo',
+				onClick: async () => {
+					for (const r of [...results].reverse()) await openStashed(r.stashId, r.windowId)
+				},
+			},
+		})
+	}
+
+	async function openStashed(stashId: string, windowId?: number): Promise<void> {
+		const library = await start()
+		try {
+			const result = await stash.openStashed(
+				library,
+				stashId,
+				windowId ?? (await thisWindow()),
+			)
+			if (result.failed.length) {
+				toast.warning(`Chrome wouldn't reopen ${pluralize(result.failed.length, 'tab')}`)
+			}
+		} catch (error) {
+			toast.error(`Couldn't open it: ${errorText(error)}`)
+		}
+	}
+
+	/** Open a stashed group and stash the group you were in */
+	async function swapToStashed(stashId: string): Promise<void> {
+		const library = await start()
+		try {
+			const window = await thisWindow()
+			const { stashed: left } = await stash.swapToStashed(library, stashId, window)
+			if (left) {
+				toast(`Stashed ${left.name}`, {
+					action: { label: 'Undo', onClick: () => void swapToStashed(left.stashId) },
+				})
+			}
+		} catch (error) {
+			toast.error(`Couldn't swap: ${errorText(error)}`)
+		}
+	}
+
+	/** Focus an open group and stash the group you were in */
+	async function swapToGroup(groupId: number): Promise<void> {
+		const library = await start()
+		try {
+			const { stashed: left } = await stash.swapToGroup(library, groupId)
+			if (left) {
+				toast(`Stashed ${left.name}`, {
+					action: { label: 'Undo', onClick: () => void swapToStashed(left.stashId) },
+				})
+			}
+		} catch (error) {
+			toast.error(`Couldn't swap: ${errorText(error)}`)
+		}
+	}
+
+	async function renameStashed(stashId: string, name: string): Promise<void> {
+		updateStashed(await start(), stashId, { name })
+	}
+
+	async function moveStashed(stashId: string, sessionId: string): Promise<void> {
+		const library = await start()
+		const group = getStashed(library, stashId)
+		if (!group) return
+		updateStashed(library, stashId, { sessionId })
+		toast(`Moved ${group.name} to ${nameOf(sessionId)}`, {
+			action: {
+				label: 'Undo',
+				onClick: () => updateStashed(library, stashId, { sessionId: group.sessionId }),
+			},
+		})
+	}
+
+	async function deleteStashed(stashId: string): Promise<void> {
+		const library = await start()
+		const group = getStashed(library, stashId)
+		if (!group) return
+		const tabs = await getStashedTabs(library, stashId)
+		await removeStashed(library, stashId)
+		toast(`Deleted ${group.name} and its ${pluralize(tabs.length, 'tab')}`, {
+			action: {
+				label: 'Undo',
+				onClick: () =>
+					void addStashed(library, group.sessionId, group, tabs, group.createdAt),
+			},
+		})
+	}
 
 	async function switchTo(id: string): Promise<void> {
 		const library = await start()
@@ -212,6 +344,9 @@ export function useLibrary() {
 		openSession,
 		switchable,
 		archived,
+		stashed,
+		stashedAll,
+		stashedCount,
 		revision,
 		homeId: HOME_ID,
 		lastUsed,
@@ -234,5 +369,14 @@ export function useLibrary() {
 		restoreOlder,
 		saveEdits,
 		applyMove,
+		stashGroup,
+		stashGroups,
+		openStashed,
+		swapToStashed,
+		swapToGroup,
+		renameStashed,
+		moveStashed,
+		deleteStashed,
+		getStashedTabs: async (stashId: string) => getStashedTabs(await start(), stashId),
 	}
 }

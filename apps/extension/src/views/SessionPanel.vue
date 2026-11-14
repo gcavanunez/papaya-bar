@@ -19,6 +19,7 @@ import {
 	PlusIcon,
 	RectangleStackIcon,
 	SparklesIcon,
+	TrashIcon,
 	XMarkIcon,
 } from '@heroicons/vue/16/solid'
 import { Menu, MenuButton } from '@headlessui/vue'
@@ -48,6 +49,15 @@ const {
 	openCopy,
 	rename,
 	archive,
+	stashed,
+	stashGroup,
+	stashGroups,
+	openStashed,
+	swapToStashed,
+	swapToGroup,
+	renameStashed,
+	moveStashed,
+	deleteStashed,
 } = useLibrary()
 const { groups: openGroups, looseTabs, focusedGroupId, windowNumbers } = useOpenGroups()
 const {
@@ -83,6 +93,40 @@ const visibleGroups = computed(() => {
 	if (!query.value) return openGroups.value
 	return openGroups.value.filter((g) => g.title.toLowerCase().includes(query.value))
 })
+
+const visibleStashed = computed(() =>
+	query.value
+		? stashed.value.filter((g) => g.name.toLowerCase().includes(query.value))
+		: stashed.value,
+)
+
+/** Every open group but the one you're in */
+const otherGroupIds = computed(() =>
+	openGroups.value.filter((g) => g.id !== focusedGroupId.value).map((g) => g.id),
+)
+
+// Shift swaps: the group you're in is stashed as you leave it
+function onGroupClick(groupId: number, event: MouseEvent) {
+	if (event.shiftKey && migrated.value) void swapToGroup(groupId)
+	else void focusGroup(groupId)
+}
+function onStashedClick(stashId: string, event: MouseEvent) {
+	if (event.shiftKey) void swapToStashed(stashId)
+	else void openStashed(stashId)
+}
+
+const editingStashId = ref<string | null>(null)
+const editingStashName = ref('')
+function startStashRename(id: string, current: string) {
+	editingStashId.value = id
+	editingStashName.value = current
+}
+function commitStashRename() {
+	if (editingStashId.value && editingStashName.value.trim()) {
+		void renameStashed(editingStashId.value, editingStashName.value.trim())
+	}
+	editingStashId.value = null
+}
 
 const matchingSessions = computed(() =>
 	query.value
@@ -312,25 +356,51 @@ onUnmounted(() => {
 				</div>
 			</section>
 
-			<!-- Open groups: Chrome's tab groups. Clicking one focuses it and folds the rest. -->
+			<!--
+				Open groups: Chrome's tab groups. Click to focus one (the rest fold up); Shift-click
+				to swap, stashing the group you're in. Stash puts a group away in the open session.
+			-->
 			<section v-if="visibleGroups.length">
-				<p class="section-label mb-2">Open groups · {{ visibleGroups.length }}</p>
+				<div class="mb-2 flex items-center justify-between">
+					<p class="section-label">Open groups · {{ visibleGroups.length }}</p>
+					<button
+						v-if="migrated && otherGroupIds.length"
+						type="button"
+						class="dark:text-vercel-accents-5 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
+						:title="
+							focusedGroupId
+								? 'Keep the group you are in open and stash the rest'
+								: 'Stash every open group'
+						"
+						@click="stashGroups(otherGroupIds)"
+					>
+						{{ focusedGroupId ? 'Stash the others' : 'Stash all' }}
+					</button>
+				</div>
 				<ul
 					role="list"
 					class="card dark:divide-vercel-accents-2 divide-y divide-slate-100 overflow-hidden"
 				>
-					<li v-for="group in visibleGroups" :key="group.id">
+					<li
+						v-for="group in visibleGroups"
+						:key="group.id"
+						class="group/row dark:hover:bg-vercel-accents-1 relative flex items-center hover:bg-slate-50"
+						:class="
+							group.id === focusedGroupId
+								? 'dark:bg-vercel-accents-1 bg-slate-50'
+								: ''
+						"
+					>
 						<button
 							type="button"
-							class="dark:hover:bg-vercel-accents-1 relative flex w-full items-center gap-2.5 py-2 pl-3 pr-3 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
-							:class="
-								group.id === focusedGroupId
-									? 'dark:bg-vercel-accents-1 bg-slate-50'
-									: ''
-							"
+							class="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3 pr-2 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
 							:aria-current="group.id === focusedGroupId ? 'true' : undefined"
-							:title="`Go to ${group.title || 'this group'} and fold the other groups`"
-							@click="focusGroup(group.id)"
+							:title="
+								migrated
+									? `Go to ${group.title || 'this group'}. Shift-click to swap: the group you're in is stashed.`
+									: `Go to ${group.title || 'this group'} and fold the other groups`
+							"
+							@click="onGroupClick(group.id, $event)"
 						>
 							<span
 								v-if="group.id === focusedGroupId"
@@ -364,6 +434,98 @@ onUnmounted(() => {
 								{{ group.tabIds.length }}
 							</span>
 						</button>
+						<AppButton
+							v-if="migrated"
+							intent="ghost"
+							size="xs"
+							square
+							class="mr-1.5 opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100"
+							:title="`Stash ${group.title || 'this group'}: close its tabs and keep it here`"
+							@click="stashGroup(group.id)"
+						>
+							<ArchiveBoxArrowDownIcon class="size-3.5" aria-hidden="true" />
+							<span class="sr-only">Stash {{ group.title || 'this group' }}</span>
+						</AppButton>
+					</li>
+				</ul>
+			</section>
+
+			<!-- Stashed groups of the open session: click to open (Shift-click swaps) -->
+			<section v-if="migrated && visibleStashed.length">
+				<p class="section-label mb-2">Stashed · {{ visibleStashed.length }}</p>
+				<ul role="list" class="card dark:divide-vercel-accents-2 divide-y divide-slate-100">
+					<li
+						v-for="item in visibleStashed"
+						:key="item.id"
+						class="group/row dark:hover:bg-vercel-accents-1 flex items-center gap-2.5 py-2 pl-3 pr-1.5 hover:bg-slate-50"
+					>
+						<span
+							class="size-2.5 shrink-0 rounded-full opacity-60"
+							:class="dot(item.color)"
+						/>
+						<input
+							v-if="editingStashId === item.id"
+							v-model="editingStashName"
+							autofocus
+							class="field h-7 min-w-0 flex-1 px-2"
+							aria-label="Group name"
+							@keyup.enter="commitStashRename"
+							@keyup.esc="editingStashId = null"
+							@blur="commitStashRename"
+						/>
+						<button
+							v-else
+							type="button"
+							class="min-w-0 flex-1 rounded text-left focus-visible:outline-2 focus-visible:outline-blue-500"
+							:title="`Open ${item.name}. Shift-click to swap: the group you're in is stashed.`"
+							@click="onStashedClick(item.id, $event)"
+						>
+							<span class="block truncate text-sm font-medium">{{ item.name }}</span>
+							<span class="dark:text-vercel-accents-5 block text-xs text-slate-500">
+								{{ pluralize(item.tabCount, 'tab') }} · stashed
+								{{ ago(item.createdAt) }}
+							</span>
+						</button>
+						<Menu
+							v-if="editingStashId !== item.id"
+							as="div"
+							class="relative opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100"
+						>
+							<MenuButton
+								:class="button({ intent: 'ghost', size: 'xs', square: true })"
+								title="More"
+							>
+								<EllipsisHorizontalIcon class="size-3.5" aria-hidden="true" />
+								<span class="sr-only">More actions</span>
+							</MenuButton>
+							<AppMenuItems width="w-56">
+								<AppMenuItem
+									:icon="PencilIcon"
+									@click="startStashRename(item.id, item.name)"
+								>
+									Rename
+								</AppMenuItem>
+								<template v-if="switchable.length">
+									<div class="menu-separator" />
+									<p class="menu-heading">Move to session</p>
+									<AppMenuItem
+										v-for="target in switchable.slice(0, 8)"
+										:key="target.id"
+										@click="moveStashed(item.id, target.id)"
+									>
+										{{ target.name }}
+									</AppMenuItem>
+								</template>
+								<div class="menu-separator" />
+								<AppMenuItem
+									:icon="TrashIcon"
+									danger
+									@click="deleteStashed(item.id)"
+								>
+									Delete
+								</AppMenuItem>
+							</AppMenuItems>
+						</Menu>
 					</li>
 				</ul>
 			</section>
@@ -692,7 +854,12 @@ onUnmounted(() => {
 			</section>
 
 			<EmptyState
-				v-if="query && !visibleSessions.length && !visibleGroups.length"
+				v-if="
+					query &&
+					!visibleSessions.length &&
+					!visibleGroups.length &&
+					!visibleStashed.length
+				"
 				compact
 				:icon="RectangleStackIcon"
 				title="No matching sessions or groups"

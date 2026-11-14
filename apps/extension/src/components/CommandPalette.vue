@@ -33,7 +33,9 @@ import { focusGroup, listOpenGroups, type OpenGroup } from '@/lib/tabGroups'
 interface GroupItem {
 	kind: 'group'
 	key: string
-	id: number
+	/** A Chrome tab group id, or a stashed group's id */
+	id: number | string
+	stashed: boolean
 	label: string
 	color: string
 	tabCount: number
@@ -72,8 +74,22 @@ interface SavedTabItem {
 }
 type PaletteItem = GroupItem | SessionItem | CommandItem | TabItem | SavedTabItem
 
-const { switchable, openSession, homeId, library, switchTo, saveVersion, saveOpenAs, putAway } =
-	useLibrary()
+const {
+	switchable,
+	openSession,
+	homeId,
+	library,
+	stashed,
+	stashedAll,
+	sessions,
+	switchTo,
+	saveVersion,
+	saveOpenAs,
+	putAway,
+	openStashed,
+	swapToStashed,
+	swapToGroup,
+} = useLibrary()
 const { loadedTabs } = useChromeTabs()
 const { isOpen, close, toggle } = useCommandPalette()
 const { semanticSearch } = useIntelligence()
@@ -105,19 +121,36 @@ watch(isOpen, async (open) => {
 	if (open) openGroups.value = await listOpenGroups()
 })
 
-const groupItems = computed<GroupItem[]>(() =>
-	openGroups.value
+const groupItems = computed<GroupItem[]>(() => [
+	...openGroups.value
 		.filter((g) => matches(g.title || 'Unnamed group'))
 		.slice(0, 8)
 		.map((g) => ({
-			kind: 'group',
+			kind: 'group' as const,
 			key: `group-${g.id}`,
 			id: g.id,
+			stashed: false,
 			label: g.title || 'Unnamed group',
 			color: g.color,
 			tabCount: g.tabIds.length,
 		})),
-)
+	...stashed.value
+		.filter((g) => matches(g.name))
+		.slice(0, 8)
+		.map((g) => ({
+			kind: 'group' as const,
+			key: `stash-${g.id}`,
+			id: g.id,
+			stashed: true,
+			label: g.name,
+			color: g.color,
+			tabCount: g.tabCount,
+		})),
+])
+
+// Shift+Enter (or Shift-click) swaps groups: remember Shift as the choice is made
+let shiftHeld = false
+const noteShift = (e: KeyboardEvent | MouseEvent) => (shiftHeld = e.shiftKey)
 
 const sessionItems = computed<SessionItem[]>(() =>
 	switchable.value
@@ -204,20 +237,38 @@ function toSavedItem(entry: SavedEntry): SavedTabItem {
 	}
 }
 
-/** Every tab in every closed session's newest version (contents load once, then cache) */
+/**
+ * Every tab in every closed session's newest version, and in every stashed group
+ * (contents load once, then cache)
+ */
 async function savedEntries(): Promise<SavedEntry[]> {
 	const lib = await library()
 	const heads = switchable.value.filter((s) => s.headVersionId)
-	const data = await lib.blobs.getMany(heads.map((s) => s.headVersionId))
-	return heads.flatMap((s) =>
-		(data.get(s.headVersionId)?.tabs ?? []).map((tab, i) => ({
-			key: `${s.id}-${i}`,
-			title: tab.title,
-			url: tab.url,
-			favIconUrl: tab.favIconUrl,
-			sessionName: s.name,
-		})),
-	)
+	const data = await lib.blobs.getMany([
+		...heads.map((s) => s.headVersionId),
+		...stashedAll.value.map((g) => g.id),
+	])
+	const sessionName = new Map(sessions.value.map((s) => [s.id, s.name]))
+	return [
+		...stashedAll.value.flatMap((g) =>
+			(data.get(g.id)?.tabs ?? []).map((tab, i) => ({
+				key: `${g.id}-${i}`,
+				title: tab.title,
+				url: tab.url,
+				favIconUrl: tab.favIconUrl,
+				sessionName: `${g.name} · ${sessionName.get(g.sessionId) ?? 'session'}`,
+			})),
+		),
+		...heads.flatMap((s) =>
+			(data.get(s.headVersionId)?.tabs ?? []).map((tab, i) => ({
+				key: `${s.id}-${i}`,
+				title: tab.title,
+				url: tab.url,
+				favIconUrl: tab.favIconUrl,
+				sessionName: s.name,
+			})),
+		),
+	]
 }
 
 watchDebounced(
@@ -281,7 +332,12 @@ function activateTab(id: number) {
 async function onSelect(item: PaletteItem | null) {
 	if (!item) return
 	close()
-	if (item.kind === 'group') await focusGroup(item.id)
+	const swap = shiftHeld
+	if (item.kind === 'group' && item.stashed) {
+		await (swap ? swapToStashed(item.id as string) : openStashed(item.id as string))
+	} else if (item.kind === 'group') {
+		await (swap ? swapToGroup(item.id as number) : focusGroup(item.id as number))
+	}
 	else if (item.kind === 'session') await switchTo(item.id)
 	else if (item.kind === 'command') await item.run()
 	else if (item.kind === 'tab') activateTab(item.id)
@@ -295,8 +351,17 @@ function onKeydown(e: KeyboardEvent) {
 	}
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onMounted(() => {
+	window.addEventListener('keydown', onKeydown)
+	// Capture phase, so Shift is known before the combobox handles Enter or a click
+	window.addEventListener('keydown', noteShift, true)
+	window.addEventListener('pointerdown', noteShift, true)
+})
+onUnmounted(() => {
+	window.removeEventListener('keydown', onKeydown)
+	window.removeEventListener('keydown', noteShift, true)
+	window.removeEventListener('pointerdown', noteShift, true)
+})
 </script>
 
 <template>
@@ -378,7 +443,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 											<span
 												class="dark:text-vercel-accents-5 text-xs text-slate-400 tabular-nums"
 											>
-												{{ item.tabCount }} tabs
+												{{ item.stashed ? 'stashed · ' : ''
+												}}{{ item.tabCount }} tabs
 											</span>
 										</li>
 									</ComboboxOption>
@@ -522,6 +588,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 								</span>
 								<span class="flex items-center gap-1.5">
 									<kbd class="kbd">↵</kbd> Open
+								</span>
+								<span v-if="groupItems.length" class="flex items-center gap-1.5">
+									<kbd class="kbd">⇧</kbd><kbd class="kbd">↵</kbd> Swap group
 								</span>
 								<span class="ml-auto flex items-center gap-1.5">
 									<kbd class="kbd">{{ paletteShortcutLabel }}</kbd> Toggle
