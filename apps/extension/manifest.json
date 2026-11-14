@@ -25,7 +25,6 @@
 		"clipboardRead",
 		"system.display",
 		"sidePanel",
-		"alarms",
 		"sessions"
 	],
 	"background": {

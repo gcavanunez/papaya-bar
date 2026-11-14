@@ -1,9 +1,9 @@
 /**
  * Session actions on the live browser: switch, save a version, save what's open as a
- * session, put the open session away, open a copy, park stale tabs.
+ * session, put the open session away, open a copy, move tabs.
  *
  * Framework-free, so the side panel, the ⌘K palette and the background worker (the
- * website palette, keyboard commands, auto-park) all run the same code.
+ * website palette, keyboard commands) all run the same code.
  *
  * Pinned tabs and Papaya's own pages are never saved and never closed.
  */
@@ -22,8 +22,6 @@ import {
 	markOpen,
 	type Library,
 } from './store'
-
-export const PARKED_ID = 'parked'
 
 const EMPTY: VersionData = { tabs: [], groups: [], windows: [] }
 
@@ -214,46 +212,4 @@ export async function moveTabs(
 	}
 	await chrome.tabs.remove(moved.tabs.length ? tabIds : [])
 	return sessionId
-}
-
-/** Move tabs into the Parked session (created on first use) and close them */
-export async function parkTabs(
-	lib: Library,
-	tabs: chrome.tabs.Tab[],
-	now = Date.now(),
-): Promise<number> {
-	const parkable = tabs.filter((tab) => tab.id != null && !tab.pinned && !isOwnPage(tab))
-	if (!parkable.length) return 0
-	let parkedId = lib.store.getValue('parkedSessionId') as string
-	if (!parkedId || !getSession(lib, parkedId)) {
-		parkedId = await createSession(
-			lib,
-			{ id: PARKED_ID, name: 'Parked', kind: 'parked' },
-			undefined,
-			now,
-		)
-		lib.store.setValue('parkedSessionId', parkedId)
-	}
-	const current = (await getSessionData(lib, parkedId)) ?? EMPTY
-	await addVersion(
-		lib,
-		parkedId,
-		{
-			// Parked tabs reopen together in one window
-			tabs: [
-				...current.tabs,
-				...parkable.map((tab) => ({
-					...toVersionTab(tab, 0),
-					groupId: NO_GROUP,
-					active: false,
-				})),
-			],
-			groups: current.groups,
-			windows: current.windows,
-		},
-		'park',
-		now,
-	)
-	await chrome.tabs.remove(parkable.map((tab) => tab.id!))
-	return parkable.length
 }

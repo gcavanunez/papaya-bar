@@ -1,7 +1,6 @@
-import { AUTO_PARK_DAYS, isParkable } from './src/lib/liveTabs'
 import { cycleGroup, focusGroup, listOpenGroups } from './src/lib/tabGroups'
 import { getLibrary } from './src/lib/library/runtime'
-import { parkTabs, putAway, saveOpenAs, saveVersion, switchTo } from './src/lib/library/actions'
+import { putAway, saveOpenAs, saveVersion, switchTo } from './src/lib/library/actions'
 import { HOME_ID, getOpenSessionId, isMigrated, listSessions } from './src/lib/library/store'
 
 // Get the current tab
@@ -45,27 +44,9 @@ function debouncedUpdateBadge() {
 chrome.tabs.onCreated.addListener(debouncedUpdateBadge)
 chrome.tabs.onRemoved.addListener(debouncedUpdateBadge)
 
-// ==================== Auto-park stale tabs (opt-in) ====================
-// When enabled in settings, periodically move tabs untouched for N days into the
-// Parked session and close them.
-
-const PARK_ALARM = 'papaya-auto-park'
-
-chrome.alarms.create(PARK_ALARM, { periodInMinutes: 30 })
-
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-	if (alarm.name !== PARK_ALARM) return
-
-	const { 'papaya:autoPark': cfg } = await chrome.storage.local.get('papaya:autoPark')
-	if (!cfg?.enabled) return
-
-	// Nothing parks until saved sessions and contexts have moved into the library
-	const lib = await getLibrary()
-	if (!isMigrated(lib)) return
-
-	const days = cfg.days ?? AUTO_PARK_DAYS
-	const tabs = await chrome.tabs.query({})
-	await parkTabs(lib, tabs.filter((t) => isParkable(t, days)))
+// Auto-park was removed; clear its old setting on update
+chrome.runtime.onInstalled.addListener(() => {
+	void chrome.storage.local.remove('papaya:autoPark')
 })
 
 // ==================== Website palette (⌥K) ====================

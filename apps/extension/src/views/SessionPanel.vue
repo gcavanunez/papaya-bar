@@ -24,7 +24,7 @@ import {
 import { Menu, MenuButton } from '@headlessui/vue'
 import { button } from '@/lib/ui'
 import { pluralize, timeAgo } from '@/lib/format'
-import { AUTO_PARK_DAYS, isOwnPage, isParkable } from '@/lib/liveTabs'
+import { isOwnPage } from '@/lib/liveTabs'
 import type { Engine } from '@/lib/smartGroup'
 import { focusGroup } from '@/lib/tabGroups'
 import AppButton from '@/components/AppButton.vue'
@@ -46,7 +46,6 @@ const {
 	saveOpenAs,
 	putAway,
 	openCopy,
-	park,
 	rename,
 	archive,
 } = useLibrary()
@@ -74,10 +73,9 @@ const {
 } = useSmartGroup()
 
 const SESSIONS_SHOWN = 8
-const autoPark = ref(false)
 const search = ref('')
 const showAll = ref(false)
-const liveStats = ref({ total: 0, stale: 0 })
+const openTabCount = ref(0)
 
 const query = computed(() => search.value.trim().toLowerCase())
 
@@ -148,27 +146,11 @@ function openLibrary() {
 	void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#/sessions') })
 }
 
-// ---------- Parking ----------
+// ---------- Open tab count ----------
 
-async function refreshLiveStats() {
-	const tabs = (await chrome.tabs.query({})).filter((t) => !isOwnPage(t))
-	liveStats.value = { total: tabs.length, stale: tabs.filter((t) => isParkable(t)).length }
+async function refreshOpenTabCount() {
+	openTabCount.value = (await chrome.tabs.query({})).filter((t) => !isOwnPage(t)).length
 }
-async function loadAutoPark() {
-	const stored = await chrome.storage.local.get('papaya:autoPark')
-	autoPark.value = !!(stored['papaya:autoPark'] as { enabled?: boolean } | undefined)?.enabled
-}
-async function toggleAutoPark() {
-	autoPark.value = !autoPark.value
-	await chrome.storage.local.set({
-		'papaya:autoPark': { enabled: autoPark.value, days: AUTO_PARK_DAYS },
-	})
-}
-async function parkNow() {
-	await park((await chrome.tabs.query({})).filter((t) => isParkable(t)))
-	void refreshLiveStats()
-}
-const showNudge = computed(() => liveStats.value.total >= 15 || liveStats.value.stale > 0)
 
 // Tailwind classes for the chrome tab-group color palette.
 const COLOR_DOT: Record<string, string> = {
@@ -189,7 +171,7 @@ const ago = (ts: number) => timeAgo(ts) || 'never'
 let statsTimer: ReturnType<typeof setTimeout> | undefined
 function onTabsChanged() {
 	clearTimeout(statsTimer)
-	statsTimer = setTimeout(() => void refreshLiveStats(), 200)
+	statsTimer = setTimeout(() => void refreshOpenTabCount(), 200)
 }
 const tabEvents = [
 	chrome.tabs.onCreated,
@@ -199,9 +181,8 @@ const tabEvents = [
 ] as chrome.events.Event<() => void>[]
 
 onMounted(() => {
-	void loadAutoPark()
 	void refreshModelStatus()
-	void refreshLiveStats()
+	void refreshOpenTabCount()
 	tabEvents.forEach((event) => event.addListener(onTabsChanged))
 })
 onUnmounted(() => {
@@ -220,7 +201,7 @@ onUnmounted(() => {
 			<div class="flex items-center justify-between">
 				<h1 class="text-sm font-semibold">Sessions &amp; groups</h1>
 				<span class="dark:text-vercel-accents-5 text-xs tabular-nums text-slate-500">
-					{{ pluralize(liveStats.total, 'open tab') }}
+					{{ pluralize(openTabCount, 'open tab') }}
 				</span>
 			</div>
 			<SearchInput v-model="search" size="sm" placeholder="Search sessions and groups…" />
@@ -288,7 +269,7 @@ onUnmounted(() => {
 					intent="primary"
 					size="sm"
 					class="mt-3 w-full"
-					:disabled="liveStats.total === 0"
+					:disabled="openTabCount === 0"
 					@click="naming = true"
 				>
 					<PlusIcon class="size-3.5" aria-hidden="true" />
@@ -607,39 +588,6 @@ onUnmounted(() => {
 					</template>
 				</p>
 			</section>
-
-			<!-- Nudge -->
-			<div
-				v-if="showNudge"
-				class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
-			>
-				<div class="flex items-center justify-between gap-2">
-					<span>
-						{{ pluralize(liveStats.total, 'tab') }} open<template
-							v-if="liveStats.stale > 0"
-						>
-							· {{ liveStats.stale }} untouched {{ AUTO_PARK_DAYS }}d+</template
-						>
-					</span>
-					<button
-						v-if="liveStats.stale > 0"
-						type="button"
-						class="shrink-0 rounded bg-amber-200 px-2 py-1 font-medium text-amber-900 hover:bg-amber-300 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
-						@click="parkNow"
-					>
-						Park {{ liveStats.stale }}
-					</button>
-				</div>
-				<label class="mt-2 flex cursor-pointer items-center gap-2">
-					<input
-						type="checkbox"
-						:checked="autoPark"
-						class="checkbox size-3.5"
-						@change="toggleAutoPark"
-					/>
-					Auto-park tabs untouched {{ AUTO_PARK_DAYS }}d+
-				</label>
-			</div>
 
 			<!-- Sessions to switch to -->
 			<section v-if="migrated && visibleSessions.length">

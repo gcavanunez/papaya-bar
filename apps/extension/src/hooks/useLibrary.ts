@@ -156,17 +156,6 @@ export function useLibrary() {
 		}
 	}
 
-	async function park(tabs: chrome.tabs.Tab[]): Promise<number> {
-		const library = await start()
-		const count = await actions.parkTabs(library, tabs)
-		if (count) {
-			toast(`Parked ${pluralize(count, 'stale tab')}`, {
-				action: { label: 'Open Parked', onClick: () => void openCopy(actions.PARKED_ID) },
-			})
-		}
-		return count
-	}
-
 	async function rename(id: string, name: string): Promise<void> {
 		updateSession(await start(), id, { name })
 	}
@@ -237,7 +226,6 @@ export function useLibrary() {
 		putAway,
 		openCopy,
 		moveTabs,
-		park,
 		rename,
 		setNotes,
 		archive,

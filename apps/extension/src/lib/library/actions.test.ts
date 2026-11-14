@@ -4,7 +4,6 @@ import type { VersionData } from './model'
 import {
 	captureOpen,
 	openCopy,
-	parkTabs,
 	putAway,
 	saveCopy,
 	saveOpenAs,
@@ -141,7 +140,7 @@ describe('saving', () => {
 	})
 })
 
-describe('putting away, copies and parking', () => {
+describe('putting away and copies', () => {
 	it('puts the open session away and goes Home', async () => {
 		const id = await saveOpenAs(lib, 'Research')
 		await putAway(lib)
@@ -160,21 +159,5 @@ describe('putting away, copies and parking', () => {
 			'https://home-b.com',
 			'https://flights.com',
 		])
-	})
-
-	it('parks tabs into one Parked session that reopens them together', async () => {
-		const [, a, b] = await chrome.tabs.query({})
-		expect(await parkTabs(lib, [a])).toBe(1)
-		expect(await parkTabs(lib, [b])).toBe(1)
-		const parked = getSession(lib, 'parked')!
-		expect(parked).toMatchObject({ name: 'Parked', kind: 'parked', tabCount: 2 })
-		expect(openUrls()).toEqual([OWN_PAGE])
-		await openCopy(lib, 'parked')
-		expect(
-			fake
-				.snapshot()
-				.at(-1)!
-				.tabs.map((t) => t.url),
-		).toEqual(['https://home-a.com', 'https://home-b.com'])
 	})
 })
