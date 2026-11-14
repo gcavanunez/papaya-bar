@@ -968,7 +968,7 @@
 	<body>
 		<main>
 			<header>
-				<p class="label">Papaya Bar · plan v2.3 · updated Nov 11, 2026</p>
+				<p class="label">Papaya Bar · plan v2.4 · updated Nov 14, 2026</p>
 				<h1>Sessions and groups: one model for organizing, switching and the past</h1>
 				<p class="meta">
 					Supersedes the v1 markdown plan and folds in your review of it. Replaces the separate
@@ -1001,8 +1001,10 @@
 			<section id="status" aria-labelledby="status-h">
 				<h2 id="status-h">Where we are</h2>
 				<p class="prose">
-					Seven local commits on <code>gc/next-phase-of-new-design</code>, none pushed yet. Every
-					question so far is <a href="#decisions">decided</a>.
+					All work is on <code>gc/next-phase-of-new-design</code>, not merged into
+					<code>main</code> yet. Every question so far is <a href="#decisions">decided</a>.
+					Auto-park was removed: it closed tabs on its own, against the groups and sessions you
+					organize on purpose.
 				</p>
 				<div class="table-wrap">
 					<table class="status">
@@ -1043,13 +1045,18 @@
 							</tr>
 							<tr>
 								<td>3 · Stash and the sidebar</td>
-								<td><span class="state later">Not started</span></td>
-								<td>Next, after phase 4 (<a href="#q-order">decided</a>).</td>
+								<td><span class="state done">Built</span> <code>ed79060</code></td>
+								<td>Your run on real groups.</td>
 							</tr>
 							<tr>
-								<td>5 · Agent and sync</td>
+								<td>5a · opencode as a Smart group engine</td>
+								<td><span class="state done">Built</span> <code>5319df3</code></td>
+								<td>Pair in Settings, then a run on your full pile.</td>
+							</tr>
+							<tr>
+								<td>5b · Sync and the agent hub</td>
 								<td><span class="state later">Separate plan</span></td>
-								<td>—</td>
+								<td>Sync still points at the old store and must move to the library first.</td>
 							</tr>
 						</tbody>
 					</table>
@@ -1304,7 +1311,10 @@
 							</tr>
 							<tr>
 								<td>Parked</td>
-								<td>A stashed group that stale tabs move into automatically.</td>
+								<td>
+									Removed with auto-park. A Parked session moved in from before stays as an
+									ordinary session.
+								</td>
 								<td>The Parked context</td>
 							</tr>
 						</tbody>
@@ -1551,10 +1561,6 @@
 								<span class="dot"></span>Rust book <span class="n">12</span
 								><span class="act">Open</span>
 							</div>
-							<div class="prow">
-								<span class="dot"></span>Parked <span class="n">431</span
-								><span class="act">Open</span>
-							</div>
 						</section>
 						<section>
 							<div class="head">
@@ -1590,8 +1596,7 @@
 						<li>
 							<span class="callout">4</span>
 							<p>
-								<strong>Stashed groups</strong>, searchable, one click to reopen. Parked lives here
-								too.
+								<strong>Stashed groups</strong>, searchable, one click to reopen.
 							</p>
 						</li>
 						<li>
@@ -1726,6 +1731,15 @@
 								<td>Phase 1</td>
 							</tr>
 							<tr>
+								<td>opencode</td>
+								<td>Groups by topic with whatever model your opencode server uses</td>
+								<td>
+									A paired opencode server (<code>opencode pair</code>, paste the link in Settings).
+									Tab titles and addresses go to that model.
+								</td>
+								<td>Built (5a)</td>
+							</tr>
+							<tr>
 								<td>Your agent</td>
 								<td>
 									Best: can look things up and take follow-ups ("split research by project")
@@ -1733,7 +1747,7 @@
 								<td>
 									The tailnet hub on hl-mango, with pi or opencode answering through a typed tool.
 								</td>
-								<td>Phase 5 (separate plan)</td>
+								<td>Phase 5b (separate plan)</td>
 							</tr>
 						</tbody>
 					</table>
@@ -1964,12 +1978,22 @@
 					<li>
 						<span class="pn" aria-hidden="true">3</span>
 						<div>
-							<h3>Stash and the sidebar <span class="state next">Next</span></h3>
+							<h3>Stash and the sidebar <span class="state done">Built</span></h3>
 							<p class="needs">Needs phase 2; follows phase 4.</p>
 							<ul>
-								<li>Stash and open groups, with unloaded opening.</li>
-								<li>Stashed list in the sidebar, Parked in it, Move to session.</li>
-								<li><kbd>⌘K</kbd> searches tabs inside stashed groups.</li>
+								<li>
+									Stash and open groups; reopened tabs stay unloaded until clicked, except the
+									first.
+								</li>
+								<li>
+									Stashed list in the sidebar with rename, Move to session and delete; "Stash the
+									others"; <kbd>Shift</kbd> swaps.
+								</li>
+								<li><kbd>⌘K</kbd> and <kbd>⌥K</kbd> list stashed groups and search their tabs.</li>
+								<li>
+									Stashed groups belong to their session and aren't part of its versions, which
+									record the open tabs.
+								</li>
 							</ul>
 							<p class="done">
 								<b>Done when</b> you can stash 11 groups, find them in the sidebar, and reopen one
@@ -2005,10 +2029,16 @@
 						<span class="pn" aria-hidden="true">5</span>
 						<div>
 							<h3>Your agent and sync</h3>
-							<p class="needs">Separate plan. Builds on phase 2's data model and phase 1's engine slot.</p>
+							<p class="needs">Split in two.</p>
 							<ul>
-								<li>The tailnet hub on hl-mango: sync plus typed tools for pi, opencode and Claude Code.</li>
-								<li>The agent becomes the third grouping engine.</li>
+								<li>
+									<s>5a: opencode as the third grouping engine.</s> Built: pairing in Settings,
+									opencode → on-device → by site.
+								</li>
+								<li>
+									5b, separate plan: move sync onto the library, then the tailnet hub on
+									hl-mango with typed tools for pi, opencode and Claude Code.
+								</li>
 							</ul>
 						</div>
 					</li>
