@@ -55,6 +55,7 @@ import { useLibrary } from '@/hooks/useLibrary'
 import { tabGroupHex, useGlobalModals } from '@/hooks/useGlobalModals'
 import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
+import { popoverButtonOf, useAnchoredPanel } from '@/hooks/useAnchoredPanel'
 import { useKeymap, type CtrlLayer, type KeyBinding, type KeymapMode } from '@/hooks/useKeymap'
 import AppButton from '@/components/AppButton.vue'
 import AppMenuItems from '@/components/menu/AppMenuItems.vue'
@@ -75,6 +76,16 @@ const { onEditGroup, onCreateNewGroup } = useGlobalModals()
 const { saveCopy, switchable, moveTabs: moveToSession } = useLibrary()
 const { settings, loadSettings } = useSettings()
 const { open: openPalette } = useCommandPalette()
+
+// The Filters panel opens from the top of the page next to its button, and scrolls when
+// the window is short. It moves with top/left (no transform) and its calendars are
+// fixed-position, so the scrolling panel never clips them.
+const { onMarker: onFiltersPanel, style: filtersPanelStyle } = useAnchoredPanel({
+	placement: 'bottom-end',
+	findButton: popoverButtonOf,
+	transform: false,
+})
+const calendarPopover = { positionFixed: true }
 
 // Sessions the selection can move into (everything not open or archived)
 const moveTargets = computed(() => switchable.value)
@@ -1637,196 +1648,202 @@ onMounted(() => {
 								{{ activeFilterCount }}
 							</span>
 						</PopoverButton>
-						<transition
-							enter-active-class="transition duration-100 ease-out"
-							enter-from-class="scale-95 opacity-0"
-							enter-to-class="scale-100 opacity-100"
-							leave-active-class="transition duration-75 ease-in"
-							leave-from-class="scale-100 opacity-100"
-							leave-to-class="scale-95 opacity-0"
-						>
-							<PopoverPanel
-								class="menu-panel absolute top-full right-0 z-40 mt-1.5 w-80 origin-top-right"
+						<Teleport to="body">
+							<transition
+								enter-active-class="transition duration-100 ease-out"
+								enter-from-class="scale-95 opacity-0"
+								enter-to-class="scale-100 opacity-100"
+								leave-active-class="transition duration-75 ease-in"
+								leave-from-class="scale-100 opacity-100"
+								leave-to-class="scale-95 opacity-0"
 							>
-								<div class="p-3">
-									<div class="flex h-6 items-center justify-between">
-										<h3
-											class="text-sm font-semibold text-slate-900 dark:text-white"
-										>
-											Filters
-										</h3>
-										<button
-											v-if="activeFilterCount"
-											type="button"
-											class="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-											@click="clearFilters"
-										>
-											Clear all
-										</button>
-									</div>
+								<PopoverPanel
+									class="menu-panel z-[55] w-80 overflow-y-auto overscroll-contain"
+									:style="filtersPanelStyle"
+								>
+									<span :ref="onFiltersPanel" hidden />
+									<div class="p-3">
+										<div class="flex h-6 items-center justify-between">
+											<h3
+												class="text-sm font-semibold text-slate-900 dark:text-white"
+											>
+												Filters
+											</h3>
+											<button
+												v-if="activeFilterCount"
+												type="button"
+												class="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+												@click="clearFilters"
+											>
+												Clear all
+											</button>
+										</div>
 
-									<div class="mt-3 space-y-3">
-										<div class="space-y-1.5">
-											<p class="section-label">Pinned</p>
-											<SegmentedControl
-												v-model="filter.pinned"
-												label="Pinned"
-												:options="pinnedOptions"
-												size="sm"
-												block
-											/>
-										</div>
-										<div class="space-y-1.5">
-											<p class="section-label">Tab groups</p>
-											<SegmentedControl
-												v-model="filter.grouping"
-												label="Tab groups"
-												:options="groupingOptions"
-												size="sm"
-												block
-											/>
-										</div>
-										<div class="space-y-2 pt-1">
-											<label
-												class="dark:text-vercel-accents-7 flex cursor-pointer items-center gap-2.5 text-sm text-slate-700"
-											>
-												<input
-													v-model="filter.audible"
-													type="checkbox"
-													class="checkbox"
+										<div class="mt-3 space-y-3">
+											<div class="space-y-1.5">
+												<p class="section-label">Pinned</p>
+												<SegmentedControl
+													v-model="filter.pinned"
+													label="Pinned"
+													:options="pinnedOptions"
+													size="sm"
+													block
 												/>
-												Playing audio
-											</label>
-											<label
-												class="dark:text-vercel-accents-7 flex cursor-pointer items-center gap-2.5 text-sm text-slate-700"
-											>
-												<input
-													v-model="filter.duplicatesOnly"
-													type="checkbox"
-													class="checkbox"
+											</div>
+											<div class="space-y-1.5">
+												<p class="section-label">Tab groups</p>
+												<SegmentedControl
+													v-model="filter.grouping"
+													label="Tab groups"
+													:options="groupingOptions"
+													size="sm"
+													block
 												/>
-												Duplicates only
-												<span
-													v-if="duplicateUrls.size"
-													class="dark:text-vercel-accents-4 ml-auto text-xs text-slate-400 tabular-nums"
+											</div>
+											<div class="space-y-2 pt-1">
+												<label
+													class="dark:text-vercel-accents-7 flex cursor-pointer items-center gap-2.5 text-sm text-slate-700"
 												>
-													{{ duplicateExtraCount }} extra
-												</span>
-											</label>
+													<input
+														v-model="filter.audible"
+														type="checkbox"
+														class="checkbox"
+													/>
+													Playing audio
+												</label>
+												<label
+													class="dark:text-vercel-accents-7 flex cursor-pointer items-center gap-2.5 text-sm text-slate-700"
+												>
+													<input
+														v-model="filter.duplicatesOnly"
+														type="checkbox"
+														class="checkbox"
+													/>
+													Duplicates only
+													<span
+														v-if="duplicateUrls.size"
+														class="dark:text-vercel-accents-4 ml-auto text-xs text-slate-400 tabular-nums"
+													>
+														{{ duplicateExtraCount }} extra
+													</span>
+												</label>
+											</div>
 										</div>
 									</div>
-								</div>
 
-								<div class="menu-separator" />
+									<div class="menu-separator" />
 
-								<div class="space-y-3 p-3">
-									<div class="flex items-center justify-between">
-										<p
-											class="dark:text-vercel-accents-7 text-sm font-medium text-slate-700"
-										>
-											Last visited
-										</p>
-										<AppSwitch
-											v-model="filter.has_date_range"
-											size="sm"
-											label="Filter by last visit"
-										/>
-									</div>
-									<template v-if="filter.has_date_range">
-										<div class="flex flex-wrap gap-1.5">
-											<button
-												v-for="preset in datePresets"
-												:key="preset.label"
-												type="button"
-												:class="
-													presetPillClass(
-														activeDatePreset === preset.label,
-													)
-												"
-												@click="applyDatePreset(preset)"
+									<div class="space-y-3 p-3">
+										<div class="flex items-center justify-between">
+											<p
+												class="dark:text-vercel-accents-7 text-sm font-medium text-slate-700"
 											>
-												{{ preset.label }}
-											</button>
-											<button
-												type="button"
-												:class="
-													presetPillClass(activeDatePreset === 'custom')
-												"
-												@click="activeDatePreset = 'custom'"
-											>
-												Custom
-											</button>
-										</div>
-										<div v-if="activeDatePreset === 'custom'" class="space-y-2">
-											<SegmentedControl
-												v-model="filter.date_range_type"
-												label="Range type"
-												:options="rangeOptions"
+												Last visited
+											</p>
+											<AppSwitch
+												v-model="filter.has_date_range"
 												size="sm"
-												block
+												label="Filter by last visit"
 											/>
-											<v-date-picker
-												v-if="ranges[filter.date_range_type].is_range"
-												v-model="filter.range"
-												mode="dateTime"
-												:masks="masks"
-												is-range
-											>
-												<template #default="{ inputValue, inputEvents }">
-													<div class="grid grid-cols-2 gap-2">
-														<div class="relative">
-															<CalendarDaysIcon
-																class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-400"
-															/>
-															<input
-																class="field h-8 pl-8 text-xs"
-																type="text"
-																:value="inputValue.start"
-																placeholder="Start"
-																v-on="inputEvents.start"
-															/>
-														</div>
-														<div class="relative">
-															<CalendarDaysIcon
-																class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-400"
-															/>
-															<input
-																class="field h-8 pl-8 text-xs"
-																type="text"
-																:value="inputValue.end"
-																placeholder="End"
-																v-on="inputEvents.end"
-															/>
-														</div>
-													</div>
-												</template>
-											</v-date-picker>
-											<v-date-picker
-												v-else
-												v-model="filter.date"
-												mode="dateTime"
-												:masks="masks"
-											>
-												<template #default="{ inputValue, inputEvents }">
-													<div class="relative">
-														<CalendarDaysIcon
-															class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-400"
-														/>
-														<input
-															class="field h-8 pl-8 text-xs"
-															type="text"
-															:value="inputValue"
-															placeholder="Select date"
-															v-on="inputEvents"
-														/>
-													</div>
-												</template>
-											</v-date-picker>
 										</div>
-									</template>
-								</div>
-							</PopoverPanel>
-						</transition>
+										<template v-if="filter.has_date_range">
+											<div class="flex flex-wrap gap-1.5">
+												<button
+													v-for="preset in datePresets"
+													:key="preset.label"
+													type="button"
+													:class="
+														presetPillClass(
+															activeDatePreset === preset.label,
+														)
+													"
+													@click="applyDatePreset(preset)"
+												>
+													{{ preset.label }}
+												</button>
+												<button
+													type="button"
+													:class="
+														presetPillClass(activeDatePreset === 'custom')
+													"
+													@click="activeDatePreset = 'custom'"
+												>
+													Custom
+												</button>
+											</div>
+											<div v-if="activeDatePreset === 'custom'" class="space-y-2">
+												<SegmentedControl
+													v-model="filter.date_range_type"
+													label="Range type"
+													:options="rangeOptions"
+													size="sm"
+													block
+												/>
+												<v-date-picker
+													v-if="ranges[filter.date_range_type].is_range"
+													v-model="filter.range"
+													mode="dateTime"
+													:masks="masks"
+													:popover="calendarPopover"
+													is-range
+												>
+													<template #default="{ inputValue, inputEvents }">
+														<div class="grid grid-cols-2 gap-2">
+															<div class="relative">
+																<CalendarDaysIcon
+																	class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-400"
+																/>
+																<input
+																	class="field h-8 pl-8 text-xs"
+																	type="text"
+																	:value="inputValue.start"
+																	placeholder="Start"
+																	v-on="inputEvents.start"
+																/>
+															</div>
+															<div class="relative">
+																<CalendarDaysIcon
+																	class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-400"
+																/>
+																<input
+																	class="field h-8 pl-8 text-xs"
+																	type="text"
+																	:value="inputValue.end"
+																	placeholder="End"
+																	v-on="inputEvents.end"
+																/>
+															</div>
+														</div>
+													</template>
+												</v-date-picker>
+												<v-date-picker
+													v-else
+													v-model="filter.date"
+													mode="dateTime"
+													:masks="masks"
+													:popover="calendarPopover"
+												>
+													<template #default="{ inputValue, inputEvents }">
+														<div class="relative">
+															<CalendarDaysIcon
+																class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-400"
+															/>
+															<input
+																class="field h-8 pl-8 text-xs"
+																type="text"
+																:value="inputValue"
+																placeholder="Select date"
+																v-on="inputEvents"
+															/>
+														</div>
+													</template>
+												</v-date-picker>
+											</div>
+										</template>
+									</div>
+								</PopoverPanel>
+							</transition>
+						</Teleport>
 					</Popover>
 
 					<div
@@ -2094,9 +2111,8 @@ onMounted(() => {
 						({ tabs: emitedTabs }) => onCreateNewGroup({ tabs: emitedTabs })
 					"
 				>
-					<template #button-trigger="{ trigger }">
+					<template #button-trigger>
 						<button
-							:ref="(el) => trigger(el as HTMLElement)"
 							type="button"
 							:class="button({ intent: 'ghost', size: 'sm' })"
 						>

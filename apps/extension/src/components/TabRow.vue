@@ -116,7 +116,7 @@ const tabHistory = computed(() => {
 
 		<!-- Hover toolbar -->
 		<div
-			class="dark:border-vercel-accents-2 absolute -top-3 right-2 z-10 flex items-center gap-0.5 rounded-md border border-slate-200 bg-white p-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-within:opacity-100 dark:bg-black"
+			class="dark:border-vercel-accents-2 absolute -top-3 right-2 z-10 flex items-center gap-0.5 rounded-md border border-slate-200 bg-white p-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[data-headlessui-state~=open]]:opacity-100 dark:bg-black"
 		>
 			<button
 				type="button"
@@ -134,9 +134,8 @@ const tabHistory = computed(() => {
 				:windows-map="windowsMap"
 				@on-create-group="(payload) => emit('create-group', payload)"
 			>
-				<template #button-trigger="{ trigger }">
+				<template #button-trigger>
 					<button
-						:ref="(el) => trigger(el as HTMLElement)"
 						type="button"
 						:class="actionClass"
 						title="Move to…"

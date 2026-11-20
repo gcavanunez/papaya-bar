@@ -108,7 +108,7 @@ const actionClass = button({ intent: 'ghost', size: 'xs', square: true })
 
 		<div
 			:class="[
-				'flex shrink-0 items-center gap-0.5 transition-opacity group-hover:opacity-100 focus-within:opacity-100',
+				'flex shrink-0 items-center gap-0.5 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[data-headlessui-state~=open]]:opacity-100',
 				isCursor ? 'opacity-100' : 'opacity-0',
 			]"
 			@click.stop
@@ -119,9 +119,8 @@ const actionClass = button({ intent: 'ghost', size: 'xs', square: true })
 				:loaded-groups="loadedGroups"
 				@on-create-group="(payload) => emit('create-group', payload)"
 			>
-				<template #button-trigger="{ trigger }">
+				<template #button-trigger>
 					<button
-						:ref="(el) => trigger(el as HTMLElement)"
 						type="button"
 						:class="actionClass"
 						title="Move to…"

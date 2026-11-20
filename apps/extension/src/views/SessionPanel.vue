@@ -503,7 +503,7 @@ onUnmounted(() => {
 						<Menu
 							v-if="editingStashId !== item.id"
 							as="div"
-							class="relative opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100"
+							class="relative opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100 data-[headlessui-state~=open]:opacity-100"
 						>
 							<MenuButton
 								:class="button({ intent: 'ghost', size: 'xs', square: true })"
@@ -824,7 +824,7 @@ onUnmounted(() => {
 							<Menu
 								v-if="editingId !== session.id"
 								as="div"
-								class="relative opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+								class="relative opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 data-[headlessui-state~=open]:opacity-100"
 							>
 								<MenuButton
 									:class="button({ intent: 'ghost', size: 'xs', square: true })"

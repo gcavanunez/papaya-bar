@@ -104,7 +104,7 @@ const iconClass = 'dark:text-vercel-accents-5 size-4 shrink-0 text-slate-400'
 
 		<div
 			:class="[
-				'flex shrink-0 items-center gap-0.5 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100',
+				'flex shrink-0 items-center gap-0.5 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100 has-[[data-headlessui-state~=open]]:opacity-100',
 				isCursor ? 'opacity-100' : 'opacity-0',
 			]"
 		>
@@ -124,9 +124,8 @@ const iconClass = 'dark:text-vercel-accents-5 size-4 shrink-0 text-slate-400'
 				:loaded-groups="loadedGroups"
 				@on-create-group="(payload) => emit('create-group', payload)"
 			>
-				<template #button-trigger="{ trigger }">
+				<template #button-trigger>
 					<button
-						:ref="(el) => trigger(el as HTMLElement)"
 						type="button"
 						:class="actionClass"
 						:title="`Move ${pluralize(section.tabs.length, 'tab')}…`"
