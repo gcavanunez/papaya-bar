@@ -968,22 +968,24 @@
 	<body>
 		<main>
 			<header>
-				<p class="label">Papaya Bar · plan v2.4 · updated Nov 14, 2026</p>
+				<p class="label">Papaya Bar · plan v2.5 · updated Nov 19, 2026</p>
 				<h1>Sessions and groups: one model for organizing, switching and the past</h1>
 				<p class="meta">
 					Supersedes the v1 markdown plan and folds in your review of it. Replaces the separate
-					"Sessions" and "Contexts" features.
+					"Sessions" and "Contexts" features. v2.5 makes sessions save themselves and replaces
+					versions with checkpoints (<a href="#v25">what changed</a>).
 				</p>
 				<p class="story">
 					A session is everything you're working on. Groups organize it.
 					<strong>Stash</strong> a group to close its tabs and keep it in the sidebar.
 					<strong>Switch</strong> between the groups you have open. Put the whole session away,
-					and open it again later.
+					and open it again later. Papaya keeps it saved as you go.
 				</p>
 				<nav class="toc" aria-label="Contents">
 					<a href="#status">Where we are</a>
 					<a href="#consolidate">Two things become one</a>
-					<a href="#changes">What changed</a>
+					<a href="#v25">What changed in v2.5</a>
+					<a href="#changes">What changed since v1</a>
 					<a href="#model">The model</a>
 					<a href="#morning">A morning with 547 tabs</a>
 					<a href="#lifecycle">How things move</a>
@@ -1040,7 +1042,18 @@
 								<td><span class="state partial">First part built</span> <code>cec2e97</code></td>
 								<td>
 									Built: the move-in, switching sessions, Home, the library page, versions,
-									editing. Left: your run on real data, and polish from it.
+									editing. Left: your run on real data, and polish from it. Versions are being
+									replaced by checkpoints in 4b.
+								</td>
+							</tr>
+							<tr>
+								<td>4b · Autosave and checkpoints</td>
+								<td><span class="state next">In progress</span></td>
+								<td>
+									Being built in five steps: the open session per device (built); all saving
+									moved into the background worker; checkpoints and autosave; the screens; a
+									check in a real browser
+									(<a href="#v25">why</a>).
 								</td>
 							</tr>
 							<tr>
@@ -1056,7 +1069,11 @@
 							<tr>
 								<td>5b · Sync and the agent hub</td>
 								<td><span class="state later">Separate plan</span></td>
-								<td>Sync still points at the old store and must move to the library first.</td>
+								<td>
+									Sync still points at the old store and must move to the library first. Moved
+									here in v2.5: Home per device, own ids for saved tabs and groups, and only one
+									device saving a session at a time.
+								</td>
 							</tr>
 						</tbody>
 					</table>
@@ -1103,7 +1120,7 @@
 							<li>Every session in one list: the Sessions page, the sidebar and <kbd>⌘K</kbd></li>
 							<li>One open at a time; you start in Home</li>
 							<li><strong>Switch to</strong> any of them, old saved sessions included</li>
-							<li>Versions for every session, with a screen to see and restore them</li>
+							<li>Every session saves itself, with checkpoints you can see and restore</li>
 							<li>Rename, notes, archive, download; edit the tabs of a closed one (proposed)</li>
 						</ul>
 						<p class="where">One store, its own; the old one stays as the rollback copy</p>
@@ -1172,6 +1189,90 @@
 					15,048 tabs would make it crawl. So the old screens keep the old store until the new
 					library screen replaces them, and the switch-over happens then, as the first step of
 					phase 4. Until that moment nothing about your stored data changes.
+				</p>
+			</section>
+
+			<section id="v25" aria-labelledby="v25-h">
+				<h2 id="v25-h">What changed in v2.5</h2>
+				<p class="prose">
+					You asked for a review of how sessions are saved, and approved this change. The review
+					found three problems with versions as built in phase 4:
+				</p>
+				<ol class="plain prose">
+					<li>
+						<strong>The open session is saved only when you switch away or click "Save
+						version".</strong> If Chrome comes back without its windows, the next switch saves the
+						empty window as the session's newest version. Tabs you opened since the last save are
+						in no version at all.
+					</li>
+					<li>
+						<strong>Every edit adds a version.</strong> Moving tabs into a closed session or editing
+						one each adds one, so ordinary edits use up the 10 kept versions and push real history
+						out.
+					</li>
+					<li>
+						<strong>Which session is open is stored in the data that will sync.</strong> Merging a
+						backup already leaves two sessions marked open, and two devices syncing would each be
+						told the other's open session is theirs.
+					</li>
+				</ol>
+
+				<h3>What replaces it</h3>
+				<ul class="plain prose">
+					<li>
+						<strong>Sessions save themselves.</strong> Papaya's background worker saves the open
+						session a couple of seconds after its tabs, groups or windows change. The "Save version"
+						buttons go; the sidebar shows when it was last saved.
+					</li>
+					<li>
+						<strong>Checkpoints replace versions.</strong> Papaya keeps an earlier state by itself:
+						at most one an hour while a session is changing, and always before something that could
+						lose tabs (restoring an older state, editing a closed session, a save that drops more
+						than half the tabs). The newest 10 are kept. They appear as <em>History</em> on the
+						session's page, where you can look at one, open a copy, or restore it. Restoring the
+						open session reopens those tabs. A "Save a checkpoint" command stays in the palettes
+						for when you want one on purpose.
+					</li>
+					<li>
+						<strong>Edits to a closed session apply at once</strong>, with Undo, instead of
+						collecting in a draft that you save as a new version.
+					</li>
+					<li>
+						<strong>The open session is per device.</strong> It is no longer part of the data that
+						syncs.
+					</li>
+					<li>
+						<strong>A session is never overwritten by an empty window.</strong> If Chrome comes
+						back without a session's tabs (a crash, a restart that didn't restore, closing the last
+						window), Papaya stops saving into it and shows a banner with two choices:
+						<em>Reopen its tabs</em> or <em>Keep what's open</em>. If Chrome restores the tabs
+						later, it carries on by itself. Switching away in that state first saves any real tabs
+						that are open as a new session, so nothing closes unsaved.
+					</li>
+					<li>
+						<strong>Your data upgrades in place</strong> when the new build first runs. Every
+						existing version becomes a checkpoint, and a copy of the data as it was is kept
+						(<a href="#upgrade">details</a>).
+					</li>
+				</ul>
+
+				<h3>Considered, and not done here</h3>
+				<ul class="plain prose">
+					<li>
+						<strong>Stashed groups stay stored apart</strong> from a session's saved tabs. Folding
+						them in was considered. But autosave runs in the background while stash runs in the
+						page, and one record written by both could lose a stashed group.
+					</li>
+					<li>
+						<strong>Moved to the sync plan (5b):</strong> Home becoming per device, own ids for
+						saved tabs and groups, and only one device saving a session at a time. None needs a
+						migration if done then.
+					</li>
+				</ul>
+				<p class="prose">
+					This reverses one recorded decision, about when history gets a new version. It's marked
+					as changed in <a href="#decisions">Decisions</a> rather than removed. The work is
+					<a href="#phase-4b">phase 4b</a>, in progress now.
 				</p>
 			</section>
 
@@ -1256,7 +1357,7 @@
 								</div>
 								<span>
 									<strong style="color: var(--ink)">The past:</strong> closed sessions, each with
-									its last 10 versions.
+									its newest 10 checkpoints.
 								</span>
 							</div>
 						</div>
@@ -1304,10 +1405,12 @@
 							<tr>
 								<td>History</td>
 								<td>
-									A version is saved when you close or switch away from a session, or click "Save
-									version". The last 10 are kept.
+									The open session saves itself a couple of seconds after it changes. Earlier
+									states are kept as <strong>checkpoints</strong>: at most one an hour, and always
+									before something that could lose tabs. The newest 10 are kept, shown as History
+									on the session's page.
 								</td>
-								<td>Context snapshots</td>
+								<td>Context snapshots; versions (until v2.5)</td>
 							</tr>
 							<tr>
 								<td>Parked</td>
@@ -1403,13 +1506,12 @@
 						<span class="k">5 · Put it away</span>
 						<div class="mini" aria-hidden="true" style="align-items: center; justify-content: center">
 							<div class="stack" style="width: 90px; height: 34px">
-								<span></span><span></span><span style="font-size: 11px">Home · v4</span>
+								<span></span><span></span><span style="font-size: 11px">Home · saved</span>
 							</div>
 						</div>
 						<h3>Close or switch the session</h3>
 						<p>
-							Switch to "Trip" and Home is saved as a version, with every group in the state you
-							left it.
+							Switch to "Trip". Home is already saved, with every group in the state you left it.
 						</p>
 					</li>
 				</ol>
@@ -1476,9 +1578,10 @@
 						<svg viewBox="0 0 560 300" role="img" aria-labelledby="s-title s-desc">
 							<title id="s-title">A session's life</title>
 							<desc id="s-desc">
-								The open session becomes a closed session when you switch away or close it, which
-								saves a version. Opening a closed session reopens the groups that were open and
-								keeps the stashed ones stashed. Each closed session keeps its last ten versions.
+								The open session becomes a closed session when you switch away or close it. It is
+								already saved, so nothing extra happens. Opening a closed session reopens the
+								groups that were open and keeps the stashed ones stashed. Each session keeps its
+								newest ten checkpoints.
 							</desc>
 							<g class="node accent">
 								<rect x="20" y="70" width="190" height="70" rx="12" />
@@ -1492,7 +1595,7 @@
 							</g>
 							<path class="edge" d="M210 88 L348 88" marker-end="url(#arr)" />
 							<text class="edge-label" x="279" y="64" text-anchor="middle">switch away / close</text>
-							<text class="edge-label soft" x="279" y="80" text-anchor="middle">saves a version</text>
+							<text class="edge-label soft" x="279" y="80" text-anchor="middle">already saved</text>
 							<path class="edge" d="M350 124 L212 124" marker-end="url(#arr)" />
 							<text class="edge-label" x="281" y="148" text-anchor="middle">switch to / open</text>
 							<text class="edge-label soft" x="281" y="164" text-anchor="middle">open groups reopen</text>
@@ -1500,7 +1603,7 @@
 								<rect x="384" y="196" width="120" height="30" rx="6" fill="var(--surface)" stroke="var(--line)" />
 								<rect x="378" y="203" width="120" height="30" rx="6" fill="var(--surface)" stroke="var(--line)" />
 								<rect x="372" y="210" width="120" height="30" rx="6" fill="var(--surface)" stroke="var(--muted)" />
-								<text x="432" y="230" text-anchor="middle" class="edge-label">history · last 10</text>
+								<text x="432" y="230" text-anchor="middle" class="edge-label">checkpoints · newest 10</text>
 								<path class="edge soft" d="M445 140 L445 194" />
 							</g>
 							<text class="edge-label soft" x="20" y="200">Only one session is open at a time.</text>
@@ -1509,6 +1612,67 @@
 						<p class="caption">A session: the bigger, rarer move.</p>
 					</figure>
 				</div>
+
+				<h3 id="saving">How the open session is saved <span class="state next">New in v2.5</span></h3>
+				<p class="prose">
+					There's no save button. Papaya saves what's open by itself and keeps earlier states
+					beside it. The one thing it won't do is save an empty window over a session.
+				</p>
+				<figure class="figure" aria-labelledby="save-cap">
+					<svg viewBox="0 0 1000 270" role="img" aria-labelledby="sv-title sv-desc">
+						<title id="sv-title">How the open session is saved</title>
+						<desc id="sv-desc">
+							Your open windows are saved as the session a couple of seconds after any change.
+							Before the saved state is replaced, Papaya keeps the earlier state as a checkpoint at
+							most once an hour, and always before a change that could lose tabs; the newest ten
+							are kept. If Chrome comes back without the session's tabs, saving pauses and a
+							banner offers to reopen its tabs or keep what's open. When the tabs come back, or you
+							choose, saving carries on.
+						</desc>
+						<g class="node">
+							<rect x="20" y="40" width="200" height="66" rx="10" />
+							<text x="120" y="68" text-anchor="middle">Your open windows</text>
+							<text x="120" y="87" text-anchor="middle" class="sub">tabs, groups, windows</text>
+						</g>
+						<g class="node accent">
+							<rect x="420" y="40" width="200" height="66" rx="12" />
+							<text x="520" y="68" text-anchor="middle">Saved session</text>
+							<text x="520" y="87" text-anchor="middle" class="sub">what Switch to reopens</text>
+						</g>
+						<path class="edge" d="M220 73 L418 73" marker-end="url(#arr)" />
+						<text class="edge-label" x="320" y="50" text-anchor="middle">saves itself</text>
+						<text class="edge-label soft" x="320" y="64" text-anchor="middle">seconds after a change</text>
+						<g aria-hidden="true">
+							<rect x="812" y="40" width="170" height="34" rx="6" fill="var(--surface)" stroke="var(--line)" />
+							<rect x="806" y="47" width="170" height="34" rx="6" fill="var(--surface)" stroke="var(--line)" />
+							<rect x="800" y="54" width="170" height="34" rx="6" fill="var(--surface)" stroke="var(--muted)" />
+							<text x="885" y="76" text-anchor="middle" class="edge-label">checkpoints · newest 10</text>
+						</g>
+						<path class="edge soft" d="M620 73 L798 73" marker-end="url(#arr)" />
+						<text class="edge-label" x="710" y="50" text-anchor="middle">keeps the earlier state</text>
+						<text class="edge-label soft" x="710" y="64" text-anchor="middle">before replacing it</text>
+						<text class="edge-label soft" x="885" y="112" text-anchor="middle">at most one an hour,</text>
+						<text class="edge-label soft" x="885" y="128" text-anchor="middle">always before a risky change</text>
+						<g class="node loose">
+							<rect x="20" y="180" width="260" height="66" rx="10" />
+							<text x="150" y="208" text-anchor="middle">Chrome comes back empty</text>
+							<text x="150" y="227" text-anchor="middle" class="sub">a crash, or a restart that didn't restore</text>
+						</g>
+						<g class="node stashed">
+							<rect x="420" y="180" width="300" height="66" rx="10" />
+							<text x="570" y="208" text-anchor="middle">Saving pauses</text>
+							<text x="570" y="227" text-anchor="middle" class="sub">banner: Reopen its tabs · Keep what's open</text>
+						</g>
+						<path class="edge" d="M280 213 L418 213" marker-end="url(#arr)" />
+						<text class="edge-label" x="350" y="203" text-anchor="middle">nothing saved</text>
+						<path class="edge soft" d="M520 178 L520 108" marker-end="url(#arr)" />
+						<text class="edge-label soft" x="510" y="148" text-anchor="end">tabs come back, or you choose</text>
+					</svg>
+					<p class="caption" id="save-cap">
+						The orange box is the session as saved. Checkpoints sit beside it and appear as History
+						on the session's page, where you can look at one, open a copy, or restore it.
+					</p>
+				</figure>
 			</section>
 
 			<section id="sidebar" aria-labelledby="sidebar-h">
@@ -1523,7 +1687,9 @@
 							<span class="callout">1</span>
 							<b>Home ▾</b>
 							<span class="n" style="color: var(--faint)">61 open</span>
-							<span class="btn ghost">Save version</span>
+							<span class="act" style="margin-left: auto; color: var(--faint); font-size: 12px"
+								>Saved just now</span
+							>
 						</header>
 						<section>
 							<div class="head">
@@ -1575,8 +1741,10 @@
 						<li>
 							<span class="callout">1</span>
 							<p>
-								<strong>The open session.</strong> Click the name to switch sessions. "Save version"
-								adds to its history.
+								<strong>The open session.</strong> Click the name to switch sessions. "Saved just
+								now" says when Papaya last saved it; there's nothing to press. If Chrome comes back
+								without its tabs, a banner here offers <em>Reopen its tabs</em> or
+								<em>Keep what's open</em> (<a href="#saving">how saving works</a>).
 							</p>
 						</li>
 						<li>
@@ -1603,7 +1771,7 @@
 							<span class="callout">5</span>
 							<p>
 								<strong>Sessions:</strong> recent ones, plus a link to the full library on the
-								Sessions page, where history lives.
+								Sessions page, where each session's History lives.
 							</p>
 						</li>
 					</ol>
@@ -1873,9 +2041,12 @@
 						Auto-group <strong>groups in place</strong>, then you put groups away one by one. In v2,
 						putting a group away is <em>Stash</em>.
 					</li>
-					<li>
-						History gets a new version <strong>when you close or switch away</strong>, plus a manual
-						"Save version".
+					<li id="q-history">
+						<s>History gets a new version <strong>when you close or switch away</strong>, plus a
+						manual "Save version".</s>
+						<strong>Changed in v2.5:</strong> the open session saves itself as it changes, and
+						Papaya keeps checkpoints (at most one an hour, always before something that could lose
+						tabs). "Save a checkpoint" stays in the palettes (<a href="#v25">why</a>).
 					</li>
 					<li>
 						<strong>Unloaded tabs show their address</strong> until clicked; the group's name says
@@ -1898,11 +2069,39 @@
 					</li>
 					<li id="q-edit">
 						<strong>A closed session's tabs can be edited</strong>: remove tabs or groups, rename
-						groups. Edits save as a new version. Built.
+						groups. <s>Edits save as a new version.</s> Built. <strong>Changed in v2.5:</strong>
+						edits apply at once, with Undo, and a checkpoint is kept first.
 					</li>
 					<li id="q-windows">
 						<strong>Smart group moves strays</strong> into the window holding most of the group;
 						Undo moves them back. Built.
+					</li>
+				</ul>
+
+				<h3>Decided in v2.5</h3>
+				<ul class="decided">
+					<li>
+						<strong>Sessions save themselves</strong> in the background, a couple of seconds after a
+						change. No "Save version" button.
+					</li>
+					<li>
+						<strong>Checkpoints replace versions.</strong> The newest 10 per session are kept, shown
+						as History, where you can look at one, open a copy, or restore it.
+					</li>
+					<li>
+						<strong>The open session is per device</strong> and never syncs.
+					</li>
+					<li>
+						<strong>A session is never overwritten by an empty window.</strong> Saving pauses and a
+						banner offers <em>Reopen its tabs</em> or <em>Keep what's open</em>.
+					</li>
+					<li>
+						<strong>Stashed groups stay stored apart</strong> from a session's saved tabs, so
+						autosave and stash can't overwrite each other.
+					</li>
+					<li>
+						<strong>Home per device, own ids for saved tabs and groups, and one device saving a
+						session at a time</strong> move to the sync plan (5b).
 					</li>
 				</ul>
 
@@ -1913,7 +2112,8 @@
 				<p class="prose">
 					Reordered so the features you asked for first come first. Phase 1 changes no stored data,
 					so it can ship before the migration. Kept in their original numbering; the order from here
-					is 4, then 3 (<a href="#q-order">decided</a>).
+					is 4, then 3 (<a href="#q-order">decided</a>). 4b, added in v2.5, reworks how phase 4
+					saves sessions.
 				</p>
 				<ol class="phases">
 					<li>
@@ -1991,8 +2191,8 @@
 								</li>
 								<li><kbd>⌘K</kbd> and <kbd>⌥K</kbd> list stashed groups and search their tabs.</li>
 								<li>
-									Stashed groups belong to their session and aren't part of its versions, which
-									record the open tabs.
+									Stashed groups belong to their session and are stored apart from its saved
+									tabs, which record what's open.
 								</li>
 							</ul>
 							<p class="done">
@@ -2022,6 +2222,47 @@
 							<p class="done">
 								<b>Done when</b> you can put Home away, open an old saved session, and come back
 								with nothing lost.
+								<em>Changed: versions become checkpoints in 4b (<a href="#v25">why</a>).</em>
+							</p>
+						</div>
+					</li>
+					<li id="phase-4b">
+						<span class="pn" aria-hidden="true">4b</span>
+						<div>
+							<h3>Autosave and checkpoints <span class="state next">In progress</span></h3>
+							<p class="needs">
+								Needs phase 4. Replaces its versions; nothing else from phase 4 changes. Built in
+								five steps.
+							</p>
+							<ul>
+								<li>
+									<strong>The open session per device.</strong> Which session is open leaves the
+									data that will sync. Nothing about saving changes yet. Built.
+								</li>
+								<li>
+									<strong>One place does the saving.</strong> Every change to the library moves
+									into the background worker, which makes them one at a time. Pages ask it to
+									act. Nothing you can see changes.
+								</li>
+								<li>
+									<strong>Saving, checkpoints and autosave.</strong> The background worker saves
+									the open session; checkpoints replace versions; saving pauses on an empty
+									window; your data upgrades in place.
+								</li>
+								<li>
+									<strong>The screens.</strong> "Save version" goes; the sidebar shows when it was
+									saved; History on the session's page; edits to a closed session apply at once
+									with Undo; the banner; "Save a checkpoint" in the palettes.
+								</li>
+								<li>
+									<strong>A check in a real browser:</strong> the built extension in a throwaway
+									Chrome profile, never yours.
+								</li>
+							</ul>
+							<p class="done">
+								<b>Done when</b> you can quit Chrome with tabs open, come back to an empty window,
+								and lose nothing: Papaya pauses instead of saving the empty window, reopens the
+								tabs in a click, and every old version is there as a checkpoint.
 							</p>
 						</div>
 					</li>
@@ -2057,11 +2298,14 @@
 							<h4>sessions</h4>
 							<ul>
 								<li><b>name</b>, notes, color</li>
-								<li><b>kind</b>: home · normal · parked</li>
-								<li><b>status</b>: open · closed · archived</li>
-								<li>headVersionId, tabCount, lastOpenedAt</li>
+								<li><b>kind</b>: home · normal</li>
+								<li><b>archivedAt</b> (0 when not)</li>
+								<li>contentId, tabCount, lastOpenedAt</li>
 							</ul>
-							<p>One row has status open. Built.</p>
+							<p>
+								Built. From 4b, which one is open is kept on each device, not here; open, closed
+								and archived are worked out from that.
+							</p>
 						</div>
 						<div class="entity">
 							<h4>groups</h4>
@@ -2083,19 +2327,25 @@
 							<p>Tabs of stashed groups. Phase 3. Pinned tabs are never stored.</p>
 						</div>
 						<div class="entity">
-							<h4>versions</h4>
+							<h4>checkpoints</h4>
 							<ul>
 								<li><b>sessionId</b>, createdAt</li>
-								<li>reason: switch · close · manual · migrated</li>
-								<li>full copy: groups, tabs, windows</li>
+								<li>reason, tab and group counts</li>
+								<li>keeps an earlier saved state</li>
 							</ul>
-							<p>Last 10 per session, each stored whole so lists never open them. Built.</p>
+							<p>
+								Was <code>versions</code>. Newest 10 per session. Each saved state is stored whole
+								and never changed, so lists never open them. 4b.
+							</p>
 						</div>
 					</div>
 					<div class="truth">
 						<div><strong>Open groups and loose tabs:</strong> Chrome is the source of truth.</div>
 						<div><strong>Stashed groups:</strong> Papaya is the source of truth.</div>
-						<div><strong>Versions:</strong> Papaya, written on switch, close or "Save version".</div>
+						<div>
+							<strong>Saved sessions and checkpoints:</strong> Papaya, saved by itself a couple of
+							seconds after a change; checkpoints kept hourly and before risky changes.
+						</div>
 					</div>
 				</div>
 
@@ -2126,6 +2376,36 @@
 						switch-over, and you confirm the result.
 					</li>
 					<li>Backups export in the new format; importing an old backup runs the same migration.</li>
+				</ol>
+
+				<h3 id="upgrade">Upgrade in place, when 4b first runs</h3>
+				<p class="prose">
+					The library already holds your real sessions, so 4b upgrades it where it is rather than
+					moving it again. Nothing is dropped.
+				</p>
+				<ol class="plain prose">
+					<li>
+						<strong>A copy of the data as it was is kept</strong> beside it, before the first
+						change.
+					</li>
+					<li>
+						<strong>The open session moves to this device.</strong> Archived sessions stay
+						archived; a session moved in as Parked becomes an ordinary one.
+					</li>
+					<li>
+						<strong>Every existing version becomes a checkpoint</strong>, and each session's newest
+						version becomes its saved state.
+					</li>
+					<li>
+						<strong>The first save afterwards trusts what's open once.</strong> Under the old build
+						your windows are the open session by definition, and its last save is already a
+						checkpoint.
+					</li>
+					<li>
+						Each step is safe to run twice, since a page and the background worker may both start
+						it. Older backups import through the same steps, and importing a backup never changes
+						which session is open.
+					</li>
 				</ol>
 			</section>
 
@@ -2188,6 +2468,34 @@
 								<td>The on-page palette runs in the background worker</td>
 								<td>It can't touch the store directly, so every new action also goes through the op queue.</td>
 							</tr>
+							<tr>
+								<td>An empty window saved over a session (4b)</td>
+								<td>
+									Papaya saves only while the windows really hold the session: at least half its
+									saved tabs open, or it had none. Otherwise saving pauses and the banner shows. A
+									save that drops more than half the tabs keeps a checkpoint first. Switching away
+									while paused saves any real open tabs as a new session first.
+								</td>
+							</tr>
+							<tr>
+								<td>The background worker stops before a save (4b)</td>
+								<td>
+									Chrome can stop the worker at any moment. A save waits at most 10 seconds after
+									the first change, so only the last few seconds are at risk. Each save writes
+									what's open in full, never a merge, and the new state is stored before the
+									session points at it, so a cut-off save loses nothing older. Switching, stashing
+									and saving all happen in the worker, one at a time, so a half-done switch is
+									never saved.
+								</td>
+							</tr>
+							<tr>
+								<td>Upgrading your real data in place (4b)</td>
+								<td>
+									A copy of the data as it was is kept first. A test loads old data the way the
+									extension does and checks nothing is lost. Each step is safe to run twice. The
+									check in a throwaway Chrome profile comes before it reaches yours.
+								</td>
+							</tr>
 						</tbody>
 					</table>
 				</div>
@@ -2195,6 +2503,15 @@
 				<ul class="plain prose">
 					<li>Several sessions open at once.</li>
 					<li>Sync, the tailnet hub and agent tools (phase 5, separate plan).</li>
+					<li>
+						Home per device, own ids for saved tabs and groups, and only one device saving a
+						session at a time: moved to the sync plan (5b) in v2.5. None needs a migration if done
+						then.
+					</li>
+					<li>
+						Folding stashed groups into a session's saved tabs: considered and decided against in
+						v2.5 (<a href="#v25">why</a>).
+					</li>
 					<li>Sharing a session with someone else.</li>
 				</ul>
 			</section>
