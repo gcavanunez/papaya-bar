@@ -4,8 +4,11 @@ import {
 	groupBySite,
 	groupOnDevice,
 	groupWithOpencode,
+	isGroupsReply,
 	mergeSuggestions,
+	opencodeBatchSize,
 	parseReply,
+	RETRY_NOTE,
 	siteLabel,
 	suggestGroups,
 	type GroupableTab,
@@ -93,6 +96,10 @@ describe('parseReply', () => {
 		expect(parseReply('not json', ids)).toEqual([])
 		expect(parseReply('{"groups": 3}', ids)).toEqual([])
 		expect(parseReply('null', ids)).toEqual([])
+		expect(isGroupsReply('not json')).toBe(false)
+		expect(isGroupsReply('{"groups": 3}')).toBe(false)
+		// No groups is still an answer: the tabs have nothing in common
+		expect(isGroupsReply('Here: {"groups": []}')).toBe(true)
 	})
 })
 
@@ -219,12 +226,17 @@ describe('suggestGroups', () => {
 })
 
 describe('the opencode engine', () => {
-	/** A fake opencode model: groups by the first word of each title, like the fake above */
-	function fakeOpencode(options: { fail?: string } = {}) {
+	/**
+	 * A fake opencode model: groups by the first word of each title, like the fake above.
+	 * `prose` replies that many times without the JSON first.
+	 */
+	function fakeOpencode(options: { fail?: string; prose?: number } = {}) {
 		const prompts: string[] = []
+		let prose = options.prose ?? 0
 		const ask = async (prompt: string) => {
 			prompts.push(prompt)
 			if (options.fail) throw new Error(options.fail)
+			if (prose-- > 0) return 'These tabs are about Rust and taxes.'
 			const groups = new Map<string, number[]>()
 			for (const line of prompt.split('\n').filter((l) => /^\d+\. /.test(l))) {
 				const [n, word] = line.split(/\.? /)
@@ -245,10 +257,58 @@ describe('the opencode engine', () => {
 		expect(opencode.prompts[0]).toContain('{"groups":[{"name":"...","tabs":[1,2]}]}')
 	})
 
-	it('sends big piles in batches of 150', async () => {
+	it("sends big piles in batches of 150 when the model's limits aren't known", async () => {
 		const opencode = fakeOpencode()
 		await groupWithOpencode(pile(320), opencode.ask)
 		expect(opencode.prompts).toHaveLength(3)
+	})
+
+	it('sends every tab at once when the model has room for them', async () => {
+		const opencode = fakeOpencode()
+		const limits = { context: 200_000, output: 32_000 }
+		const result = await suggestGroups(pile(320), {
+			opencode: opencode.ask,
+			opencodeLimits: limits,
+		})
+		expect(opencode.prompts).toHaveLength(1)
+		expect(result.suggestions.flatMap((s) => s.tabIds)).toHaveLength(320)
+	})
+
+	it('sizes batches by what the model reads and writes at once', () => {
+		expect(opencodeBatchSize()).toBe(150)
+		// A quarter of the context, at about 40 tokens a tab
+		expect(opencodeBatchSize({ context: 200_000, output: 32_000 })).toBe(1250)
+		expect(opencodeBatchSize({ context: 32_000 })).toBe(200)
+		// Half the reply, at about 4 tokens a tab
+		expect(opencodeBatchSize({ context: 1_000_000, output: 8192 })).toBe(1024)
+		// Never smaller than the on-device batch
+		expect(opencodeBatchSize({ context: 4096 })).toBe(30)
+	})
+
+	it('asks once more when a reply is not the JSON asked for', async () => {
+		const opencode = fakeOpencode({ prose: 1 })
+		const result = await suggestGroups(pile(6), { opencode: opencode.ask, lm: null })
+		expect(result.engine).toBe('opencode')
+		expect(result.suggestions.map((s) => s.name).sort()).toEqual(['Rust', 'Taxes'])
+		expect(opencode.prompts).toHaveLength(2)
+		expect(opencode.prompts[1].endsWith(RETRY_NOTE)).toBe(true)
+	})
+
+	it("drops a reason's closing full stop, since the panel adds its own", async () => {
+		const failing = fakeOpencode({ fail: 'Free usage limit reached. Try again in 72 min.' })
+		const result = await suggestGroups(pile(6), { opencode: failing.ask, lm: null })
+		expect(result.fallbackReason).toBe(
+			'opencode: Free usage limit reached. Try again in 72 min',
+		)
+	})
+
+	it('falls back, saying why, when the second reply is not the JSON either', async () => {
+		const opencode = fakeOpencode({ prose: 2 })
+		const result = await suggestGroups(pile(6), { opencode: opencode.ask, lm: null })
+		expect(result).toMatchObject({
+			engine: 'site',
+			fallbackReason: "opencode: its reply wasn't the JSON asked for",
+		})
 	})
 
 	it('falls back to the on-device model, then by site, saying why', async () => {

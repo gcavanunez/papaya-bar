@@ -98,6 +98,7 @@ export function useSmartGroup() {
 				signal: own.signal,
 				onProgress: (done, total) => (progress.value = { done, total }),
 				opencode: opencode.value ? askOpencode(opencode.value) : null,
+				opencodeLimits: opencode.value?.limits,
 			})
 			if (own.signal.aborted) return
 			const colors = pickColors(result.suggestions.length, options.usedColors)
@@ -112,7 +113,15 @@ export function useSmartGroup() {
 			engine.value = result.engine
 			fallbackReason.value = result.fallbackReason ?? ''
 			inputCount.value = byId.size
-			if (!review.value.length) toast('No groups found: these tabs have little in common')
+			if (!review.value.length) {
+				// A model that failed is the news, not the empty fallback
+				if (result.fallbackReason) {
+					toast.warning("Couldn't group these tabs by topic", {
+						description: `${result.fallbackReason}. Grouping by ${result.engine === 'site' ? 'site' : 'the on-device model'} found nothing in common.`,
+						duration: 10_000,
+					})
+				} else toast('No groups found: these tabs have little in common')
+			}
 		} catch (error) {
 			if (!own.signal.aborted) toast.error(`Smart group failed: ${errorMessage(error)}`)
 		} finally {

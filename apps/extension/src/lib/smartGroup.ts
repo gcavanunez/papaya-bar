@@ -32,12 +32,22 @@ export interface SuggestResult {
 	fallbackReason?: string
 }
 
+/** How many tokens a model reads at once (context) and writes in one reply, when known */
+export interface ModelLimits {
+	context?: number
+	output?: number
+}
+
 /** A group needs at least this many tabs; the rest stay loose. */
 export const MIN_GROUP_SIZE = 2
 const MAX_NAME_LENGTH = 32
 const BATCH_SIZE = 30
-/** Hosted models read far more at once than the on-device one */
+/** A batch for an opencode model whose limits aren't known: small models manage it */
 const OPENCODE_BATCH_SIZE = 150
+/** Tokens one tab's line takes in a prompt, about: its number, title and site */
+const TOKENS_PER_TAB_LINE = 40
+/** Tokens one tab takes in a reply, about: its number and a comma */
+const TOKENS_PER_TAB_REPLY = 4
 const MAX_TITLE_LENGTH = 90
 const MAX_KNOWN_NAMES = 40
 
@@ -232,6 +242,11 @@ function extractJson(reply: string): unknown {
 	}
 }
 
+/** Whether a reply holds the JSON object asked for, groups or not */
+export function isGroupsReply(reply: string): boolean {
+	return Array.isArray((extractJson(reply) as { groups?: unknown } | null)?.groups)
+}
+
 /** Map one batch's reply back to tab ids. Unknown numbers, repeats and nameless groups are dropped. */
 export function parseReply(reply: string, batchIds: number[]): Suggestion[] {
 	const data = extractJson(reply)
@@ -265,9 +280,15 @@ function knownNames(found: Suggestion[]): string[] {
 	return [...new Set(found.map((s) => s.name))].slice(0, MAX_KNOWN_NAMES)
 }
 
+/** Said when a model's reply wasn't the JSON object asked for */
+export const RETRY_NOTE =
+	"\n\nYour last reply wasn't the JSON object asked for. Reply with only that JSON object."
+
 /**
  * Group tabs with a model, in batches; names found so far are passed along so batches
- * agree. A batch too big for the model's context window is split in half and retried.
+ * agree. A batch too big for the model's context window is split in half and retried. A
+ * reply that isn't the JSON asked for is asked once more, then fails the whole run, so
+ * the next engine down takes over and says why.
  */
 export async function groupWithModel(
 	tabs: GroupableTab[],
@@ -289,7 +310,9 @@ export async function groupWithModel(
 		const batch = queue.shift()!
 		try {
 			const prompt = `${options.preamble ?? ''}${buildPrompt(batch, knownNames(found))}`
-			const reply = await ask(prompt, signal)
+			let reply = await ask(prompt, signal)
+			if (!isGroupsReply(reply)) reply = await ask(prompt + RETRY_NOTE, signal)
+			if (!isGroupsReply(reply)) throw new Error("its reply wasn't the JSON asked for")
 			found.push(
 				...parseReply(
 					reply,
@@ -352,20 +375,38 @@ The reply must be one JSON object and nothing else: {"groups":[{"name":"...","ta
 
 `
 
-/** Group tabs with the model your opencode server uses */
+/**
+ * How many tabs go to an opencode model at once: as many as a quarter of its context
+ * holds, and as its reply has room to number (so usually all of them). Without its
+ * limits, a size small models manage.
+ */
+export function opencodeBatchSize(limits?: ModelLimits): number {
+	if (!limits?.context) return OPENCODE_BATCH_SIZE
+	const byContext = Math.floor(limits.context / 4 / TOKENS_PER_TAB_LINE)
+	const byReply = limits.output ? Math.floor(limits.output / 2 / TOKENS_PER_TAB_REPLY) : byContext
+	return Math.max(BATCH_SIZE, Math.min(byContext, byReply))
+}
+
+/** Group tabs with a model on your opencode server */
 export function groupWithOpencode(
 	tabs: GroupableTab[],
 	ask: Ask,
-	options: { signal?: AbortSignal; onProgress?: (done: number, total: number) => void } = {},
+	options: {
+		signal?: AbortSignal
+		onProgress?: (done: number, total: number) => void
+		limits?: ModelLimits
+	} = {},
 ): Promise<Suggestion[]> {
 	return groupWithModel(tabs, ask, {
 		...options,
-		batchSize: OPENCODE_BATCH_SIZE,
+		batchSize: opencodeBatchSize(options.limits),
 		preamble: OPENCODE_PREAMBLE,
 	})
 }
 
-const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
+/** An error's message without its closing full stop: reasons are joined into sentences */
+const message = (error: unknown) =>
+	(error instanceof Error ? error.message : String(error)).replace(/[.\s]+$/, '')
 
 /**
  * Pick an engine and group. "auto" escalates: opencode when it's connected, else the
@@ -381,6 +422,8 @@ export async function suggestGroups(
 		lm?: LanguageModelApi | null
 		/** How to reach opencode, when it's connected and turned on */
 		opencode?: Ask | null
+		/** The opencode model's limits, which size its batches */
+		opencodeLimits?: ModelLimits
 	} = {},
 ): Promise<SuggestResult> {
 	const tabs = allTabs.filter((tab) => !isBlankPage(tab.url))
@@ -393,7 +436,10 @@ export async function suggestGroups(
 		try {
 			return {
 				engine: 'opencode',
-				suggestions: await groupWithOpencode(tabs, options.opencode, options),
+				suggestions: await groupWithOpencode(tabs, options.opencode, {
+					...options,
+					limits: options.opencodeLimits,
+				}),
 			}
 		} catch (error) {
 			if (options.signal?.aborted) throw error
