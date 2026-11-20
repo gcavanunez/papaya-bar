@@ -124,6 +124,9 @@ requires.
   first event. A tab's `title` or `favIconUrl` changing saves after 15 seconds of quiet.
   Every wait stays well under 30 seconds, when Chrome may stop an idle worker.
 - A tick is a write like any other: it waits its turn and never runs during an action.
+  One also runs when the worker starts, so `link` is decided without waiting for a tab
+  to change.
+- A tick that changes nothing writes nothing to storage, not even the index.
 - A tick does nothing while the library has not been moved in (`migratedAt` is 0).
 - With no open session, Home is the open session, as today.
 - With no normal window open, nothing is saved and `link` becomes `unknown`.
@@ -149,6 +152,9 @@ reopening a closed window) links again by itself. Two actions resolve it by hand
 Switching to another session while unlinked does not save into the session being left.
 If real tabs are open, they are saved first as a new closed session named from their
 sites, so the switch closes nothing that isn't saved. A switch ends by setting `linked`.
+
+Naming what's open as a new session (`saveOpenAs`) while unlinked leaves the session
+being left exactly as it is, its stashed groups included, and ends `linked`.
 
 ### Stashed groups
 
@@ -184,7 +190,8 @@ The library is live on a real browser profile with years of sessions. Treat it t
   `migrated`, `close`) stay valid.
 - The first autosave tick after 2 → 3 treats the open session as linked once and saves
   with mode `always`: under schema 2 the open windows are the session by definition, and
-  its last saved state becomes a checkpoint.
+  its last saved state becomes a checkpoint. The link records this in device state
+  (`adoptLive`), and the tick that uses it clears it.
 - `planMigration` (the move-in from the old stores, and old-format backups) keeps
   producing its current result. Applying it writes that result and then runs the chain.
 - Library backups written before this change import through the same chain.
@@ -192,8 +199,8 @@ The library is live on a real browser profile with years of sessions. Treat it t
 ## Steps
 
 1. **Per-device open session.** Built: `b3a62c6`.
-2. **The worker is the only writer.** Every library write moves behind messages to the
-   worker, which runs them one at a time. No change in behavior.
+2. **The worker is the only writer.** Built: `19c9b3e`. `writer.ts` holds the commands
+   and the queue (`enqueue`); `client.ts` is the page side; a page's copy cannot write.
 3. **Content, checkpoints and autosave.** The content types are renamed first
    (`VersionData` → `SessionContent`, `VersionTab` → `SavedTab`, `VersionGroup` →
    `SavedGroup`, `VersionWindow` → `SavedWindow`) as a separate, behavior-free commit.
@@ -215,3 +222,7 @@ The library is live on a real browser profile with years of sessions. Treat it t
   agent tools need.
 - Syncing content entries (upload on write, download on first read).
 - The synchronizer itself runs in the worker, next to the only writer.
+- `schemaVersion` and `migratedAt` are facts about one device's copy and must leave the
+  index before it syncs. A fresh store stamps its default values as it is created, so in
+  a merge those defaults beat older real values (found in step 2: a page copy that merged
+  on first load saw `migratedAt: 0`).
