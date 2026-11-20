@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Papaya · Tools instead of JSON: the opencode plugin — plan v1</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #f7f7f5;
+				--surface: #ffffff;
+				--sunken: #eeeeea;
+				--ink: #1a1a19;
+				--muted: #5d5d58;
+				--faint: #8b8b85;
+				--line: #dcdcd6;
+				--accent: #e8501c;
+				--accent-soft: #fde9df;
+				--ok: #1f7a43;
+				--ok-soft: #e1f2e7;
+				--warn: #9a6a00;
+				--warn-soft: #fbf0d4;
+				--lane: #e9e9e4;
+				--g-blue: #6f97e8;
+				--g-green: #6fb27c;
+				--g-yellow: #e9c552;
+				--radius: 8px;
+				--mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+				--sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, sans-serif;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #121211;
+					--surface: #1b1b1a;
+					--sunken: #232321;
+					--ink: #ededea;
+					--muted: #a9a9a3;
+					--faint: #7b7b75;
+					--line: #34342f;
+					--accent: #ff7a4d;
+					--accent-soft: #3a2117;
+					--ok: #5fcf8a;
+					--ok-soft: #17301f;
+					--warn: #e8b93f;
+					--warn-soft: #33290f;
+					--lane: #262624;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				scroll-behavior: smooth;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				html {
+					scroll-behavior: auto;
+				}
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--ink);
+				font: 16px/1.6 var(--sans);
+			}
+			a {
+				color: inherit;
+				text-decoration-color: var(--accent);
+				text-underline-offset: 3px;
+			}
+			a:focus-visible,
+			button:focus-visible {
+				outline: 2px solid var(--accent);
+				outline-offset: 3px;
+				border-radius: 3px;
+			}
+			main {
+				max-width: 1080px;
+				margin: 0 auto;
+				padding: 48px 24px 96px;
+			}
+			.prose {
+				max-width: 70ch;
+			}
+			h1 {
+				font-size: clamp(28px, 4vw, 40px);
+				line-height: 1.15;
+				letter-spacing: -0.02em;
+				margin: 0 0 12px;
+			}
+			h2 {
+				font-size: 24px;
+				letter-spacing: -0.01em;
+				margin: 72px 0 8px;
+				padding-top: 16px;
+				border-top: 1px solid var(--line);
+			}
+			/* The contents bar already draws a line above the first section */
+			#answers-h {
+				border-top: 0;
+				margin-top: 40px;
+				padding-top: 0;
+			}
+			h2 .num {
+				color: var(--accent);
+				font-variant-numeric: tabular-nums;
+				margin-right: 8px;
+			}
+			h3 {
+				font-size: 17px;
+				margin: 32px 0 6px;
+			}
+			p {
+				margin: 0 0 14px;
+			}
+			ul,
+			ol {
+				margin: 0 0 14px;
+				padding-left: 22px;
+			}
+			li {
+				margin: 4px 0;
+			}
+			code {
+				font-family: var(--mono);
+				font-size: 0.86em;
+				background: var(--sunken);
+				border-radius: 4px;
+				padding: 1px 5px;
+				overflow-wrap: anywhere;
+			}
+			.meta {
+				color: var(--muted);
+				font-size: 14px;
+				margin-bottom: 28px;
+			}
+			.story {
+				font-size: clamp(19px, 2.4vw, 23px);
+				line-height: 1.45;
+				border-left: 4px solid var(--accent);
+				padding: 4px 0 4px 20px;
+				margin: 28px 0;
+				max-width: 50ch;
+			}
+			nav.toc {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px 18px;
+				font-size: 14px;
+				color: var(--muted);
+				margin: 24px 0 0;
+				padding: 12px 0;
+				border-top: 1px solid var(--line);
+				border-bottom: 1px solid var(--line);
+			}
+			nav.toc a {
+				text-decoration: none;
+			}
+			nav.toc a:hover {
+				color: var(--ink);
+				text-decoration: underline;
+			}
+			.figure {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 24px;
+				margin: 20px 0 8px;
+			}
+			.caption {
+				color: var(--muted);
+				font-size: 14px;
+				margin: 8px 0 0;
+				max-width: 80ch;
+			}
+			.label {
+				font-size: 12px;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				color: var(--faint);
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 15px;
+				margin: 12px 0;
+			}
+			th,
+			td {
+				text-align: left;
+				vertical-align: top;
+				padding: 9px 12px;
+				border-bottom: 1px solid var(--line);
+			}
+			th {
+				font-weight: 600;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.table-wrap {
+				overflow-x: auto;
+			}
+			.table-wrap table {
+				min-width: 680px;
+			}
+			td.k {
+				font-weight: 600;
+				white-space: nowrap;
+			}
+			.tag {
+				display: inline-block;
+				font-size: 12px;
+				font-weight: 600;
+				border-radius: 999px;
+				padding: 1px 9px;
+				white-space: nowrap;
+			}
+			.tag.ok {
+				color: var(--ok);
+				background: var(--ok-soft);
+			}
+			.tag.warn {
+				color: var(--warn);
+				background: var(--warn-soft);
+			}
+			.tag.open {
+				color: var(--accent);
+				background: var(--accent-soft);
+			}
+			.tag.plain {
+				color: var(--muted);
+				background: var(--sunken);
+			}
+
+			/* ---------- Answers ---------- */
+			.answers {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+				gap: 14px;
+				margin: 20px 0;
+			}
+			.answer {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 18px 20px;
+			}
+			.answer .q {
+				color: var(--muted);
+				font-size: 14px;
+				font-style: italic;
+				margin-bottom: 8px;
+			}
+			.answer p:last-child {
+				margin-bottom: 0;
+			}
+
+			/* ---------- Sequence ---------- */
+			/* Four lanes; their dashed centre lines are the grid's background */
+			.seq {
+				--dash: linear-gradient(to bottom, var(--line) 0 6px, transparent 6px 12px);
+				display: grid;
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+				row-gap: 6px;
+				background-image: var(--dash), var(--dash), var(--dash), var(--dash);
+				background-size: 2px 12px;
+				background-repeat: repeat-y;
+				background-position:
+					calc(12.5% - 1px) 0,
+					calc(37.5% - 1px) 0,
+					calc(62.5% - 1px) 0,
+					calc(87.5% - 1px) 0;
+			}
+			.seq .lane-head {
+				font-size: 13px;
+				font-weight: 600;
+				text-align: center;
+				padding: 0 6px 12px;
+				line-height: 1.35;
+				background: var(--surface);
+			}
+			.seq .lane-head small {
+				display: block;
+				font-weight: 400;
+				color: var(--muted);
+			}
+			.msg {
+				position: relative;
+				padding: 2px 0 10px;
+			}
+			/* Shrinks to its text and masks the lane lines behind it */
+			.msg .text {
+				display: table;
+				max-width: 100%;
+				margin: 0 auto;
+				font-size: 13.5px;
+				line-height: 1.4;
+				text-align: center;
+				padding: 0 10px 6px;
+				background: var(--surface);
+			}
+			.msg .text code {
+				font-size: 12px;
+			}
+			.msg .who {
+				display: none;
+			}
+			.msg .t {
+				display: inline-block;
+				font-family: var(--mono);
+				font-size: 11.5px;
+				color: var(--accent);
+				font-weight: 600;
+				margin-left: 4px;
+			}
+			.msg .t.no {
+				color: var(--faint);
+				font-weight: 400;
+			}
+			.msg .arrow {
+				position: relative;
+				height: 2px;
+				background: var(--ink);
+			}
+			.msg .arrow::after {
+				content: '';
+				position: absolute;
+				top: -5px;
+				border: 6px solid transparent;
+			}
+			.msg.right .arrow::after {
+				right: -2px;
+				border-left: 9px solid var(--ink);
+				border-right: 0;
+			}
+			.msg.left .arrow::after {
+				left: -2px;
+				border-right: 9px solid var(--ink);
+				border-left: 0;
+			}
+			.msg.event .arrow {
+				background: var(--accent);
+			}
+			.msg.event.right .arrow::after {
+				border-left-color: var(--accent);
+			}
+			.msg.event.left .arrow::after {
+				border-right-color: var(--accent);
+			}
+			.msg.self .note {
+				display: block;
+				margin: 0 auto;
+				max-width: 92%;
+				background: var(--sunken);
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				font-size: 13px;
+				line-height: 1.4;
+				padding: 8px 10px;
+				text-align: center;
+			}
+			.msg.stream .arrow {
+				background: repeating-linear-gradient(
+					90deg,
+					var(--accent) 0 8px,
+					transparent 8px 13px
+				);
+			}
+			/* A message spans two lanes; its arrow runs between their centres */
+			.c12 {
+				grid-column: 1 / 3;
+			}
+			.c23 {
+				grid-column: 2 / 4;
+			}
+			.c34 {
+				grid-column: 3 / 5;
+			}
+			.c12 .arrow,
+			.c23 .arrow,
+			.c34 .arrow {
+				margin: 0 25%;
+			}
+			.s1 {
+				grid-column: 1 / 2;
+			}
+			.s2 {
+				grid-column: 2 / 3;
+			}
+			.legend {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px 22px;
+				font-size: 13px;
+				color: var(--muted);
+				margin-top: 14px;
+				padding-top: 12px;
+				border-top: 1px solid var(--line);
+			}
+			.legend i {
+				display: inline-block;
+				width: 26px;
+				height: 2px;
+				vertical-align: middle;
+				margin-right: 8px;
+				background: var(--ink);
+			}
+			.legend i.ev {
+				background: var(--accent);
+			}
+			.legend i.st {
+				background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 10px);
+			}
+			@media (max-width: 760px) {
+				.seq {
+					grid-template-columns: 1fr;
+					background: none;
+				}
+				.seq .lane-head {
+					display: none;
+				}
+				.msg,
+				.c12,
+				.c23,
+				.c34,
+				.s1,
+				.s2 {
+					grid-column: 1 / -1;
+					padding: 10px 0 10px 14px;
+					border-left: 3px solid var(--line);
+				}
+				.msg.event {
+					border-left-color: var(--accent);
+				}
+				.msg .who {
+					display: block;
+					font-size: 12px;
+					font-weight: 600;
+					color: var(--muted);
+				}
+				.msg .text {
+					display: block;
+					margin: 0;
+					text-align: left;
+					padding: 0;
+				}
+				.msg .arrow {
+					display: none;
+				}
+				.msg.self .note {
+					margin: 0;
+					max-width: none;
+					text-align: left;
+				}
+			}
+
+			/* ---------- Spike timeline ---------- */
+			.timeline {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+				font-size: 14px;
+			}
+			.timeline li {
+				display: grid;
+				grid-template-columns: 74px 1fr;
+				gap: 12px;
+				padding: 6px 0;
+				border-bottom: 1px solid var(--line);
+				margin: 0;
+			}
+			.timeline li:last-child {
+				border-bottom: 0;
+			}
+			.timeline .ms {
+				font-family: var(--mono);
+				font-size: 12.5px;
+				color: var(--accent);
+				text-align: right;
+				font-variant-numeric: tabular-nums;
+				padding-top: 1px;
+			}
+			.timeline .ms.dim {
+				color: var(--faint);
+			}
+
+			/* ---------- Two columns: today and with tools ---------- */
+			.compare {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+				gap: 14px;
+				margin: 16px 0;
+			}
+			.compare > div {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 18px 20px;
+			}
+			.compare > div.next {
+				border-color: var(--accent);
+			}
+			.compare ol {
+				font-size: 15px;
+			}
+
+			/* ---------- Glimpse replay ---------- */
+			.replay {
+				display: grid;
+				grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+				gap: 28px;
+				align-items: start;
+			}
+			@media (max-width: 760px) {
+				.replay {
+					grid-template-columns: 1fr;
+				}
+			}
+			.panel {
+				background: var(--bg);
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 14px;
+				font-size: 13px;
+			}
+			.panel .section {
+				font-size: 11px;
+				font-weight: 600;
+				letter-spacing: 0.05em;
+				color: var(--faint);
+				text-transform: uppercase;
+				margin-bottom: 8px;
+			}
+			.panel .work {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				min-height: 40px;
+				padding: 8px 10px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: var(--surface);
+			}
+			.panel .spinner {
+				flex: none;
+				width: 14px;
+				height: 14px;
+				border-radius: 50%;
+				border: 2px solid var(--line);
+				border-top-color: var(--accent);
+				animation: spin 0.9s linear infinite;
+			}
+			.panel .spinner.idle {
+				animation: none;
+				border-top-color: var(--line);
+			}
+			.panel .spinner.done {
+				animation: none;
+				border-color: var(--ok);
+			}
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.panel .spinner {
+					animation: none;
+				}
+			}
+			.panel .line {
+				flex: 1;
+				min-width: 0;
+			}
+			.panel .line b {
+				font-weight: 600;
+			}
+			.panel .count {
+				flex: none;
+				color: var(--muted);
+				font-variant-numeric: tabular-nums;
+			}
+			.panel .groups {
+				list-style: none;
+				padding: 0;
+				margin: 10px 0 0;
+				min-height: 126px;
+			}
+			.panel .groups li {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 6px 10px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				margin: 0 0 6px;
+				background: var(--surface);
+			}
+			.panel .groups .dot {
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+				flex: none;
+			}
+			.panel .groups .n {
+				margin-left: auto;
+				color: var(--muted);
+			}
+			.panel .groups li.enter {
+				animation: enter 0.35s ease-out;
+			}
+			@keyframes enter {
+				from {
+					opacity: 0;
+					transform: translateY(4px);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.panel .groups li.enter {
+					animation: none;
+				}
+			}
+			.controls {
+				display: flex;
+				gap: 10px;
+				align-items: center;
+				margin-top: 12px;
+			}
+			button {
+				font: inherit;
+				font-size: 14px;
+				border: 1px solid var(--line);
+				background: var(--surface);
+				color: var(--ink);
+				border-radius: 8px;
+				padding: 6px 14px;
+				cursor: pointer;
+			}
+			button.primary {
+				background: var(--ink);
+				color: var(--bg);
+				border-color: var(--ink);
+			}
+			.clock {
+				font-family: var(--mono);
+				font-size: 12.5px;
+				color: var(--muted);
+				font-variant-numeric: tabular-nums;
+			}
+
+			/* ---------- Phases ---------- */
+			.phases {
+				list-style: none;
+				padding: 0;
+				margin: 16px 0;
+				counter-reset: phase;
+			}
+			.phases > li {
+				background: var(--surface);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 18px 22px;
+				margin: 0 0 14px;
+			}
+			.phases h3 {
+				margin: 0 0 6px;
+				display: flex;
+				gap: 10px;
+				align-items: baseline;
+				flex-wrap: wrap;
+			}
+			.phases h3 .ph {
+				color: var(--accent);
+			}
+			.phases .done {
+				border-top: 1px solid var(--line);
+				margin-top: 10px;
+				padding-top: 10px;
+				font-size: 15px;
+			}
+			.phases .done b {
+				color: var(--ok);
+			}
+			.phases ul {
+				font-size: 15px;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<header>
+				<div class="label">Papaya Bar · plan v1 · Nov 20, 2026</div>
+				<h1>Tools instead of JSON: Papaya as an opencode plugin</h1>
+				<p class="meta">
+					Follows the model picker (commit <code>d41a627</code>). This is the "agent tools" part of
+					phase 5b in the <a href="http://100.110.238.104:8787/">sessions and groups plan</a>;
+					moving sync onto the library stays a separate plan. Everything marked
+					<span class="tag ok">proved</span> was run on this Mac against your opencode 2.3.2,
+					with a throwaway plugin in a scratch folder and nothing added to your config.
+				</p>
+				<p class="story">
+					Today Smart group asks a model for JSON text and checks what comes back. With a small
+					opencode plugin, the model calls Papaya's tools instead: each call is checked against a
+					schema, Papaya answers over the connection it already has, and each call is a moment
+					Papaya can show you.
+				</p>
+				<nav class="toc" aria-label="Contents">
+					<a href="#answers-h">Your three questions</a>
+					<a href="#travel-h">1 · How messages travel</a>
+					<a href="#spike-h">2 · What the spike proved</a>
+					<a href="#smart-h">3 · Smart group as tool calls</a>
+					<a href="#glimpse-h">4 · Showing the work</a>
+					<a href="#agent-h">5 · Tools for your agents</a>
+					<a href="#phases-h">6 · What it takes</a>
+					<a href="#decisions-h">7 · Decisions</a>
+					<a href="#risks-h">8 · Risks</a>
+				</nav>
+			</header>
+
+			<section aria-labelledby="answers-h">
+				<h2 id="answers-h">Your three questions</h2>
+				<div class="answers">
+					<div class="answer">
+						<div class="q">"How could we move towards that dynamic? What would it take?"</div>
+						<p>
+							Three pieces: a <strong>Papaya plugin</strong> for opencode (a new package in this
+							repo, one line in your opencode config), a <strong>connection that stays open</strong>
+							from opencode to Papaya, and <strong>Smart group rewritten</strong> as a short opencode
+							session where the model calls a <code>propose_group</code> tool. Agent tools come
+							after, on the same connection. <a href="#phases-h">Three phases.</a>
+						</p>
+					</div>
+					<div class="answer">
+						<div class="q">"How exactly would we get the messages back?"</div>
+						<p>
+							Papaya keeps one stream open: <code>GET /api/event</code>, filtered to Papaya's
+							events. When the model calls a Papaya tool, the plugin puts the call on that
+							stream and waits. Papaya does the work and answers with an ordinary request,
+							<code>POST /api/rpc/papaya/reply</code>. In the spike the answer reached the model
+							18 ms after the call. <a href="#travel-h">Step by step.</a>
+						</p>
+					</div>
+					<div class="answer">
+						<div class="q">"Show a glimpse of tool calls as they come back, not stacked up."</div>
+						<p>
+							Yes. Every tool call raises events as it happens (started, called, done), so the
+							panel can keep <strong>one line</strong> that changes with each call, plus a count.
+							The spike's three groups arrived at 2.5, 2.9 and 3.0 seconds.
+							<a href="#glimpse-h">Replay it.</a>
+						</p>
+					</div>
+				</div>
+			</section>
+
+			<section aria-labelledby="travel-h">
+				<h2 id="travel-h"><span class="num">1</span>How messages travel</h2>
+				<div class="prose">
+					<p>
+						Two directions, two mechanisms, and nothing polls. <strong>Papaya to opencode</strong>
+						is always an ordinary request with the pairing token, as Smart group does today.
+						<strong>opencode to Papaya</strong> is always an event on a stream Papaya opened and
+						keeps open. Here is one tool call, the agent asking for your tabs, with the timings
+						the spike measured from the start of the run.
+					</p>
+				</div>
+				<figure class="figure" aria-label="One tool call, from the model to Papaya and back">
+					<div class="seq">
+						<div class="lane-head">The model<small>in an opencode session</small></div>
+						<div class="lane-head">opencode<small>with the Papaya plugin</small></div>
+						<div class="lane-head">Papaya's offscreen page<small>holds the stream</small></div>
+						<div class="lane-head">Papaya's worker<small>and Chrome's tabs</small></div>
+
+						<div class="msg left event stream c23">
+							<span class="who">Papaya → opencode, once</span>
+							<span class="text"
+								>Opens <code>GET /api/event?types=rpc.papaya.call&amp;types=session.tool.*</code>
+								with its token, and keeps it open
+								<span class="t no">once</span></span
+							>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+						<div class="msg right c12">
+							<span class="who">The model → opencode</span>
+							<span class="text"
+								>Calls <code>papaya_list_tabs {}</code> <span class="t">0.99 s</span></span
+							>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+						<div class="msg self s2">
+							<span class="who">Inside opencode</span>
+							<span class="note"
+								>The tool emits <code>rpc.papaya.call {callID, tool, input}</code> and waits on
+								that <code>callID</code></span
+							>
+						</div>
+						<div class="msg right event c23">
+							<span class="who">opencode → Papaya (event)</span>
+							<span class="text">The call arrives on the open stream <span class="t">+1 ms</span></span>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+						<div class="msg right c34">
+							<span class="who">Offscreen page → worker</span>
+							<span class="text"
+								>Hands it over; the message wakes the worker
+								<span class="t no">not in the spike</span></span
+							>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+						<div class="msg left c34">
+							<span class="who">Worker → offscreen page</span>
+							<span class="text"
+								>Reads the tabs (<code>chrome.tabs</code>, the library) and answers</span
+							>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+						<div class="msg left c23">
+							<span class="who">Papaya → opencode (request)</span>
+							<span class="text"
+								><code>POST /api/rpc/papaya/reply {callID, output}</code>
+								<span class="t">+6 ms</span></span
+							>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+						<div class="msg left c12">
+							<span class="who">opencode → the model</span>
+							<span class="text">The tool returns Papaya's answer <span class="t">+18 ms</span></span>
+							<div class="arrow" aria-hidden="true"></div>
+						</div>
+					</div>
+					<div class="legend" aria-hidden="true">
+						<span><i></i>An ordinary request or reply</span>
+						<span><i class="ev"></i>An event on the open stream</span>
+						<span><i class="st"></i>The stream itself, opened once</span>
+					</div>
+				</figure>
+				<p class="caption">
+					In the spike one Node script played both Papaya parts, so the hand-over between the
+					offscreen page and the worker is the one step not yet run. The reply names the
+					location the call came from (<code>?location[directory]=…</code>), because the plugin
+					runs once per opencode folder.
+				</p>
+
+				<h3>Why an offscreen page holds the stream</h3>
+				<div class="prose">
+					<p>
+						Chrome stops an extension's background worker after 30 seconds without events, and
+						also when a <code>fetch</code> response takes longer than 30 seconds. Only WebSockets
+						keep it alive, and opencode's event stream is Server-Sent Events. Papaya already has an
+						offscreen page (for copying to the clipboard); it can hold the stream for as long as
+						Chrome runs and pass each call to the worker, which a message wakes. The browser's
+						<code>EventSource</code> can't send the pairing token, so the page reads the stream
+						with <code>fetch</code>, as the spike did.
+					</p>
+					<p>
+						The stream is volatile by opencode's contract: events sent while it's disconnected are
+						lost. So Papaya reconnects with a back-off and tells the plugin it's there every 20
+						seconds, and a tool with no Papaya listening fails at once with "Papaya isn't
+						connected" rather than waiting out its 20-second timeout.
+					</p>
+				</div>
+			</section>
+
+			<section aria-labelledby="spike-h">
+				<h2 id="spike-h"><span class="num">2</span>What the spike proved</h2>
+				<div class="prose">
+					<p>
+						A plugin in <code>.opencode/plugins/papaya/</code> of a scratch folder, with two
+						tools: <code>papaya_list_tabs</code>, answered by the outside script over RPC, and
+						<code>papaya_propose_group</code>. The script paired like Papaya does, opened the event
+						stream, started a session with Claude Haiku 5.5 limited to Papaya's tools, and asked it
+						to list the tabs and group them. Ten test tab titles: three Rust, three taxes, three
+						Lisbon, one Vue.
+					</p>
+				</div>
+				<div class="figure">
+					<div class="label" style="margin-bottom: 8px">The run, as the script logged it</div>
+					<ol class="timeline">
+						<li><span class="ms dim">150 ms</span><span>Event stream open (200, <code>text/event-stream</code>)</span></li>
+						<li><span class="ms dim">166 ms</span><span>Session created and prompt sent</span></li>
+						<li><span class="ms">904 ms</span><span>Tool input started: <code>papaya_list_tabs</code></span></li>
+						<li><span class="ms">994 ms</span><span><code>rpc.papaya.call</code> arrives on the stream, 1 ms after the call</span></li>
+						<li><span class="ms">1000 ms</span><span>Script replies: <code>papaya.reply → {"ok": true}</code></span></li>
+						<li><span class="ms">1012 ms</span><span>Tool success: the model has the numbered tab list</span></li>
+						<li><span class="ms">2520 ms</span><span><code>propose_group {"name": "Rust Programming", "tabs": [1, 2, 3]}</code></span></li>
+						<li><span class="ms">2881 ms</span><span><code>propose_group {"name": "Taxes and Deductions", "tabs": [4, 5, 6]}</code></span></li>
+						<li><span class="ms">2999 ms</span><span><code>propose_group {"name": "Lisbon Trip", "tabs": [7, 8, 9]}</code></span></li>
+						<li><span class="ms">3782 ms</span><span>Session finished; the model's last words: "done". Session deleted.</span></li>
+					</ol>
+				</div>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr><th>Question</th><th>Answer</th><th>Status</th></tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td class="k">Does a local plugin load?</td>
+								<td>From <code>.opencode/plugins/</code> with no install step, and it reloaded by itself after an edit.</td>
+								<td><span class="tag ok">proved</span></td>
+							</tr>
+							<tr>
+								<td class="k">Can Papaya call the plugin?</td>
+								<td><code>POST /api/rpc/papaya/ping</code> with the pairing token answered <code>{"output": {"pong": true}}</code>.</td>
+								<td><span class="tag ok">proved</span></td>
+							</tr>
+							<tr>
+								<td class="k">Can the plugin reach Papaya?</td>
+								<td>Its event arrived on <code>/api/event</code>, filtered by type, 1 ms after the tool call.</td>
+								<td><span class="tag ok">proved</span></td>
+							</tr>
+							<tr>
+								<td class="k">Does the answer reach the model?</td>
+								<td>The waiting tool returned Papaya's reply 18 ms after the call.</td>
+								<td><span class="tag ok">proved</span></td>
+							</tr>
+							<tr>
+								<td class="k">Smart group as tool calls?</td>
+								<td>Three groups as typed calls, the Vue tab left out, 3.8 s for the whole run with Haiku 5.5.</td>
+								<td><span class="tag ok">proved</span></td>
+							</tr>
+							<tr>
+								<td class="k">Anything broken?</td>
+								<td>An RPC method declared without an input schema crashes opencode's check (<code>e is not an Object</code>), though the docs say input is optional. Always declare one.</td>
+								<td><span class="tag warn">found</span></td>
+							</tr>
+							<tr>
+								<td class="k">Character-by-character input?</td>
+								<td>No <code>session.tool.input.delta</code> events came: Haiku sent each call's input in one piece. Progress is per call, not per character.</td>
+								<td><span class="tag warn">found</span></td>
+							</tr>
+							<tr>
+								<td class="k">Not checked yet</td>
+								<td>That "deny everything, allow <code>papaya_*</code>" really hides other tools (the model only used Papaya's because it was asked to); the no-listener timeout; the offscreen page holding the stream for hours.</td>
+								<td><span class="tag plain">phase A</span></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section aria-labelledby="smart-h">
+				<h2 id="smart-h"><span class="num">3</span>Smart group as tool calls</h2>
+				<div class="compare">
+					<div>
+						<div class="label">Today</div>
+						<ol>
+							<li>One request to <code>/api/experimental/generate/text</code> with every tab and the instructions.</li>
+							<li>The model writes JSON as text.</li>
+							<li>Papaya digs the JSON out, checks every tab number, asks once more if it isn't JSON, then falls back and says why.</li>
+							<li>Nothing to show until the whole reply arrives.</li>
+						</ol>
+					</div>
+					<div class="next">
+						<div class="label" style="color: var(--accent)">With the plugin</div>
+						<ol>
+							<li>Papaya starts a short session with the model you picked, allowed only Papaya's tools, and sends the numbered tabs.</li>
+							<li>The model calls <code>papaya_propose_group({name, tabs})</code> once per group. opencode checks each call against the schema.</li>
+							<li>The plugin also checks the numbers exist and aren't taken; a bad call gets an error the model sees and fixes, instead of failing the run.</li>
+							<li>Papaya reads each group from its <code>session.tool.called</code> event as it lands, shows it, and deletes the session at the end. Cancel stops the session.</li>
+						</ol>
+					</div>
+				</div>
+				<div class="prose">
+					<p>
+						Smart group doesn't need the relay at all: the tab list goes in the prompt and the
+						groups come back as events, so only <code>propose_group</code> has to exist on the
+						opencode side. Today's path stays as the fallback when the plugin isn't installed,
+						followed by the on-device model and grouping by site, as now.
+					</p>
+				</div>
+			</section>
+
+			<section aria-labelledby="glimpse-h">
+				<h2 id="glimpse-h"><span class="num">4</span>Showing the work as it happens</h2>
+				<div class="prose">
+					<p>
+						Your idea, sized to what the events give: one line that says what's happening now
+						and changes with each call, a count beside it, and each group joining the review
+						list as it lands. Nothing piles up; when the run ends the line gives way to the
+						review you have today. The replay uses the spike's real timing.
+					</p>
+				</div>
+				<div class="figure">
+					<div class="replay">
+						<div>
+							<div class="panel" aria-label="Side panel, during Smart group">
+								<div class="section">Loose tabs · 10</div>
+								<div class="work">
+									<span class="spinner idle" id="spin" aria-hidden="true"></span>
+									<span class="line" id="line" aria-live="polite">Smart group</span>
+									<span class="count" id="count"></span>
+								</div>
+								<ul class="groups" id="groups" aria-label="Groups so far"></ul>
+							</div>
+							<div class="controls">
+								<button type="button" class="primary" id="play">Replay the spike's run</button>
+								<span class="clock" id="clock" aria-hidden="true">0.0 s</span>
+							</div>
+						</div>
+						<div class="prose">
+							<h3 style="margin-top: 0">Which event drives what</h3>
+							<table>
+								<thead><tr><th>Event</th><th>The line says</th></tr></thead>
+								<tbody>
+									<tr><td><code>prompt sent</code></td><td>Claude Haiku 5.5 is reading 10 tabs…</td></tr>
+									<tr><td><code>tool.input.started</code></td><td>Naming a group…</td></tr>
+									<tr><td><code>tool.called</code></td><td><b>Rust Programming</b> · 3 tabs, and the count goes up</td></tr>
+									<tr><td><code>execution.succeeded</code></td><td>3 groups · 1 tab left loose, then the review</td></tr>
+								</tbody>
+							</table>
+							<p class="caption">
+								When an agent uses Papaya in phase C, the same idea shows in two places: a
+								badge on Papaya's toolbar button while a call runs, and one line at the top of
+								the side panel ("opencode is grouping 6 tabs into Taxes") with Undo.
+							</p>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section aria-labelledby="agent-h">
+				<h2 id="agent-h"><span class="num">5</span>Tools for your agents</h2>
+				<div class="prose">
+					<p>
+						This is the dynamic canvas and browse have: the agent in your opencode session drives,
+						with typed tools. Installed globally, the plugin adds Papaya's tools to every session,
+						and a short skill tells agents when to use them. All of them go through the relay in
+						section 1. Off until you turn on "Let opencode agents use Papaya" in Settings.
+					</p>
+				</div>
+				<div class="table-wrap">
+					<table>
+						<thead><tr><th>Tool</th><th>What it does</th><th>Before it acts</th></tr></thead>
+						<tbody>
+							<tr><td class="k"><code>papaya_list_tabs</code></td><td>Windows, groups and tabs: titles and addresses</td><td><span class="tag plain">reads only</span></td></tr>
+							<tr><td class="k"><code>papaya_list_sessions</code></td><td>Your sessions: names, tab counts, which is open</td><td><span class="tag plain">reads only</span></td></tr>
+							<tr><td class="k"><code>papaya_group_tabs</code></td><td>Put tabs in a named group, where they are</td><td><span class="tag ok">acts, with Undo</span></td></tr>
+							<tr><td class="k"><code>papaya_open_tabs</code></td><td>Open addresses, optionally as a group</td><td><span class="tag ok">acts, with Undo</span></td></tr>
+							<tr><td class="k"><code>papaya_save_session</code></td><td>Save what's open, or a group, as a named session</td><td><span class="tag ok">acts, with Undo</span></td></tr>
+							<tr><td class="k"><code>papaya_stash_group</code></td><td>Stash a group into the open session</td><td><span class="tag ok">acts, with Undo</span></td></tr>
+							<tr><td class="k"><code>papaya_switch_session</code></td><td>Switch to another session (its tabs replace what's open)</td><td><span class="tag open">asks you first</span></td></tr>
+							<tr><td class="k"><code>papaya_close_tabs</code></td><td>Close tabs</td><td><span class="tag open">asks you first</span></td></tr>
+						</tbody>
+					</table>
+				</div>
+				<p class="caption">
+					"Asks you first" uses opencode's own permission prompt (the plugin calls
+					<code>permission.assert</code>), so the question appears in the session you're working
+					in. A proposal: which tools come first, and which ask, is decision 4.
+				</p>
+			</section>
+
+			<section aria-labelledby="phases-h">
+				<h2 id="phases-h"><span class="num">6</span>What it takes</h2>
+				<ol class="phases">
+					<li>
+						<h3><span class="ph">Phase A</span> The connection</h3>
+						<ul>
+							<li>A new package, <code>apps/opencode-plugin</code> (plugin id <code>papaya</code>): the RPC contract (<code>hello</code>, <code>reply</code>, the <code>call</code> event), a helper that registers a relayed tool with its waiting calls and timeouts, and the "Papaya isn't connected" check.</li>
+							<li>Installing it: one line in <code>~/.config/opencode/opencode.jsonc</code>, <code>"plugins": [".../apps/opencode-plugin"]</code>. opencode reloads it on save.</li>
+							<li>In Papaya, the offscreen page reads <code>/api/event</code>, reconnects with a back-off, says hello every 20 seconds, and passes calls to the worker.</li>
+							<li>Settings shows whether the plugin is installed and connected.</li>
+						</ul>
+						<div class="done"><b>Done when</b> a test tool called from a real opencode session gets its answer from the real extension, still works after Chrome has idled for an hour, and recovers by itself after opencode restarts.</div>
+					</li>
+					<li>
+						<h3><span class="ph">Phase B</span> Smart group as tool calls</h3>
+						<ul>
+							<li><code>papaya_propose_group</code> with its checks, and the short session per run (model from the picker, only Papaya's tools, deleted after).</li>
+							<li>The live line and count in the panel; Cancel stops the session.</li>
+							<li>The fallback chain when the plugin is missing: today's JSON request, then on-device, then by site.</li>
+						</ul>
+						<div class="done"><b>Done when</b> 200 real tabs group through tool calls with the line moving throughout, and a deliberately bad call (a tab number that doesn't exist) is corrected by the model instead of failing the run.</div>
+					</li>
+					<li>
+						<h3><span class="ph">Phase C</span> Tools for your agents</h3>
+						<ul>
+							<li>C1: the two read-only tools, the skill, and the Settings switch (off by default).</li>
+							<li>C2: the tools that act, each with Papaya's Undo, the toolbar badge and the panel line; switching and closing ask first.</li>
+						</ul>
+						<div class="done"><b>Done when</b> in an ordinary opencode session, "group my Lisbon tabs" works end to end and shows up in Papaya with an Undo.</div>
+					</li>
+				</ol>
+			</section>
+
+			<section aria-labelledby="decisions-h">
+				<h2 id="decisions-h"><span class="num">7</span>Decisions for you</h2>
+				<div class="table-wrap">
+					<table>
+						<thead><tr><th>#</th><th>Question</th><th>Options</th><th>Recommended</th></tr></thead>
+						<tbody>
+							<tr>
+								<td class="k">1</td>
+								<td>When does Papaya listen?</td>
+								<td>Always while Chrome runs (the offscreen page) · only while the side panel is open, like canvas only works while its tab is open</td>
+								<td>Always: agents shouldn't depend on a panel being open</td>
+							</tr>
+							<tr>
+								<td class="k">2</td>
+								<td>Where do Smart group's short sessions live?</td>
+								<td>A folder of their own, e.g. <code>~/.papaya</code> · your home folder</td>
+								<td>Their own folder, so they never show up among your projects' sessions</td>
+							</tr>
+							<tr>
+								<td class="k">3</td>
+								<td>How does the plugin install?</td>
+								<td>A path into this repo · an npm package</td>
+								<td>The path for now; npm once it settles</td>
+							</tr>
+							<tr>
+								<td class="k">4</td>
+								<td>Which agent tools first, and which ask?</td>
+								<td>The table in section 5</td>
+								<td>Read-only first; switching and closing ask</td>
+							</tr>
+							<tr>
+								<td class="k">5</td>
+								<td>Keep the JSON path?</td>
+								<td>As the fallback · remove it</td>
+								<td>Keep it, for when the plugin isn't installed</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section aria-labelledby="risks-h">
+				<h2 id="risks-h"><span class="num">8</span>Risks</h2>
+				<div class="table-wrap">
+					<table>
+						<thead><tr><th>Risk</th><th>What we'd do</th></tr></thead>
+						<tbody>
+							<tr>
+								<td class="k">opencode's plugin API is new</td>
+								<td>The spike already hit one bug. Pin the opencode version the plugin is tested with, keep the JSON fallback, and have Settings say when the plugin and opencode don't match.</td>
+							</tr>
+							<tr>
+								<td class="k">Missed events</td>
+								<td>The stream drops events while disconnected. Papaya reconnects; the plugin's hello check and timeout give the agent a clear error instead of a hang.</td>
+							</tr>
+							<tr>
+								<td class="k">The offscreen page's reason</td>
+								<td>Chrome asks why an offscreen page exists; Papaya's says "clipboard". Fine for an unpacked extension, but a Web Store listing could question a page kept open for a connection.</td>
+							</tr>
+							<tr>
+								<td class="k">Who can answer a call</td>
+								<td>Anything holding a pairing token can call <code>papaya.reply</code>. The plugin only accepts replies for calls it's waiting on, by an unguessable id.</td>
+							</tr>
+							<tr>
+								<td class="k">What agents can see</td>
+								<td>Tab titles and addresses. Off by default, a switch in Settings, and the acting tools show in Papaya with Undo.</td>
+							</tr>
+							<tr>
+								<td class="k">Cost and speed</td>
+								<td>Tool calls carry the tools' descriptions, so a run costs a little more than one JSON reply: still fractions of a cent with Haiku 5.5. The spike took 3.8 s for 10 tabs.</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<p class="caption">
+					The spike's plugin and script are kept next to this page on hl-mango, in
+					<code>research/</code>, so it can be run again.
+				</p>
+			</section>
+		</main>
+
+		<script>
+			;(() => {
+				const steps = [
+					{ at: 0.17, line: 'Claude Haiku 5.5 is reading 10 tabs…' },
+					{ at: 2.24, line: 'Naming a group…' },
+					{ at: 2.52, group: ['Rust Programming', 3, 'var(--g-blue)'] },
+					{ at: 2.6, line: 'Naming a group…' },
+					{ at: 2.88, group: ['Taxes and Deductions', 3, 'var(--g-green)'] },
+					{ at: 2.93, line: 'Naming a group…' },
+					{ at: 3.0, group: ['Lisbon Trip', 3, 'var(--g-yellow)'] },
+					{ at: 3.78, done: '3 groups · 1 tab left loose. Review them, then apply.' },
+				]
+				const $ = (id) => document.getElementById(id)
+				const line = $('line')
+				const count = $('count')
+				const groups = $('groups')
+				const spin = $('spin')
+				const clock = $('clock')
+				const play = $('play')
+				let timers = []
+				let raf = 0
+				function reset() {
+					timers.forEach(clearTimeout)
+					timers = []
+					cancelAnimationFrame(raf)
+					groups.textContent = ''
+					count.textContent = ''
+					line.textContent = 'Smart group'
+					spin.className = 'spinner idle'
+					clock.textContent = '0.0 s'
+				}
+				function run() {
+					reset()
+					spin.className = 'spinner'
+					play.textContent = 'Replay again'
+					const start = performance.now()
+					const tick = () => {
+						const s = (performance.now() - start) / 1000
+						clock.textContent = Math.min(s, 3.78).toFixed(1) + ' s'
+						if (s < 3.78) raf = requestAnimationFrame(tick)
+					}
+					raf = requestAnimationFrame(tick)
+					let n = 0
+					for (const step of steps) {
+						timers.push(
+							setTimeout(() => {
+								if (step.line) line.textContent = step.line
+								if (step.group) {
+									const [name, tabs, color] = step.group
+									n++
+									line.innerHTML = ''
+									const b = document.createElement('b')
+									b.textContent = name
+									line.append(b, ' · ' + tabs + ' tabs')
+									count.textContent = n + (n === 1 ? ' group' : ' groups')
+									const li = document.createElement('li')
+									li.className = 'enter'
+									const dot = document.createElement('span')
+									dot.className = 'dot'
+									dot.style.background = color
+									const label = document.createElement('span')
+									label.textContent = name
+									const k = document.createElement('span')
+									k.className = 'n'
+									k.textContent = tabs
+									li.append(dot, label, k)
+									groups.append(li)
+								}
+								if (step.done) {
+									line.textContent = step.done
+									count.textContent = ''
+									spin.className = 'spinner done'
+								}
+							}, step.at * 1000),
+						)
+					}
+				}
+				play.addEventListener('click', run)
+			})()
+		</script>
+	</body>
+</html>
