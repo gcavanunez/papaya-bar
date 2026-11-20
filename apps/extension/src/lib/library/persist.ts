@@ -27,9 +27,9 @@ const asChanges = (content: MergeableContent) => [...content, 1] as unknown as M
  * once the stored index has loaded and before anything is saved (the upgrade); if it
  * fails, nothing is saved and the store stops following storage.
  *
- * Without `autoSave`, changes are saved only when asked (`persister.save()`), so a
- * writer that changes the store in several steps stores it once; what `beforeSaving`
- * changed is saved before this resolves.
+ * Without `autoSave`, the caller stores changes itself with `writeIndex`, so a writer
+ * that changes the store in several steps stores it once and knows whether it was
+ * stored; what `beforeSaving` changed is stored before this resolves, or this rejects.
  */
 export async function startLibraryPersistence(
 	store: MergeableStore,
@@ -67,16 +67,36 @@ export async function startLibraryPersistence(
 	persister = persisterInstance
 	await persisterInstance.startAutoLoad([{}, {}])
 	const loaded = store.getMergeableContentHashes().join()
+	const autoSave = options.autoSave ?? true
 	try {
 		await beforeSaving?.()
+		if (!autoSave && store.getMergeableContentHashes().join() !== loaded)
+			await writeIndex(store)
 	} catch (error) {
 		await persisterInstance.destroy()
 		throw error
 	}
 	saving = true
-	if (options.autoSave ?? true) await persisterInstance.startAutoSave()
-	else if (store.getMergeableContentHashes().join() !== loaded) await persisterInstance.save()
+	if (autoSave) await persisterInstance.startAutoSave()
 	return persisterInstance
+}
+
+/**
+ * Store the whole index now. Unlike a TinyBase persister's `save()`, which reports
+ * success whatever happened (a failed write only reaches its error handler, a save
+ * asked for while it loads is skipped, and one asked for while it is busy resolves
+ * before it is written), this resolves only once the index is stored, and rejects if
+ * it could not be.
+ */
+export async function writeIndex(store: MergeableStore): Promise<void> {
+	try {
+		await chrome.storage.local.set({ [INDEX_KEY]: store.getMergeableContent() })
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error)
+		throw new Error(
+			`Papaya could not save your sessions (${reason}). It will try again with the next change.`,
+		)
+	}
 }
 
 /**

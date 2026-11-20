@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { installFakeChrome } from '@/test/fakeChrome'
 import { sampleV1Store } from '@/test/libraryV1'
 import { exportLibrary } from './backup'
@@ -64,6 +64,9 @@ beforeEach(async () => {
 	client = createLibraryClient()
 	await fake.seedWindow([OWN_PAGE, 'https://home-a.com', 'https://home-b.com'])
 })
+
+// A test's worker stops with it, so nothing it still hears writes into the next test's storage
+afterEach(() => fake.stopWorker())
 
 /** Library contents set up by the worker, as if saved earlier */
 function seed<T>(work: (lib: Library) => Promise<T>): Promise<T> {
@@ -380,5 +383,73 @@ describe('what the worker stores', () => {
 		stored.store.setMergeableContent(fake.storage.get(INDEX_KEY) as never)
 		for (const entry of referencedEntries(stored))
 			expect(fake.storage.has(VERSION_KEY_PREFIX + entry)).toBe(true)
+	})
+})
+
+describe('when the index cannot be stored', () => {
+	/** Make writes of the index fail until `fixed()` */
+	function failIndexWrites() {
+		const set = fake.chrome.storage.local.set
+		let failing = true
+		fake.chrome.storage.local.set = async (items: Record<string, unknown>) => {
+			if (failing && INDEX_KEY in items) throw new Error('QUOTA_BYTES quota exceeded')
+			return set(items)
+		}
+		return () => void (failing = false)
+	}
+	const storedIndex = () => {
+		const stored = createLibrary()
+		stored.store.setMergeableContent(fake.storage.get(INDEX_KEY) as never)
+		return stored
+	}
+	function expectStoredIndexWhole() {
+		for (const entry of referencedEntries(storedIndex()))
+			expect(fake.storage.has(VERSION_KEY_PREFIX + entry), entry).toBe(true)
+	}
+
+	it('keeps the old entries, the command rejects, and the next save catches up', async () => {
+		const id = await seed((lib) => createSession(lib, { name: 'Trip' }, data('https://a.com')))
+		const page = await client.getLibrary()
+		// The first edit keeps a.com as a checkpoint; a second within minutes keeps nothing
+		await client.send('saveEdits', { sessionId: id, data: data('https://b.com') })
+		const b = getSession(page, id)!.contentId
+
+		const fixed = failIndexWrites()
+		await expect(
+			client.send('saveEdits', { sessionId: id, data: data('https://c.com') }),
+		).rejects.toThrow(/could not save your sessions \(QUOTA_BYTES quota exceeded\)/)
+		await settle()
+		// What is stored is as before, whole: b.com is still the content, and still there
+		expect(getSession(storedIndex(), id)?.contentId).toBe(b)
+		expect(fake.storage.has(VERSION_KEY_PREFIX + b)).toBe(true)
+		expectStoredIndexWhole()
+		// Still failing: another command fails too, and still deletes nothing
+		await expect(
+			client.send('updateSession', { id, fields: { name: 'Lisbon' } }),
+		).rejects.toThrow(/could not save/)
+		expect(fake.storage.has(VERSION_KEY_PREFIX + b)).toBe(true)
+
+		fixed()
+		await client.send('updateSession', { id, fields: { name: 'Lisbon' } })
+		const stored = storedIndex()
+		expect(getSession(stored, id)).toMatchObject({ name: 'Lisbon' })
+		expect(urlsOf(await getSessionData(page, id))).toEqual(['https://c.com'])
+		// Only now that the index no longer refers to it is b.com's entry deleted
+		expect(fake.storage.has(VERSION_KEY_PREFIX + b)).toBe(false)
+		expectStoredIndexWhole()
+		const entries = [...fake.storage.keys()].filter((k) => k.startsWith(VERSION_KEY_PREFIX))
+		expect(entries.sort()).toEqual(
+			[...referencedEntries(stored)].map((e) => VERSION_KEY_PREFIX + e).sort(),
+		)
+	})
+
+	it('an upgrade that cannot be stored keeps the library closed', async () => {
+		fake.storage.set(INDEX_KEY, structuredClone(sampleV1Store().getMergeableContent()))
+		const before = structuredClone(fake.storage.get(INDEX_KEY))
+		const fixed = failIndexWrites()
+		await expect(writer.library()).rejects.toThrow(/could not save your sessions/)
+		expect(fake.storage.get(INDEX_KEY)).toEqual(before)
+		fixed()
+		expect((await writer.library()).store.getValue('schemaVersion')).toBe(3)
 	})
 })

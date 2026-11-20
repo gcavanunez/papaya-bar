@@ -128,6 +128,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+	// The test's worker stops with it, so nothing it still hears writes into the next test's storage
+	stopWorker()
 	vi.useRealTimers()
 })
 
@@ -468,5 +470,64 @@ describe('the first save after the upgrade', () => {
 		expect(await contentOf('work')).toEqual(['https://jira.com', 'https://docs.com'])
 		expect(listSessions(await lib()).find((s) => s.id === 'work')?.contentId).toBe('w2')
 		expect((await lib()).device.get().adoptLive).toBe(false)
+	})
+})
+
+describe('when something is wrong', () => {
+	it('a tick whose index cannot be stored logs, deletes nothing, and the next one catches up', async () => {
+		const trip = await tripIsOpen()
+		// Its first save keeps a checkpoint; the next, within the hour, deletes what it replaces
+		await openTab('https://cafe.com')
+		await wait(QUIET_MS)
+		const before = getSession(await lib(), trip)!.contentId
+		const set = fake.chrome.storage.local.set
+		let failing = true
+		fake.chrome.storage.local.set = async (items: Record<string, unknown>) => {
+			if (failing && INDEX_KEY in items) throw new Error('QUOTA_BYTES quota exceeded')
+			return set(items)
+		}
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+		await openTab('https://beach.com')
+		await vi.advanceTimersByTimeAsync(QUIET_MS)
+		await writer.enqueue(async () => undefined).catch(() => undefined)
+		expect(warn).toHaveBeenCalledWith('[papaya] autosave', expect.any(Error))
+		// The stored index still points at the old content, which is still stored
+		expect(fake.storage.has(VERSION_KEY_PREFIX + before)).toBe(true)
+		await expectStoredIndexWhole()
+
+		failing = false
+		warn.mockRestore()
+		// Nothing new to capture, but the index this worker holds is stored at last
+		expect(await autosave.tick()).toBe('unchanged')
+		await expectStoredIndexWhole()
+		expect(fake.storage.has(VERSION_KEY_PREFIX + before)).toBe(false)
+		const { createLibrary } = await import('./store')
+		const stored = createLibrary()
+		stored.store.setMergeableContent(fake.storage.get(INDEX_KEY) as never)
+		expect(await contentOf(trip)).toEqual([...TRIP, 'https://cafe.com', 'https://beach.com'])
+		expect(getSession(stored, trip)?.contentId).toBe(getSession(await lib(), trip)?.contentId)
+	})
+
+	it('an open session missing from the library heals: Home, decided by the usual rule', async () => {
+		const trip = await tripIsOpen()
+		await writer.enqueue(async (library) => {
+			await createSession(
+				library,
+				{ name: 'Home', id: 'home', kind: 'home' },
+				tabsOf('https://home.com'),
+			)
+			// Gone without this device being told (a merge, say)
+			library.store.delRow('sessions', trip)
+		})
+		expect(await autosave.tick()).toBe('unlinked')
+		const library = await lib()
+		expect(getOpenSessionId(library)).toBe('')
+		expect(getLink(library)).toBe('unlinked')
+		// The open windows were not saved into Home
+		expect(await contentOf('home')).toEqual(['https://home.com'])
+		// And autosave goes on: Home's own tabs coming back link it again
+		await openTab('https://home.com')
+		await wait(QUIET_MS)
+		expect(getLink(await lib())).toBe('linked')
 	})
 })

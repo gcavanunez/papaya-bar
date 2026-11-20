@@ -13,6 +13,7 @@
 import { captureOpen, saveLinked } from './actions'
 import {
 	ensureHome,
+	forgetIfOpen,
 	getOpenSessionId,
 	getSession,
 	isMigrated,
@@ -33,8 +34,6 @@ export type TickResult =
 	| 'not-moved-in'
 	/** No normal window is open: nothing to save, and whether one is linked is unknown */
 	| 'no-window'
-	/** The device's open session is not in the library */
-	| 'no-session'
 	/** What's open is not the open session's: nothing saved */
 	| 'unlinked'
 	/** Saved already: nothing written */
@@ -53,8 +52,11 @@ export async function autosaveTick(lib: Library, now = Date.now()): Promise<Tick
 		await setLink(lib, 'unknown', now)
 		return 'no-window'
 	}
+	// An open session that is not in the library: the device has none (Home), and whether
+	// the open windows are Home's is decided by the usual rule, never assumed
+	const open = getOpenSessionId(lib)
+	if (open && !getSession(lib, open)) await forgetIfOpen(lib, open, now)
 	const sessionId = getOpenSessionId(lib) || ensureHome(lib, now)
-	if (!getSession(lib, sessionId)) return 'no-session'
 	const { linked, changed } = await saveLinked(
 		lib,
 		sessionId,

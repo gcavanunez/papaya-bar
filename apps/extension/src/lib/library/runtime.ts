@@ -4,7 +4,7 @@
  */
 import type { MergeableStore } from 'tinybase'
 import { chromeBlobs } from './blobs'
-import { INDEX_KEY, followLibraryIndex, startLibraryPersistence } from './persist'
+import { INDEX_KEY, followLibraryIndex, startLibraryPersistence, writeIndex } from './persist'
 import { chromeDevice, chromeRuntime } from './state'
 import { createLibrary, releaseEntries, type Library } from './store'
 import { keepIndexCopy, upgradeLibrary } from './upgrade'
@@ -13,7 +13,8 @@ export interface WriterLibrary {
 	lib: Library
 	/**
 	 * Store the index if it changed since it was last stored, then delete the entries it
-	 * stopped referring to; resolves once both are done. Unchanged, it writes nothing.
+	 * stopped referring to; resolves once both are done. Unchanged, it writes nothing. If
+	 * the index could not be stored this rejects and deletes nothing.
 	 */
 	save(): Promise<void>
 }
@@ -33,20 +34,22 @@ export async function openLibrary(): Promise<WriterLibrary> {
 			for (const id of ids) dropping.add(id)
 		},
 	}
-	const persister = await startLibraryPersistence(
+	await startLibraryPersistence(
 		lib.store,
 		() => upgradeLibrary(lib, { keepCopy: () => keepIndexCopy(stored) }),
 		{ autoSave: false },
 	)
 	const hashes = () => lib.store.getMergeableContentHashes().join()
+	/** What the last confirmed write stored */
 	let saved = hashes()
 	return {
 		lib,
 		async save() {
-			if (hashes() !== saved) {
-				const saving = hashes()
-				await persister.save()
-				saved = saving
+			const current = hashes()
+			if (current !== saved) {
+				// Rejects if it was not stored: the entries stay queued, and the next save tries again
+				await writeIndex(lib.store)
+				saved = current
 			}
 			if (!dropping.size) return
 			const ids = [...dropping]
