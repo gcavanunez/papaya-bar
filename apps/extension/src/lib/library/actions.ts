@@ -44,8 +44,13 @@ import {
 
 export function toVersionTab(tab: chrome.tabs.Tab, windowId = tab.windowId): SavedTab {
 	const favIconUrl = tab.favIconUrl ?? ''
+	// A tab still loading (or being restored) can show a blank address before its real one
+	const url =
+		!isRealUrl(tab.url) && isRealUrl(tab.pendingUrl)
+			? tab.pendingUrl
+			: tab.url || tab.pendingUrl
 	return {
-		url: tab.url || tab.pendingUrl || '',
+		url: url || '',
 		title: tab.title ?? '',
 		favIconUrl:
 			favIconUrl.startsWith('data:') && favIconUrl.length > MAX_FAVICON_CHARS
@@ -267,7 +272,8 @@ export async function saveCopy(
 	now = Date.now(),
 ): Promise<string> {
 	const capture = await captureOpen(tabIds)
-	return createSession(lib, { name: name?.trim() || deriveName('', capture.tabs) }, capture, now)
+	const real = capture.tabs.filter((tab) => isRealUrl(tab.url))
+	return createSession(lib, { name: name?.trim() || deriveName('', real) }, capture, now)
 }
 
 /** Put the open session away: save it, close its tabs, and go to Home */

@@ -19,7 +19,7 @@ import {
 	referencedEntries,
 	type Library,
 } from './store'
-import { INDEX_V1_KEY, upgradeLibrary } from './upgrade'
+import { INDEX_V1_KEY, UNKNOWN_SCHEMA_ERROR, upgradeLibrary } from './upgrade'
 import { createLibraryWriter } from './writer'
 
 const settle = async () => {
@@ -294,6 +294,29 @@ describe('upgrading a schema 2 library', () => {
 		for (const lib of [a, b] as Library[]) {
 			expect(lib.store.getTables()).toEqual(expectedTables(v2, V2_STORED))
 		}
+	})
+
+	it('refuses an index at a version it does not know, in plain words, changing nothing', async () => {
+		for (const schemaVersion of [99, 2.5, -1]) {
+			fake = installFakeChrome()
+			const v2 = sampleV2Store()
+			v2.setValue('schemaVersion', schemaVersion)
+			const stored = structuredClone(v2.getMergeableContent())
+			fake.storage.set(INDEX_KEY, structuredClone(stored))
+			fake.storage.set(DEVICE_KEY, { openSessionId: 'work' })
+			storeEntries(sampleV2Entries())
+			const keys = [...fake.storage.keys()].sort()
+
+			await expect(openLibrary()).rejects.toThrow(UNKNOWN_SCHEMA_ERROR)
+			// What a page shows as the reason
+			chrome.runtime.onMessage.addListener(createLibraryWriter().onMessage)
+			await expect(createLibraryClient().getLibrary()).rejects.toThrow(UNKNOWN_SCHEMA_ERROR)
+			await settle()
+			expect(fake.storage.get(INDEX_KEY)).toEqual(stored)
+			expect(fake.storage.get(DEVICE_KEY)).toEqual({ openSessionId: 'work' })
+			expect([...fake.storage.keys()].sort()).toEqual(keys)
+		}
+		expect(UNKNOWN_SCHEMA_ERROR).toMatch(/newer version of Papaya/)
 	})
 
 	it('a failed upgrade leaves what is stored untouched', async () => {

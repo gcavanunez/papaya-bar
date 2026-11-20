@@ -13,6 +13,7 @@ import {
 	saveCopy,
 	saveOpenAs,
 	switchTo,
+	toVersionTab,
 } from './actions'
 import {
 	addStashed,
@@ -225,6 +226,25 @@ describe('saving', () => {
 		})
 		expect(getOpenSessionId(lib)).toBe('home')
 		expect(openUrls()).toHaveLength(3)
+	})
+
+	it('names a copy from its sites, not from blank tabs', async () => {
+		await fake.seedWindow(['chrome://newtab/', 'about:blank', 'chrome://newtab/'])
+		const id = await saveCopy(lib)
+		expect(getSession(lib, id)).toMatchObject({ name: 'home-a.com, home-b.com', tabCount: 5 })
+	})
+
+	it('a tab still loading at a blank address is saved at the address it is going to', () => {
+		const tab = (url: string, pendingUrl?: string) =>
+			({ id: 1, windowId: 1, url, pendingUrl }) as chrome.tabs.Tab
+		expect(toVersionTab(tab('about:blank', 'https://news.com')).url).toBe('https://news.com')
+		expect(toVersionTab(tab('', 'https://news.com')).url).toBe('https://news.com')
+		expect(toVersionTab(tab('chrome://newtab/', 'https://news.com')).url).toBe(
+			'https://news.com',
+		)
+		expect(toVersionTab(tab('https://a.com', 'https://b.com')).url).toBe('https://a.com')
+		expect(toVersionTab(tab('about:blank', 'chrome://newtab/')).url).toBe('about:blank')
+		expect(toVersionTab(tab('about:blank')).url).toBe('about:blank')
 	})
 
 	it('a checkpoint by hand saves what is open first, then keeps a copy of it', async () => {

@@ -24,14 +24,26 @@ export interface UpgradeOptions {
 	keepCopy?: () => Promise<void>
 }
 
+/** Why an index this build does not know is left as it is */
+export const UNKNOWN_SCHEMA_ERROR =
+	'These sessions were saved by a newer version of Papaya, and this version cannot open them. Nothing was changed. Update Papaya to open them.'
+
+/**
+ * Bring the index up to LIBRARY_SCHEMA_VERSION. An index at a version this build has no
+ * way up from (saved by a newer build, say) is refused before anything changes.
+ */
 export async function upgradeLibrary(lib: Library, options: UpgradeOptions = {}): Promise<void> {
 	let version = Number(lib.store.getValue('schemaVersion')) || 0
-	if (version >= LIBRARY_SCHEMA_VERSION) return
+	if (version === LIBRARY_SCHEMA_VERSION) return
 	// Nothing stored yet, or rows written before the version was recorded
 	if (version === 0) {
 		if (!lib.store.hasTable('sessions') && !lib.store.hasValue('openSessionId')) return
 		version = 1
 	}
+	for (let v = version; v < LIBRARY_SCHEMA_VERSION; v++) {
+		if (typeof LINKS[v] !== 'function') throw new Error(UNKNOWN_SCHEMA_ERROR)
+	}
+	if (version > LIBRARY_SCHEMA_VERSION) throw new Error(UNKNOWN_SCHEMA_ERROR)
 	await options.keepCopy?.()
 	for (; version < LIBRARY_SCHEMA_VERSION; version++) await LINKS[version](lib)
 }
