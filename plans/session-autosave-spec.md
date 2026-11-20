@@ -8,17 +8,18 @@ All paths are under `apps/extension/`. The library code is `src/lib/library/`.
 
 ## Why
 
-Reproduced in `scratch/review-sessions/model.test.ts` (gitignored; run with
-`cd apps/extension && pnpm exec vitest run --config ../../scratch/review-sessions/vitest.config.mjs`):
+Three problems with the sessions library as phase 4 built it. Each was reproduced against
+the fake Chrome, and each is now a test of the fixed behavior (`autosave.test.ts`,
+`actions.test.ts`, `store.test.ts`, `backup.test.ts`):
 
-1. The open session is saved only when you switch away or click "Save version". Nothing
-   in `background.js` captures tabs. If Chrome comes back without its windows, the next
-   switch saves the empty window as the session's newest version, and tabs opened since
-   the last save are in no version.
-2. Every edit appends a version (`moveTabs`, edits to a closed session, emptying Home in
-   `saveOpenAs`), so ordinary edits use up the 10 kept versions.
+1. The open session was saved only when you switched away or clicked "Save version".
+   Nothing in `background.js` captured tabs. If Chrome came back without its windows, the
+   next switch saved the empty window as the session's newest version, and tabs opened
+   since the last save were in no version.
+2. Every edit appended a version (`moveTabs`, edits to a closed session, emptying Home in
+   `saveOpenAs`), so ordinary edits used up the 10 kept versions.
 3. Which session is open was stored twice (`sessions.status = 'open'` and the
-   `openSessionId` value), both in the index that will sync. Fixed in step 1.
+   `openSessionId` value), both in the index that will sync.
 
 ## Words
 
@@ -165,8 +166,8 @@ being left exactly as it is, its stashed groups included, and ends `linked`.
 ### Stashed groups
 
 They stay in their own table and entries, and are not folded into a session's content.
-A session's content is exactly what is open, which is what lets autosave write the
-capture without reading what was there.
+A session's content is what is open, which is what lets autosave write the capture
+without depending on what was there (titles and icons aside, as above).
 
 ### What changes which session is open
 
@@ -186,6 +187,8 @@ The library is live on a real browser profile with years of sessions. Treat it t
   key is absent.
 - If the upgrade fails, the library does not open: `getLibrary()` rejects and the next
   call tries again. New code never runs on an index it could not upgrade.
+- An index at a schema this build does not know (newer than its own, or one it has no
+  link for) is refused in plain words and left untouched.
 - TinyBase drops tables, cells and values that are not in the schema when it loads
   content, and deleting a cell that has a default only resets it. So old names stay
   declared, without defaults, until the upgrade has moved them out. A test loads an old
@@ -204,18 +207,74 @@ The library is live on a real browser profile with years of sessions. Treat it t
 
 ## Steps
 
-1. **Per-device open session.** Built: `b3a62c6`.
-2. **The worker is the only writer.** Built: `19c9b3e`. `writer.ts` holds the commands
-   and the queue (`enqueue`); `client.ts` is the page side; a page's copy cannot write.
-3. **Content, checkpoints and autosave.** The content types are renamed first
-   (`VersionData` → `SessionContent`, `VersionTab` → `SavedTab`, `VersionGroup` →
-   `SavedGroup`, `VersionWindow` → `SavedWindow`) as a separate, behavior-free commit.
-   Then `setContent`, checkpoints, upgrade 2 → 3, runtime state, autosave and the
-   reworked actions. Screens change only as far as needed to compile and keep working.
-4. **Screens.** Save version buttons removed; saved status; History in place of
-   Versions; edits to a closed session apply at once with Undo; the unlinked banner and
-   its two actions; "Save a checkpoint" kept as a palette command; wording everywhere.
-5. **Real-browser check.** The built extension in a throwaway Chrome profile.
+All built. 215 tests pass; the build is version 0.2.0.
+
+1. **Per-device open session.** `b3a62c6`.
+2. **The worker is the only writer.** `19c9b3e`. `writer.ts` holds the commands and the
+   queue (`enqueue`); `client.ts` is the page side; a page's copy cannot write.
+3. **Content, checkpoints and autosave.** `0ea1903` (the content types renamed, no change
+   in behavior), `32fedff`, `37fcfd9`, `2eb3a55` (entries are deleted only once the index
+   is confirmed stored).
+4. **Screens.** `7973e55`, `7eacea0`, `eda28bb`: saved status in place of Save version;
+   History in place of Versions; edits to a closed session apply at once with Undo; the
+   banner and its two actions; "Save a checkpoint" in both palettes; a message when the
+   library cannot open.
+5. **Real-browser check.** `0790d44`, `d882de4`, `fafcf0f`, `482efc9`, `507b8bd`. Results
+   below.
+
+## What the real-browser check found
+
+The build the owner ran before this work (`c48688b`) and this one were loaded in turn
+from one folder into a throwaway profile holding the owner's newest backup, moved in and
+used the old way: 179 sessions, 189 versions, 18,465 tabs.
+
+- Every session kept its name, notes, archived state and tab count. Each session's
+  content is exactly its old newest version; every other version is a checkpoint with
+  exactly its old tabs. Nothing is shared between owners and nothing referenced is
+  missing. `library:index:v1` equals the old index byte for byte.
+- Killing Chrome during the upgrade, opening five pages at once and relaunching twice
+  all ended in the same state as the clean run.
+- The upgrade takes about 0.2 s. The worker opens the library in 66 ms afterwards. The
+  Sessions page lists in under half a second. An autosave tick costs 0–1 ms and writes
+  nothing when nothing changed, and 28 ms when something did.
+- Autosave held in every scenario run: saves land about 2 s after a change; a burst of
+  fifty tabs opened and thirty closed is one save; a worker stopped by Chrome after real
+  idle time saves on the next change; a relaunch that restores the windows stays linked;
+  a relaunch that does not shows the banner and leaves the content untouched; a killed
+  Chrome damages nothing.
+
+Not checked: the real side panel (the same view was checked as a page), Chrome's "open
+the new tab page" startup setting (simulated by removing the profile's saved session),
+and the moment between the last window closing on macOS and the next one opening.
+
+## Loading this build on a profile with data
+
+- Load it with **Reload** in `chrome://extensions`. Replacing the files and restarting
+  Chrome kept the old background worker running with the new pages, even with the
+  version changed. That fails safe (pages say the worker did not answer, nothing is
+  written) but nothing works until the extension is reloaded.
+- Download a backup from Settings first.
+- Do not go back to an older build afterwards. `c48688b` opens upgraded data without
+  complaint and then misbehaves: its first switch closed the open tabs, opened the
+  target empty, and wrote schema 1 rows into the schema 3 index. Later builds refuse an
+  index newer than they know; that one cannot.
+- To roll back soon after upgrading: put the value stored under `library:index:v1` back
+  under `library:index`, then load the old build. The old index refers to entries the new
+  build deletes as checkpoints are pushed out, so this only works early.
+
+## Known costs and limits
+
+- Tabs closed within five minutes of a checkpoint, in a save that makes none, are in
+  nothing Papaya keeps. Chrome's own "reopen closed window" still has them.
+- Every save rewrites the whole index (325 KB at the owner's size). Deleted rows stay in
+  it as deletion markers: the 189 old `versions` rows are about 20% of it, and each
+  checkpoint pushed out adds about 340 bytes for good.
+- Each browser restart rewrites the open session's content once, because restored
+  windows and groups get new ids and contents are compared whole.
+- Switching into a 320-tab session took about a minute, as before this work. Autosave
+  waits behind it.
+- A page that retitles itself constantly never lets a title-only save happen. Its title
+  is saved with the next structural change.
 
 ## Left for the sync plan (5b)
 
@@ -232,3 +291,7 @@ The library is live on a real browser profile with years of sessions. Treat it t
   index before it syncs. A fresh store stamps its default values as it is created, so in
   a merge those defaults beat older real values (found in step 2: a page copy that merged
   on first load saw `migratedAt: 0`).
+- Deletion markers. The index only grows as checkpoints come and go. With one device it
+  could be rebuilt without them; with sync, every copy has to agree first. Giving
+  checkpoints a fixed set of row ids per session, reused instead of deleted, would stop
+  the growth at its source.

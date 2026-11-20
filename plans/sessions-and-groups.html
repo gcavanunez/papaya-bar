@@ -1042,18 +1042,17 @@
 								<td><span class="state partial">First part built</span> <code>cec2e97</code></td>
 								<td>
 									Built: the move-in, switching sessions, Home, the library page, versions,
-									editing. Left: your run on real data, and polish from it. Versions are being
+									editing. Left: your run on real data, and polish from it. Versions were
 									replaced by checkpoints in 4b.
 								</td>
 							</tr>
 							<tr>
 								<td>4b · Autosave and checkpoints</td>
-								<td><span class="state next">In progress</span></td>
+								<td><span class="state done">Built</span> <code>b3a62c6</code>…<code>507b8bd</code></td>
 								<td>
-									Being built in five steps: the open session per device (built); all saving
-									moved into the background worker; checkpoints and autosave; the screens; a
-									check in a real browser
-									(<a href="#v25">why</a>).
+									Loading it on your real profile: download a backup first, press Reload in
+									<code>chrome://extensions</code>, and don't go back to the old build afterwards
+									(<a href="#phase-4b">details</a>).
 								</td>
 							</tr>
 							<tr>
@@ -1227,8 +1226,8 @@
 					<li>
 						<strong>Checkpoints replace versions.</strong> Papaya keeps an earlier state by itself:
 						at most one an hour while a session is changing, and always before something that could
-						lose tabs (restoring an older state, editing a closed session, a save that drops more
-						than half the tabs). The newest 10 are kept. They appear as <em>History</em> on the
+						lose tabs (restoring an older state, editing a closed session, a save that drops
+						five or more tabs or more than half). The newest 10 are kept. They appear as <em>History</em> on the
 						session's page, where you can look at one, open a copy, or restore it. Restoring the
 						open session reopens those tabs. A "Save a checkpoint" command stays in the palettes
 						for when you want one on purpose.
@@ -1272,7 +1271,7 @@
 				<p class="prose">
 					This reverses one recorded decision, about when history gets a new version. It's marked
 					as changed in <a href="#decisions">Decisions</a> rather than removed. The work is
-					<a href="#phase-4b">phase 4b</a>, in progress now.
+					<a href="#phase-4b">phase 4b</a>, now built.
 				</p>
 			</section>
 
@@ -2229,34 +2228,36 @@
 					<li id="phase-4b">
 						<span class="pn" aria-hidden="true">4b</span>
 						<div>
-							<h3>Autosave and checkpoints <span class="state next">In progress</span></h3>
+							<h3>Autosave and checkpoints <span class="state done">Built</span></h3>
 							<p class="needs">
 								Needs phase 4. Replaces its versions; nothing else from phase 4 changes. Built in
 								five steps.
 							</p>
 							<ul>
 								<li>
-									<strong>The open session per device.</strong> Which session is open leaves the
-									data that will sync. Nothing about saving changes yet. Built.
+									<strong>The open session per device.</strong> Which session is open left the
+									data that will sync.
 								</li>
 								<li>
-									<strong>One place does the saving.</strong> Every change to the library moves
-									into the background worker, which makes them one at a time. Pages ask it to
-									act. Nothing you can see changes.
+									<strong>One place does the saving.</strong> Every change to the library happens
+									in the background worker, one at a time. Pages ask it to act.
 								</li>
 								<li>
 									<strong>Saving, checkpoints and autosave.</strong> The background worker saves
-									the open session; checkpoints replace versions; saving pauses on an empty
+									the open session; checkpoints replaced versions; saving pauses on an empty
 									window; your data upgrades in place.
 								</li>
 								<li>
-									<strong>The screens.</strong> "Save version" goes; the sidebar shows when it was
-									saved; History on the session's page; edits to a closed session apply at once
-									with Undo; the banner; "Save a checkpoint" in the palettes.
+									<strong>The screens.</strong> "Save version" is gone; the sidebar shows when it
+									was saved; History on the session's page; edits to a closed session apply at
+									once with Undo; the banner; "Save a checkpoint" in the palettes.
 								</li>
 								<li>
-									<strong>A check in a real browser:</strong> the built extension in a throwaway
-									Chrome profile, never yours.
+									<strong>A check in a real browser.</strong> The build you run today and this one
+									were loaded in turn into a throwaway profile holding your November backup: 179
+									sessions and 18,465 tabs. Every session, every old version and the stashed group
+									came through exactly, including when Chrome was killed during the upgrade. The
+									upgrade takes about 0.2 seconds.
 								</li>
 							</ul>
 							<p class="done">
@@ -2264,6 +2265,20 @@
 								and lose nothing: Papaya pauses instead of saving the empty window, reopens the
 								tabs in a click, and every old version is there as a checkpoint.
 							</p>
+							<p class="needs"><strong>Loading it on your real profile</strong></p>
+							<ul>
+								<li>Download a backup from Settings first.</li>
+								<li>
+									Press Reload on Papaya in <code>chrome://extensions</code>. Restarting Chrome
+									instead keeps the old background worker running: nothing is written, but
+									nothing works until you reload.
+								</li>
+								<li>
+									Don't load the old build afterwards. It opens the upgraded data without
+									complaint and then misbehaves. Builds from here on refuse data newer than they
+									know.
+								</li>
+							</ul>
 						</div>
 					</li>
 					<li class="later">
@@ -2473,8 +2488,9 @@
 								<td>
 									Papaya saves only while the windows really hold the session: at least half its
 									saved tabs open, or it had none. Otherwise saving pauses and the banner shows. A
-									save that drops more than half the tabs keeps a checkpoint first. Switching away
-									while paused saves any real open tabs as a new session first.
+									save that drops five or more tabs, or more than half, keeps a checkpoint first
+									(at most one every five minutes). Switching away while paused saves any real
+									open tabs as a new session first.
 								</td>
 							</tr>
 							<tr>
@@ -2493,7 +2509,22 @@
 								<td>
 									A copy of the data as it was is kept first. A test loads old data the way the
 									extension does and checks nothing is lost. Each step is safe to run twice. The
-									check in a throwaway Chrome profile comes before it reaches yours.
+									check in a throwaway Chrome profile, on your November backup, passed.
+								</td>
+							</tr>
+							<tr>
+								<td>Going back to an older build after the upgrade (4b)</td>
+								<td>
+									The build from before 4b doesn't know the new data and misbehaves on it. Don't
+									load it. To go back soon after upgrading, the copy of the old data has to be
+									put back first; the spec says how.
+								</td>
+							</tr>
+							<tr>
+								<td>Saved titles wearing down after restarts (4b)</td>
+								<td>
+									Chrome shows a tab it hasn't loaded with its address as the title. Papaya keeps
+									the title and icon it already has for that address.
 								</td>
 							</tr>
 						</tbody>
