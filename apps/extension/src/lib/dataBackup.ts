@@ -11,9 +11,9 @@
  */
 import { initializeStore, store, getStoreContent } from '@/sync/store'
 import type { Content } from 'tinybase'
-import { exportLibrary, importLibrary, type LibraryBackup } from '@/lib/library/backup'
+import { exportLibrary, type LibraryBackup } from '@/lib/library/backup'
+import { getLibrary, sendCommand } from '@/lib/library/client'
 import { planMigration, type OldStoreContent } from '@/lib/library/migrate'
-import { getLibrary } from '@/lib/library/runtime'
 
 const SESSIONS_KEY = 'sessions:saved'
 const SETTINGS_KEY = 'chonching-tabs-settings'
@@ -108,7 +108,10 @@ export interface ImportSummary {
  *   id/key collisions), keeping everything you already have.
  * Caller should confirm with the user first and reload the page afterward.
  */
-export async function importBackup(file: File, mode: ImportMode = 'replace'): Promise<ImportSummary> {
+export async function importBackup(
+	file: File,
+	mode: ImportMode = 'replace',
+): Promise<ImportSummary> {
 	const data = JSON.parse(await file.text()) as Partial<BackupFile>
 	if (data.app !== 'papaya-bar' || !data.tinybase) {
 		throw new Error('That doesn\u2019t look like a Papaya backup file.')
@@ -150,12 +153,13 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
 		if (Object.keys(toSet).length) await chrome.storage.local.set(toSet)
 	}
 
-	// Sessions: a new backup carries the library; an old one goes through the migration
+	// Sessions: a new backup carries the library; an old one goes through the migration.
+	// The background worker writes them.
 	const source =
 		data.library ??
 		planMigration({
 			store: data.tinybase as OldStoreContent,
 			savedSessions: data.legacySessions ?? [],
 		})
-	return importLibrary(await getLibrary(), source, mode)
+	return sendCommand('importLibrary', { source, mode })
 }

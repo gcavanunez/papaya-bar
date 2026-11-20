@@ -1,7 +1,7 @@
 /**
- * A small in-memory `chrome` for unit tests: windows, tabs, tab groups, displays
- * and storage.local, with enough behavior to check what restore and grouping code
- * did to the browser. Install it with `installFakeChrome()` in a test.
+ * A small in-memory `chrome` for unit tests: windows, tabs, tab groups, displays,
+ * storage.local and runtime messages, with enough behavior to check what restore and
+ * grouping code did to the browser. Install it with `installFakeChrome()` in a test.
  */
 
 interface FakeWindow {
@@ -63,6 +63,47 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	function emitStorage(changes: Record<string, chrome.storage.StorageChange>) {
 		const copy = structuredClone(changes)
 		setTimeout(() => storageListeners.forEach((listener) => listener(copy, 'local')), 0)
+	}
+	type MessageListener = (
+		message: unknown,
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response?: unknown) => void,
+	) => boolean | undefined | void
+	const messageListeners = new Set<MessageListener>()
+	/** Messages cross as JSON, as in Chrome: anything else is lost on the way */
+	const overTheWire = <T>(value: T): T =>
+		value === undefined ? value : JSON.parse(JSON.stringify(value))
+	/**
+	 * Like Chrome: delivered later, to every listener; the first answer wins; a listener
+	 * that returns true answers later. No listener at all is an error; listeners that
+	 * never answer resolve to undefined.
+	 */
+	function sendMessage(message: unknown, callback?: (response: unknown) => void) {
+		const sent = overTheWire(message)
+		const reply = new Promise<unknown>((resolve, reject) => {
+			setTimeout(() => {
+				if (!messageListeners.size) {
+					reject(
+						new Error('Could not establish connection. Receiving end does not exist.'),
+					)
+					return
+				}
+				let answered = false
+				let waiting = false
+				const sendResponse = (response?: unknown) => {
+					if (answered) return
+					answered = true
+					resolve(overTheWire(response))
+				}
+				for (const listener of [...messageListeners]) {
+					if (listener(sent, { id: api.runtime.id }, sendResponse) === true)
+						waiting = true
+				}
+				if (!waiting && !answered) resolve(undefined)
+			}, 0)
+		})
+		if (!callback) return reply
+		void reply.then(callback, () => callback(undefined))
 	}
 	let nextId = 1
 	const calls: { method: string; args: unknown }[] = []
@@ -138,7 +179,14 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	}
 
 	const api = {
-		runtime: { id: 'papaya-test' },
+		runtime: {
+			id: 'papaya-test',
+			sendMessage,
+			onMessage: {
+				addListener: (listener: MessageListener) => messageListeners.add(listener),
+				removeListener: (listener: MessageListener) => messageListeners.delete(listener),
+			},
+		},
 		system: {
 			display: {
 				getInfo(callback: (info: unknown[]) => void) {

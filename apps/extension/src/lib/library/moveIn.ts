@@ -1,9 +1,9 @@
 /**
  * The one-time move from saved sessions and contexts into the library. Pages only: it
- * reads the old TinyBase store, which lives in a page's IndexedDB.
+ * reads the old TinyBase store, which lives in a page's IndexedDB. The page plans the
+ * move; the background worker applies the plan.
  */
 import { planMigration, type MigrationResult, type OldStoreContent } from './migrate'
-import { applyMigration, type Library } from './store'
 
 const SAVED_SESSIONS_KEY = 'sessions:saved'
 /** What the old background worker queued for a page to apply */
@@ -37,8 +37,4 @@ export function isNothingToMove(result: MigrationResult): boolean {
 		!found.pendingParked &&
 		!result.report.created.tabs
 	)
-}
-
-export async function moveIn(lib: Library, result: MigrationResult): Promise<void> {
-	await applyMigration(lib, result)
 }

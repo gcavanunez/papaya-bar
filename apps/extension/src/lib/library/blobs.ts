@@ -1,7 +1,7 @@
 /**
  * Contents stored apart from the library index: one chrome.storage entry per version or
  * stashed group (keys keep the original "version" prefix). Entries never change once
- * written, so reads are cached for good.
+ * written, so reads are cached until the stored entry is deleted or replaced.
  */
 import type { VersionData } from './model'
 
@@ -17,8 +17,24 @@ export interface VersionBlobs {
 export const VERSION_KEY_PREFIX = 'library:version:'
 const keyOf = (id: string) => `${VERSION_KEY_PREFIX}${id}`
 
-export function chromeBlobs(): VersionBlobs {
+/**
+ * Entries in chrome.storage.local. A read-only copy (a page's) rejects writes, since
+ * only the background worker writes the library; every copy forgets an entry once
+ * another context deletes or rewrites it.
+ */
+export function chromeBlobs(options: { readOnly?: boolean } = {}): VersionBlobs {
 	const cache = new Map<string, VersionData>()
+	chrome.storage.onChanged.addListener((changes, area) => {
+		if (area !== 'local') return
+		for (const key of Object.keys(changes)) {
+			if (key.startsWith(VERSION_KEY_PREFIX))
+				cache.delete(key.slice(VERSION_KEY_PREFIX.length))
+		}
+	})
+	const refuse = () =>
+		Promise.reject(
+			new Error('A page cannot change saved tabs; the background worker writes them'),
+		)
 
 	async function getMany(ids: string[]): Promise<Map<string, VersionData>> {
 		const missing = ids.filter((id) => !cache.has(id))
@@ -38,6 +54,7 @@ export function chromeBlobs(): VersionBlobs {
 		},
 		getMany,
 		async set(entries) {
+			if (options.readOnly) return refuse()
 			await chrome.storage.local.set(
 				Object.fromEntries(
 					Object.entries(entries).map(([id, data]) => [keyOf(id), JSON.stringify(data)]),
@@ -46,6 +63,7 @@ export function chromeBlobs(): VersionBlobs {
 			for (const [id, data] of Object.entries(entries)) cache.set(id, data)
 		},
 		async delete(ids) {
+			if (options.readOnly) return refuse()
 			if (!ids.length) return
 			await chrome.storage.local.remove(ids.map(keyOf))
 			for (const id of ids) cache.delete(id)

@@ -3,10 +3,12 @@ import type { MergeableContent } from 'tinybase'
 import { installFakeChrome } from '@/test/fakeChrome'
 import { sampleV1Store } from '@/test/libraryV1'
 import { INDEX_KEY } from './persist'
+import { createLibraryClient } from './client'
 import { openLibrary } from './runtime'
 import { DEVICE_KEY } from './state'
 import { createLibrary, getOpenSessionId, getSession, listSessions, type Library } from './store'
 import { INDEX_V1_KEY, upgradeLibrary } from './upgrade'
+import { createLibraryWriter } from './writer'
 
 const settle = async () => {
 	for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 5))
@@ -40,7 +42,7 @@ describe('upgrading a schema 1 library', () => {
 		const stored = structuredClone(v1.getMergeableContent())
 		fake.storage.set(INDEX_KEY, structuredClone(stored))
 
-		const lib = await openLibrary()
+		const { lib } = await openLibrary()
 		expect(lib.store.getTables()).toEqual(expectedTables(v1))
 		expect(lib.store.getValues()).toEqual({ schemaVersion: 2, migratedAt: 90 })
 		expect(getOpenSessionId(lib)).toBe('ctx-work')
@@ -62,7 +64,7 @@ describe('upgrading a schema 1 library', () => {
 		expect(fake.storage.get(INDEX_V1_KEY)).toEqual(stored)
 		expect(fake.storage.get(DEVICE_KEY)).toEqual({ openSessionId: 'ctx-work' })
 		// What is stored now opens the same way in the next page
-		const later = await openLibrary()
+		const { lib: later } = await openLibrary()
 		expect(later.store.getTables()).toEqual(expectedTables(v1))
 		expect(getOpenSessionId(later)).toBe('ctx-work')
 		expect(fake.storage.get(INDEX_V1_KEY)).toEqual(stored)
@@ -71,13 +73,21 @@ describe('upgrading a schema 1 library', () => {
 	it('a page and the worker opening at once agree', async () => {
 		const v1 = sampleV1Store()
 		fake.storage.set(INDEX_KEY, structuredClone(v1.getMergeableContent()))
-		const [panel, worker] = await Promise.all([openLibrary(), openLibrary()])
+		const writer = createLibraryWriter()
+		chrome.runtime.onMessage.addListener(writer.onMessage)
+		// The page waits for the worker to open (and upgrade) before it reads
+		const [panel, worker] = await Promise.all([
+			createLibraryClient().getLibrary(),
+			writer.library(),
+		])
 		await settle()
 		for (const lib of [panel, worker]) {
 			expect(lib.store.getTables()).toEqual(expectedTables(v1))
+			// The page's fresh store has default values, but the stored ones win
+			expect(lib.store.getValues()).toEqual({ schemaVersion: 2, migratedAt: 90 })
 			expect(getOpenSessionId(lib)).toBe('ctx-work')
 		}
-		const later = await openLibrary()
+		const { lib: later } = await openLibrary()
 		expect(later.store.getTables()).toEqual(expectedTables(v1))
 	})
 
@@ -139,7 +149,7 @@ describe('upgrading a schema 1 library', () => {
 		expect(fake.storage.get(INDEX_V1_KEY)).toBe('the first copy')
 
 		fake = installFakeChrome()
-		const empty = await openLibrary()
+		const { lib: empty } = await openLibrary()
 		expect(empty.store.getValues()).toEqual({ schemaVersion: 0, migratedAt: 0 })
 		expect(fake.storage.has(INDEX_V1_KEY)).toBe(false)
 	})

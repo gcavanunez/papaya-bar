@@ -15,6 +15,8 @@ export interface StateStore<T extends object> {
 	read(): Promise<T>
 	/** Change some fields; resolves once stored */
 	set(patch: Partial<T>): Promise<void>
+	/** Bring the cached copy up to what is stored, without waiting to hear of it */
+	refresh(): Promise<T>
 	/** Hear every change, from this context or another; returns a function to stop */
 	subscribe(listener: (state: T) => void): () => void
 }
@@ -56,6 +58,7 @@ export function memoryState<T extends object>(defaults: T): StateStore<T> {
 			state = next
 			for (const listener of listeners) listener(state)
 		},
+		refresh: async () => state,
 		subscribe(listener) {
 			listeners.add(listener)
 			return () => listeners.delete(listener)
@@ -63,11 +66,17 @@ export function memoryState<T extends object>(defaults: T): StateStore<T> {
 	}
 }
 
+export interface ChromeStateOptions {
+	/** For pages: only the background worker writes the library's state */
+	readOnly?: boolean
+}
+
 /** State kept under one chrome.storage key, loaded before it is returned */
 export async function chromeState<T extends object>(
 	area: 'local' | 'session',
 	key: string,
 	defaults: T,
+	options: ChromeStateOptions = {},
 ): Promise<StateStore<T>> {
 	let state = { ...defaults }
 	const listeners = new Set<(state: T) => void>()
@@ -93,12 +102,21 @@ export async function chromeState<T extends object>(
 		get: () => state,
 		read,
 		set(patch) {
+			if (options.readOnly) {
+				return Promise.reject(
+					new Error(`A page cannot change ${key}; the background worker writes it`),
+				)
+			}
 			update({ ...state, ...patch })
 			const write = writing.then(async () => {
 				await chrome.storage[area].set({ [key]: { ...(await read()), ...patch } })
 			})
 			writing = write.catch((error) => console.warn('[papaya] could not save', key, error))
 			return write
+		},
+		async refresh() {
+			update(await read())
+			return state
 		},
 		subscribe(listener) {
 			listeners.add(listener)
@@ -107,5 +125,6 @@ export async function chromeState<T extends object>(
 	}
 }
 
-export const chromeDevice = () => chromeState('local', DEVICE_KEY, DEVICE_DEFAULTS)
+export const chromeDevice = (options?: ChromeStateOptions) =>
+	chromeState('local', DEVICE_KEY, DEVICE_DEFAULTS, options)
 export const memoryDevice = () => memoryState(DEVICE_DEFAULTS)

@@ -1,6 +1,4 @@
 import { cycleGroup, focusGroup, listOpenGroups } from './src/lib/tabGroups'
-import { getLibrary } from './src/lib/library/runtime'
-import { putAway, saveOpenAs, saveVersion, switchTo } from './src/lib/library/actions'
 import {
 	HOME_ID,
 	getOpenSessionId,
@@ -8,7 +6,11 @@ import {
 	listSessions,
 	listStashed,
 } from './src/lib/library/store'
-import { openStashed, swapToGroup, swapToStashed } from './src/lib/library/stash'
+import { createLibraryWriter } from './src/lib/library/writer'
+
+// The only writer of the sessions library; pages send it library.* messages
+const library = createLibraryWriter()
+chrome.runtime.onMessage.addListener(library.onMessage)
 
 // Get the current tab
 const getCurrentTab = async () => {
@@ -57,11 +59,11 @@ chrome.runtime.onInstalled.addListener(() => {
 })
 
 // ==================== Website palette (⌥K) ====================
-// The content-script palette can't reach the library, so it asks here. The library
-// is shared with every extension page through chrome.storage.
+// The content-script palette can't reach the library, so it asks here. What it changes
+// runs on the library's queue, like a page's command.
 
 async function paletteGetModel() {
-	const lib = await getLibrary()
+	const lib = await library.library()
 	const tabs = await chrome.tabs.query({})
 	const extPrefix = 'chrome-extension://' + chrome.runtime.id
 	const openTabs = tabs
@@ -106,7 +108,7 @@ async function paletteGetModel() {
 async function paletteSearchSaved(query) {
 	const q = (query || '').trim().toLowerCase()
 	if (q.length < 2) return []
-	const lib = await getLibrary()
+	const lib = await library.library()
 	const sessions = listSessions(lib)
 	const sessionName = new Map(sessions.map((s) => [s.id, s.name]))
 	const sources = [
@@ -149,29 +151,27 @@ async function handlePaletteMessage(message, sender) {
 		case 'palette.searchSaved':
 			return paletteSearchSaved(message.query)
 		case 'palette.switch':
-			await switchTo(await getLibrary(), message.sessionId)
+			await library.run('switchTo', { sessionId: message.sessionId })
 			return { ok: true }
 		case 'palette.saveVersion':
-			await saveVersion(await getLibrary())
+			await library.run('saveVersion')
 			return { ok: true }
 		case 'palette.saveAs':
-			await saveOpenAs(await getLibrary(), message.name)
+			await library.run('saveOpenAs', { name: message.name })
 			return { ok: true }
 		case 'palette.putAway':
-			await putAway(await getLibrary())
+			await library.run('putAway')
 			return { ok: true }
 		case 'palette.jumpTab':
 			return paletteJumpTab(message.tabId)
 		case 'palette.focusGroup':
 			// Shift swaps: the group you're in is stashed
-			if (message.swap) await swapToGroup(await getLibrary(), message.groupId)
+			if (message.swap) await library.run('swapToGroup', { groupId: message.groupId })
 			else await focusGroup(message.groupId)
 			return { ok: true }
 		case 'palette.openStashed': {
-			const lib = await getLibrary()
-			const windowId = sender?.tab?.windowId
-			if (message.swap) await swapToStashed(lib, message.stashId, windowId)
-			else await openStashed(lib, message.stashId, windowId)
+			const args = { stashId: message.stashId, windowId: sender?.tab?.windowId }
+			await library.run(message.swap ? 'swapToStashed' : 'openStashed', args)
 			return { ok: true }
 		}
 		case 'palette.openUrl':

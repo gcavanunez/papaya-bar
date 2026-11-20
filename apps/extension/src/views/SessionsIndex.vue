@@ -25,7 +25,7 @@ import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { pluralize, recencyBucket, timeAgo } from '@/lib/format'
 import { savedSessionToData, type OldSavedSession } from '@/lib/library/migrate'
 import { parsePreview, type VersionData } from '@/lib/library/model'
-import { createSession, type SessionSummary } from '@/lib/library/store'
+import type { SessionSummary } from '@/lib/library/store'
 import { button } from '@/lib/ui'
 import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
@@ -48,6 +48,7 @@ const {
 	switchTo,
 	saveCopy,
 	openCopy,
+	createSession,
 	archive,
 	unarchive,
 	remove,
@@ -160,7 +161,7 @@ async function onFileChange(event: Event) {
 		const parsed = JSON.parse(await file.text()) as OldSavedSession
 		const data: VersionData = savedSessionToData(parsed)
 		const name = parsed.title?.trim() || file.name.replace(/\.json$/, '')
-		await createSession(await library(), { name, description: parsed.description ?? '' }, data)
+		await createSession({ name, description: parsed.description ?? '' }, data)
 		toast(`Imported ${name}`)
 	} catch (e) {
 		toast.error(e instanceof Error ? e.message : 'Import failed')

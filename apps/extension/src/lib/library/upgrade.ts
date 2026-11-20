@@ -2,9 +2,10 @@
  * Upgrading a stored library index to the current schema, one link per version, when
  * the library opens (and after a move-in or an import writes an older shape).
  *
- * A page and the background worker may both upgrade at once and then merge what they
- * wrote, so every link is idempotent and deterministic: it only reads the index (and
- * what is stored for this device) and writes the same result every time.
+ * Only the background worker upgrades, but it may be stopped halfway and run the chain
+ * again, and copies upgraded apart may still merge, so every link is idempotent and
+ * deterministic: it only reads the index (and what is stored for this device) and
+ * writes the same result every time.
  */
 import type { Library } from './store'
 
