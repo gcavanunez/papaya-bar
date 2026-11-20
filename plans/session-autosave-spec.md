@@ -139,8 +139,11 @@ requires.
   more than half of the saved real tabs are gone, or five or more of them (a window
   closed, say), otherwise `routine`. Decided from the saved content and the capture, so
   a restarted worker decides the same way.
-- The content written is exactly the capture. Autosave never merges with the saved
-  content.
+- The content written is the capture. Autosave never merges with the saved content,
+  with one exception: a captured tab whose title is not its own (empty, or its address
+  as Chrome shows it for a tab it has not loaded since a restart) keeps the title the
+  saved content has for the same address, and an empty icon keeps the saved icon.
+  Which tabs are saved, the link decision and the count of lost tabs stay address-based.
 
 ### Unlinked
 

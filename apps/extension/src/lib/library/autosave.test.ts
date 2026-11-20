@@ -266,6 +266,40 @@ describe('autosave', () => {
 			expect(listCheckpoints(await lib(), trip)).toHaveLength(2)
 		})
 	})
+
+	it('a tab Chrome has not loaded keeps the title and icon already saved for it', async () => {
+		await fake.seedWindow([OWN_PAGE, ...TRIP])
+		await startWorker()
+		const titled = (url: string, i: number) => ({
+			url,
+			title: `Trip page ${i}`,
+			favIconUrl: `https://icons.com/${i}.png`,
+			windowId: 1,
+			groupId: -1,
+			active: false,
+		})
+		const trip = await writer.enqueue(async (library) => {
+			library.store.setValues({ schemaVersion: 3, migratedAt: 1 })
+			const saved: SessionContent = {
+				...(await captureOpen()),
+				tabs: (await captureOpen()).tabs.map((t, i) => ({
+					...titled(t.url, i),
+					windowId: t.windowId,
+				})),
+			}
+			const s = await createSession(library, { name: 'Trip' }, saved, 1)
+			await markOpen(library, s, 1)
+			return s
+		})
+		// The fake's tabs have no title or icon of their own, as Chrome's unloaded tabs
+		await openTab('https://cafe.com')
+		await wait(QUIET_MS)
+		const data = await getSessionData(await lib(), trip)
+		expect(data?.tabs.map((t) => [t.url, t.title, t.favIconUrl])).toEqual([
+			...TRIP.map((url, i) => [url, `Trip page ${i}`, `https://icons.com/${i}.png`]),
+			['https://cafe.com', '', ''],
+		])
+	})
 })
 
 describe('the waits', () => {

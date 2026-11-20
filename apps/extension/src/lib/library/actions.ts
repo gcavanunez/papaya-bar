@@ -101,6 +101,58 @@ export async function captureOpen(onlyTabIds?: number[]): Promise<SessionContent
 	}
 }
 
+/**
+ * Whether a tab's title is not its own: empty, or its address as Chrome shows it for a
+ * tab it has not loaded since a restart (without `http://`, any user name or a trailing
+ * slash, and decoded, so `obs.example:8765/✓-unicode` or `obs.example:8765`)
+ */
+export function isAddressTitle(title: string, url: string): boolean {
+	if (!title || title === url) return true
+	const loose = (text: string) => {
+		let out = text
+		try {
+			out = decodeURI(out)
+		} catch {
+			// Not valid escaping: compare as it is
+		}
+		return out
+			.replace(/^https?:\/\//, '')
+			.replace(/^[^/@]*@/, '')
+			.replace(/\/$/, '')
+	}
+	return loose(title) === loose(url)
+}
+
+/**
+ * A capture saved into the session it came from keeps the titles and icons the session
+ * already has for tabs that show none of their own (Chrome has not loaded them since a
+ * restart). Only titles and icons change: which tabs are saved stays the capture's.
+ * Repeated addresses match in order: the second open copy takes the second saved one's.
+ */
+export function keepKnownTitles(saved: SessionContent, capture: SessionContent): SessionContent {
+	const known = new Map<string, SavedTab[]>()
+	for (const tab of saved.tabs) known.set(tab.url, [...(known.get(tab.url) ?? []), tab])
+	const seen = new Map<string, number>()
+	let changed = false
+	const tabs = capture.tabs.map((tab) => {
+		const nth = seen.get(tab.url) ?? 0
+		seen.set(tab.url, nth + 1)
+		const same = known.get(tab.url)
+		const needsTitle = isAddressTitle(tab.title, tab.url)
+		if (!same || (!needsTitle && tab.favIconUrl)) return tab
+		const match = same[Math.min(nth, same.length - 1)]
+		const titled = [match, ...same].find((t) => !isAddressTitle(t.title, t.url))
+		const iconed = [match, ...same].find((t) => t.favIconUrl)
+		const next = { ...tab }
+		if (needsTitle && titled) next.title = titled.title
+		if (!tab.favIconUrl && iconed) next.favIconUrl = iconed.favIconUrl
+		if (next.title === tab.title && next.favIconUrl === tab.favIconUrl) return tab
+		changed = true
+		return next
+	})
+	return changed ? { ...capture, tabs } : capture
+}
+
 /** A save that loses this many of the saved real tabs (or more than half) keeps what it replaces */
 export const CAREFUL_LOST_TABS = 5
 
@@ -164,7 +216,8 @@ export async function saveLinked(
 	const saved = (await getSessionData(lib, sessionId)) ?? emptyContent()
 	const decision = await decideLink(lib, saved, capture, now)
 	if (!decision.linked) return { linked: false, changed: false }
-	const { changed } = await setContent(lib, sessionId, capture, decision.mode, {
+	const data = keepKnownTitles(saved, capture)
+	const { changed } = await setContent(lib, sessionId, data, decision.mode, {
 		reason: decision.adopting ? 'upgrade' : reason,
 		now,
 	})

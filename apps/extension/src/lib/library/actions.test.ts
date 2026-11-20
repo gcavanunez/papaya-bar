@@ -12,6 +12,8 @@ import {
 	saveCheckpoint,
 	saveCopy,
 	saveOpenAs,
+	isAddressTitle,
+	keepKnownTitles,
 	switchTo,
 	toVersionTab,
 } from './actions'
@@ -232,6 +234,89 @@ describe('saving', () => {
 		await fake.seedWindow(['chrome://newtab/', 'about:blank', 'chrome://newtab/'])
 		const id = await saveCopy(lib)
 		expect(getSession(lib, id)).toMatchObject({ name: 'home-a.com, home-b.com', tabCount: 5 })
+	})
+
+	it('tells a title Chrome made from the address (an unloaded tab) from a real one', () => {
+		// As Chrome 148 reported them for tabs it had not loaded after a restart
+		expect(
+			isAddressTitle(
+				'obs.papaya.test:8765/✓-unicode',
+				'http://obs.papaya.test:8765/%E2%9C%93-unicode',
+			),
+		).toBe(true)
+		expect(isAddressTitle('obs.papaya.test:8765', 'http://obs.papaya.test:8765/')).toBe(true)
+		expect(
+			isAddressTitle('ctrl.papaya.test:8765/open', 'http://ctrl.papaya.test:8765/open'),
+		).toBe(true)
+		expect(
+			isAddressTitle(
+				'data:text/html,<title>D</title>hi',
+				'data:text/html,<title>D</title>hi',
+			),
+		).toBe(true)
+		expect(isAddressTitle('', 'https://a.com/x')).toBe(true)
+		expect(isAddressTitle('https://a.com/x', 'https://a.com/x')).toBe(true)
+		expect(isAddressTitle('a.com/x', 'https://a.com/x')).toBe(true)
+		expect(isAddressTitle('a.com/x', 'https://me:pw@a.com/x')).toBe(true)
+		expect(
+			isAddressTitle(
+				'Real title of obs.papaya.test/plain',
+				'http://obs.papaya.test:8765/plain',
+			),
+		).toBe(false)
+		expect(isAddressTitle('a.com', 'https://a.com/x')).toBe(false)
+		expect(isAddressTitle('x', 'https://a.com/%E0%A4%A')).toBe(false)
+	})
+
+	it('keeps saved titles and icons for tabs that show none of their own, and nothing else', () => {
+		const tab = (url: string, title: string, favIconUrl = '') => ({
+			url,
+			title,
+			favIconUrl,
+			windowId: 1,
+			groupId: -1,
+			active: false,
+		})
+		const saved = {
+			...data(),
+			tabs: [
+				tab('https://a.com/', 'A', 'a.png'),
+				tab('https://dup.com/x', 'First', 'd1.png'),
+				tab('https://dup.com/x', 'Second', 'd2.png'),
+				tab('https://b.com/y', 'b.com/y'),
+				tab('https://gone.com/', 'Gone'),
+			],
+		}
+		const capture = {
+			...data(),
+			tabs: [
+				tab('https://new.com/', 'new.com'),
+				tab('https://a.com/', 'a.com'),
+				tab('https://dup.com/x', 'dup.com/x'),
+				tab('https://dup.com/x', ''),
+				tab('https://dup.com/x', 'dup.com/x'),
+				tab('https://b.com/y', 'b.com/y', 'b.png'),
+				tab('https://a.com/', 'Renamed', ''),
+			],
+		}
+		const kept = keepKnownTitles(saved, capture)
+		expect(kept.tabs.map((t) => [t.url, t.title, t.favIconUrl])).toEqual([
+			['https://new.com/', 'new.com', ''],
+			['https://a.com/', 'A', 'a.png'],
+			['https://dup.com/x', 'First', 'd1.png'],
+			['https://dup.com/x', 'Second', 'd2.png'],
+			// A third copy takes the last saved one's
+			['https://dup.com/x', 'Second', 'd2.png'],
+			// Nothing better saved: as captured
+			['https://b.com/y', 'b.com/y', 'b.png'],
+			// A title of its own stays; only the missing icon is filled
+			['https://a.com/', 'Renamed', 'a.png'],
+		])
+		expect(kept.groups).toBe(capture.groups)
+		expect(kept.windows).toBe(capture.windows)
+		// Nothing to fill: the capture itself
+		const plain = { ...data(), tabs: [tab('https://z.com/', 'Z', 'z.png')] }
+		expect(keepKnownTitles(saved, plain)).toBe(plain)
 	})
 
 	it('a tab still loading at a blank address is saved at the address it is going to', () => {
