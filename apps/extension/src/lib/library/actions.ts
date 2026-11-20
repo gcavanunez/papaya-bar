@@ -101,6 +101,9 @@ export async function captureOpen(onlyTabIds?: number[]): Promise<SessionContent
 	}
 }
 
+/** A save that loses this many of the saved real tabs (or more than half) keeps what it replaces */
+export const CAREFUL_LOST_TABS = 5
+
 /** The session the open windows belong to: the open one, or Home when none is */
 export const currentSessionId = (lib: Library) => getOpenSessionId(lib) || HOME_ID
 
@@ -117,7 +120,8 @@ export interface LinkDecision {
  * Whether what's open is the open session's content, decided now unless it already is
  * linked, and stored. Linked when the saved content has no real tabs, or at least half
  * of its real tabs' addresses are open. Saving what's open is careful when more than
- * half of them are gone, and on the save that links while some are still missing (Chrome
+ * half of them are gone or CAREFUL_LOST_TABS or more are (a window of them closed, say),
+ * and on the save that links while some are still missing (Chrome
  * restoring them late, say), so what it replaces is kept.
  *
  * Right after the upgrade, what's open is taken as the session's once, unless it has no
@@ -137,7 +141,7 @@ export async function decideLink(
 		}
 		await lib.device.set({ adoptLive: false })
 	}
-	const lost = (total - open) * 2 > total
+	const lost = (total - open) * 2 > total || total - open >= CAREFUL_LOST_TABS
 	if (getLink(lib) === 'linked') {
 		return { linked: true, mode: lost ? 'careful' : 'routine', adopting: false }
 	}

@@ -196,6 +196,76 @@ describe('autosave', () => {
 		const [kept] = listCheckpoints(await lib(), trip)
 		expect(urlsOf(await getCheckpointData(await lib(), kept.id))).toEqual(TRIP)
 	})
+
+	describe('a window of tabs closed, fewer than half of the session', () => {
+		const MINUTE = 60_000
+		const WINDOW = Array.from({ length: 10 }, (_, i) => `https://win${i}.com`)
+		const MORE = Array.from({ length: 12 }, (_, i) => `https://more${i}.com`)
+
+		/** Trip with 15 tabs saved and a checkpoint `age` old, then a second window of 10 tabs saved */
+		async function windowSaved(age: number) {
+			const trip = await tripIsOpen()
+			for (const url of MORE) await openTab(url)
+			await wait(QUIET_MS)
+			// Trip had no checkpoint, so that save kept one
+			expect(listCheckpoints(await lib(), trip)).toHaveLength(1)
+			await vi.advanceTimersByTimeAsync(age)
+			const win = (await chrome.windows.create({ url: WINDOW[0] }))!
+			for (const url of WINDOW.slice(1)) await openTab(url, win.id)
+			await wait(QUIET_MS)
+			expect(await contentOf(trip)).toEqual([...TRIP, ...MORE, ...WINDOW])
+			// A routine save within the hour keeps no checkpoint
+			expect(listCheckpoints(await lib(), trip)).toHaveLength(1)
+			return { trip, windowId: win.id! }
+		}
+		async function closeWindow(windowId: number, count = WINDOW.length) {
+			if (count === WINDOW.length) await fake.closeWindow(windowId)
+			else {
+				const tabs = await chrome.tabs.query({ windowId })
+				await chrome.tabs.remove(tabs.slice(0, count).map((t) => t.id!))
+			}
+			autosave.changed()
+			await wait(QUIET_MS)
+		}
+
+		it('keeps its tabs in a checkpoint when five or more are gone', async () => {
+			const { trip, windowId } = await windowSaved(20 * MINUTE)
+			await closeWindow(windowId)
+			expect(await contentOf(trip)).toEqual([...TRIP, ...MORE])
+			const [newest] = listCheckpoints(await lib(), trip)
+			expect(urlsOf(await getCheckpointData(await lib(), newest.id))).toEqual([
+				...TRIP,
+				...MORE,
+				...WINDOW,
+			])
+			for (const url of WINDOW) expect(await everythingKept(trip)).toContain(url)
+		})
+
+		it('makes no checkpoint when one was made in the last five minutes', async () => {
+			const { trip, windowId } = await windowSaved(2 * MINUTE)
+			await closeWindow(windowId)
+			expect(await contentOf(trip)).toEqual([...TRIP, ...MORE])
+			expect(listCheckpoints(await lib(), trip)).toHaveLength(1)
+		})
+
+		it('four tabs gone is still routine', async () => {
+			const { trip, windowId } = await windowSaved(20 * MINUTE)
+			await closeWindow(windowId, 4)
+			expect(await contentOf(trip)).toEqual([...TRIP, ...MORE, ...WINDOW.slice(4)])
+			expect(listCheckpoints(await lib(), trip)).toHaveLength(1)
+		})
+
+		it('a restarted worker decides it the same way, from what is stored', async () => {
+			const { trip, windowId } = await windowSaved(20 * MINUTE)
+			// Clearing the fake timers also winds the fake clock back; real time carries on
+			const now = Date.now()
+			stopWorker()
+			vi.setSystemTime(now)
+			await fake.closeWindow(windowId)
+			expect(await startWorker()).toBe('saved')
+			expect(listCheckpoints(await lib(), trip)).toHaveLength(2)
+		})
+	})
 })
 
 describe('the waits', () => {

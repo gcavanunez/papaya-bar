@@ -96,7 +96,8 @@ One function writes a session's content: `setContent(lib, sessionId, data, mode)
    - `routine` (autosave, saving the session you leave, tabs moved in): when the
      session's newest checkpoint is older than 1 hour, or it has none.
    - `careful` (an edit to a closed session; an autosave that loses more than half of the
-     saved tabs): unless a checkpoint was made in the last 5 minutes.
+     saved real tabs, or five or more of them): unless a checkpoint was made in the last
+     5 minutes.
    - `always` (before a restore, before "Keep what's open", the first save after the
      upgrade).
    - `never` (emptying Home after its tabs became a named session).
@@ -135,7 +136,9 @@ requires.
   (counting duplicates). Otherwise `unlinked`, and the tick saves nothing. A real tab is
   one whose address is not empty, `chrome://newtab/` or `about:blank`.
 - When linked, the tick captures what is open and calls `setContent` with `careful` if
-  more than half of the saved real tabs are gone, otherwise `routine`.
+  more than half of the saved real tabs are gone, or five or more of them (a window
+  closed, say), otherwise `routine`. Decided from the saved content and the capture, so
+  a restarted worker decides the same way.
 - The content written is exactly the capture. Autosave never merges with the saved
   content.
 
