@@ -5,7 +5,7 @@ import { exportLibrary } from './backup'
 import { VERSION_KEY_PREFIX } from './blobs'
 import { COMMAND_MESSAGE, createLibraryClient, type LibraryClient } from './client'
 import { planMigration } from './migrate'
-import type { VersionData } from './model'
+import type { SessionContent } from './model'
 import { INDEX_KEY } from './persist'
 import {
 	addStashed,
@@ -30,7 +30,7 @@ import { createLibraryWriter, type LibraryWriter } from './writer'
 
 const OWN_PAGE = 'chrome-extension://papaya-test/index.html#/panel'
 
-const data = (...urls: string[]): VersionData => ({
+const data = (...urls: string[]): SessionContent => ({
 	tabs: urls.map((url) => ({
 		url,
 		title: url,
@@ -47,7 +47,7 @@ const settle = async () => {
 	for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 5))
 }
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-const urlsOf = (d: VersionData | null) => d?.tabs.map((t) => t.url)
+const urlsOf = (d: SessionContent | null) => d?.tabs.map((t) => t.url)
 
 let fake: ReturnType<typeof installFakeChrome>
 let writer: LibraryWriter

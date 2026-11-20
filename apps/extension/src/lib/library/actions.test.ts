@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { installFakeChrome } from '@/test/fakeChrome'
-import type { VersionData } from './model'
+import type { SessionContent } from './model'
 import {
 	captureOpen,
 	openCopy,
@@ -24,7 +24,7 @@ import {
 
 const OWN_PAGE = 'chrome-extension://papaya-test/index.html#/panel'
 
-const data = (...urls: string[]): VersionData => ({
+const data = (...urls: string[]): SessionContent => ({
 	tabs: urls.map((url) => ({
 		url,
 		title: url,

@@ -24,9 +24,9 @@ import {
 	type LibrarySessionV1,
 	type LibraryVersion,
 	type SessionOrigin,
-	type VersionData,
+	type SessionContent,
 	type VersionReason,
-	type VersionTab,
+	type SavedTab,
 } from './model'
 
 type Row = Record<string, unknown>
@@ -168,7 +168,7 @@ function cleanData(
 	groups: OldSavedSession['groups'],
 	windows: OldSavedSession['windows'],
 	fixes: Fixes,
-): VersionData {
+): SessionContent {
 	const cleanGroups = (groups ?? [])
 		.filter((g) => typeof g?.id === 'number')
 		.map((g) => ({
@@ -179,7 +179,7 @@ function cleanData(
 			windowId: num(g.windowId),
 		}))
 	const groupIds = new Set(cleanGroups.map((g) => g.id))
-	const cleanTabs: VersionTab[] = (tabs ?? []).map((t) => {
+	const cleanTabs: SavedTab[] = (tabs ?? []).map((t) => {
 		let groupId = num(t.groupId, NO_GROUP)
 		if (groupId !== NO_GROUP && !groupIds.has(groupId)) {
 			fixes.missingGroups++
@@ -218,7 +218,7 @@ function readStoreSession(
 	sessionId: string,
 	byOwner: Map<string, { tabs: Row[]; groups: Row[]; windows: Row[] }>,
 	fixes: Fixes,
-): VersionData {
+): SessionContent {
 	const rows = byOwner.get(sessionId) ?? { tabs: [], groups: [], windows: [] }
 	const tabs = [...rows.tabs].sort((a, b) => num(a.index) - num(b.index))
 	return cleanData(
@@ -249,7 +249,7 @@ function readStoreSession(
 }
 
 /** Clean up one saved-session file (the Download format) into version data, for Import */
-export function savedSessionToData(session: OldSavedSession): VersionData {
+export function savedSessionToData(session: OldSavedSession): SessionContent {
 	if (!Array.isArray(session?.tabs))
 		throw new Error('That file doesn’t look like a saved session')
 	return cleanData(session.tabs, session.groups, session.windows, {
@@ -291,7 +291,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 		session: Omit<LibrarySessionV1, 'headVersionId' | 'tabCount' | 'preview'>,
 		sessionVersions: {
 			id: string
-			data: VersionData
+			data: SessionContent
 			reason: VersionReason
 			createdAt: number
 		}[],
@@ -441,7 +441,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 	// Applied in order, as the old side panel would have, on top of everything above
 
 	/** Make `data` the newest version of a session */
-	function pushVersion(id: string, data: VersionData, reason: VersionReason, at: number) {
+	function pushVersion(id: string, data: SessionContent, reason: VersionReason, at: number) {
 		const versionId = `${id}-q${Object.keys(versions).length}`
 		versions[versionId] = makeVersion(id, data, reason, at)
 		Object.assign(sessions[id], {
@@ -451,9 +451,11 @@ export function planMigration(input: MigrationInput): MigrationResult {
 			updatedAt: Math.max(sessions[id].updatedAt, at),
 		})
 	}
-	const headData = (id: string): VersionData => {
+	const headData = (id: string): SessionContent => {
 		const head = versions[sessions[id]?.headVersionId ?? '']
-		return head ? (JSON.parse(head.data) as VersionData) : { tabs: [], groups: [], windows: [] }
+		return head
+			? (JSON.parse(head.data) as SessionContent)
+			: { tabs: [], groups: [], windows: [] }
 	}
 	const newSession = (id: string, name: string, kind: LibrarySessionV1['kind'], at: number) =>
 		addSession(

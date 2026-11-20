@@ -23,7 +23,7 @@ import {
 import { useLibrary } from '@/hooks/useLibrary'
 import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { getDisplayUrl, pluralize, timeAgo } from '@/lib/format'
-import type { VersionData, VersionGroup, VersionReason, VersionTab } from '@/lib/library/model'
+import type { SessionContent, SavedGroup, VersionReason, SavedTab } from '@/lib/library/model'
 import { button } from '@/lib/ui'
 import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
@@ -65,7 +65,7 @@ const {
 
 const sessionStashed = computed(() => stashedAll.value.filter((g) => g.sessionId === props.uid))
 /** Tabs of the stashed groups you've expanded, loaded on first expand */
-const stashTabs = ref(new Map<string, VersionTab[]>())
+const stashTabs = ref(new Map<string, SavedTab[]>())
 async function toggleStash(id: string, open: boolean) {
 	if (open && !stashTabs.value.has(id)) {
 		stashTabs.value = new Map(stashTabs.value).set(id, await getStashedTabs(id))
@@ -82,7 +82,7 @@ const versions = computed(() => {
 /** null shows the newest version */
 const selectedVersionId = ref<string | null>(null)
 const shownVersionId = computed(() => selectedVersionId.value ?? session.value?.headVersionId ?? '')
-const data = ref<VersionData | null>(null)
+const data = ref<SessionContent | null>(null)
 watch(
 	shownVersionId,
 	async (id) => {
@@ -100,14 +100,14 @@ watch(
 
 // ---------- Editing (closed sessions, newest version) ----------
 
-const draft = ref<VersionData | null>(null)
+const draft = ref<SessionContent | null>(null)
 const changes = ref(0)
 const canEdit = computed(() => !!session.value && !isOpen.value && !selectedVersionId.value)
 const shown = computed(() => draft.value ?? data.value)
 
-function edit(change: (d: VersionData) => void) {
+function edit(change: (d: SessionContent) => void) {
 	if (!data.value || !canEdit.value) return
-	draft.value ??= structuredClone(JSON.parse(JSON.stringify(data.value))) as VersionData
+	draft.value ??= structuredClone(JSON.parse(JSON.stringify(data.value))) as SessionContent
 	change(draft.value)
 	changes.value++
 }
@@ -126,7 +126,7 @@ const ungroup = (groupId: number) =>
 	})
 const renamingGroup = ref<number | null>(null)
 const groupTitle = ref('')
-function startGroupRename(group: VersionGroup) {
+function startGroupRename(group: SavedGroup) {
 	renamingGroup.value = group.id
 	groupTitle.value = group.title
 }
@@ -155,8 +155,8 @@ function discard() {
 // ---------- Layout: windows, then groups and loose tabs in strip order ----------
 
 type Block =
-	| { kind: 'group'; group: VersionGroup; tabs: { tab: VersionTab; index: number }[] }
-	| { kind: 'tab'; tab: VersionTab; index: number }
+	| { kind: 'group'; group: SavedGroup; tabs: { tab: SavedTab; index: number }[] }
+	| { kind: 'tab'; tab: SavedTab; index: number }
 
 const windows = computed(() => {
 	const d = shown.value

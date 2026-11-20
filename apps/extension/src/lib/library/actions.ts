@@ -9,7 +9,13 @@
  */
 import { restoreSnapshot, type RestoreResult } from '@/lib/restore'
 import { getCloseableTabIds, isOwnPage } from '@/lib/liveTabs'
-import { MAX_FAVICON_CHARS, NO_GROUP, deriveName, type VersionData, type VersionTab } from './model'
+import {
+	MAX_FAVICON_CHARS,
+	NO_GROUP,
+	deriveName,
+	type SessionContent,
+	type SavedTab,
+} from './model'
 import {
 	HOME_ID,
 	addVersion,
@@ -25,9 +31,9 @@ import {
 	type Library,
 } from './store'
 
-const EMPTY: VersionData = { tabs: [], groups: [], windows: [] }
+const EMPTY: SessionContent = { tabs: [], groups: [], windows: [] }
 
-export function toVersionTab(tab: chrome.tabs.Tab, windowId = tab.windowId): VersionTab {
+export function toVersionTab(tab: chrome.tabs.Tab, windowId = tab.windowId): SavedTab {
 	const favIconUrl = tab.favIconUrl ?? ''
 	return {
 		url: tab.url || tab.pendingUrl || '',
@@ -46,7 +52,7 @@ export function toVersionTab(tab: chrome.tabs.Tab, windowId = tab.windowId): Ver
  * What's open right now, as a version: tabs, their groups, and window bounds. Pass tab
  * ids to capture only those (a selection).
  */
-export async function captureOpen(onlyTabIds?: number[]): Promise<VersionData> {
+export async function captureOpen(onlyTabIds?: number[]): Promise<SessionContent> {
 	const only = onlyTabIds ? new Set(onlyTabIds) : null
 	const [tabs, groups, windows] = await Promise.all([
 		chrome.tabs.query({ windowType: 'normal' }),

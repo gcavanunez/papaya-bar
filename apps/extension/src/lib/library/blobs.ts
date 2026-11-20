@@ -3,12 +3,12 @@
  * stashed group (keys keep the original "version" prefix). Entries never change once
  * written, so reads are cached until the stored entry is deleted or replaced.
  */
-import type { VersionData } from './model'
+import type { SessionContent } from './model'
 
-export interface VersionBlobs {
-	get(id: string): Promise<VersionData | null>
-	getMany(ids: string[]): Promise<Map<string, VersionData>>
-	set(entries: Record<string, VersionData>): Promise<void>
+export interface ContentBlobs {
+	get(id: string): Promise<SessionContent | null>
+	getMany(ids: string[]): Promise<Map<string, SessionContent>>
+	set(entries: Record<string, SessionContent>): Promise<void>
 	delete(ids: string[]): Promise<void>
 	/** Every stored version id */
 	ids(): Promise<string[]>
@@ -22,8 +22,8 @@ const keyOf = (id: string) => `${VERSION_KEY_PREFIX}${id}`
  * only the background worker writes the library; every copy forgets an entry once
  * another context deletes or rewrites it.
  */
-export function chromeBlobs(options: { readOnly?: boolean } = {}): VersionBlobs {
-	const cache = new Map<string, VersionData>()
+export function chromeBlobs(options: { readOnly?: boolean } = {}): ContentBlobs {
+	const cache = new Map<string, SessionContent>()
 	chrome.storage.onChanged.addListener((changes, area) => {
 		if (area !== 'local') return
 		for (const key of Object.keys(changes)) {
@@ -36,13 +36,13 @@ export function chromeBlobs(options: { readOnly?: boolean } = {}): VersionBlobs 
 			new Error('A page cannot change saved tabs; the background worker writes them'),
 		)
 
-	async function getMany(ids: string[]): Promise<Map<string, VersionData>> {
+	async function getMany(ids: string[]): Promise<Map<string, SessionContent>> {
 		const missing = ids.filter((id) => !cache.has(id))
 		if (missing.length) {
 			const stored = await chrome.storage.local.get(missing.map(keyOf))
 			for (const id of missing) {
 				const raw = stored[keyOf(id)]
-				if (typeof raw === 'string') cache.set(id, JSON.parse(raw) as VersionData)
+				if (typeof raw === 'string') cache.set(id, JSON.parse(raw) as SessionContent)
 			}
 		}
 		return new Map(ids.filter((id) => cache.has(id)).map((id) => [id, cache.get(id)!]))
@@ -77,18 +77,18 @@ export function chromeBlobs(options: { readOnly?: boolean } = {}): VersionBlobs 
 	}
 }
 
-export function memoryBlobs(): VersionBlobs {
+export function memoryBlobs(): ContentBlobs {
 	const data = new Map<string, string>()
 	return {
 		async get(id) {
 			const raw = data.get(id)
-			return raw ? (JSON.parse(raw) as VersionData) : null
+			return raw ? (JSON.parse(raw) as SessionContent) : null
 		},
 		async getMany(ids) {
 			return new Map(
 				ids
 					.filter((id) => data.has(id))
-					.map((id) => [id, JSON.parse(data.get(id)!) as VersionData]),
+					.map((id) => [id, JSON.parse(data.get(id)!) as SessionContent]),
 			)
 		},
 		async set(entries) {

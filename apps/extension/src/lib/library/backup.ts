@@ -8,13 +8,13 @@
  */
 import type { MergeableContent } from 'tinybase'
 import type { MigrationResult } from './migrate'
-import type { VersionData } from './model'
+import type { SessionContent } from './model'
 import { applyMigration, createLibrary, getOpenSessionId, getSession, type Library } from './store'
 import { upgradeLibrary } from './upgrade'
 
 export interface LibraryBackup {
 	index: MergeableContent
-	versions: Record<string, VersionData>
+	versions: Record<string, SessionContent>
 }
 
 export async function exportLibrary(lib: Library): Promise<LibraryBackup> {
@@ -37,10 +37,10 @@ type Values = Record<string, string | number | boolean>
 async function rowsOf(source: LibraryBackup | MigrationResult): Promise<{
 	tables: Tables
 	values: Values
-	versions: Record<string, VersionData>
+	versions: Record<string, SessionContent>
 }> {
 	const temp = createLibrary()
-	let versions: Record<string, VersionData>
+	let versions: Record<string, SessionContent>
 	if ('index' in source) {
 		temp.store.setMergeableContent(source.index)
 		versions = source.versions

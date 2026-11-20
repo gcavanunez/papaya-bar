@@ -10,7 +10,7 @@ import * as actions from './actions'
 import { importLibrary, type LibraryBackup } from './backup'
 import { COMMAND_MESSAGE, OPEN_MESSAGE, type WorkerReply } from './client'
 import type { MigrationResult } from './migrate'
-import type { LibrarySession, VersionData, VersionTab } from './model'
+import type { LibrarySession, SessionContent, SavedTab } from './model'
 import { openLibrary, type WriterLibrary } from './runtime'
 import * as stash from './stash'
 import {
@@ -45,7 +45,7 @@ const commands = {
 	) => actions.moveTabs(lib, a.tabIds, a.target),
 	createSession: (
 		lib: Library,
-		a: { fields: { name: string; description?: string }; data?: VersionData },
+		a: { fields: { name: string; description?: string }; data?: SessionContent },
 	) => createSession(lib, a.fields, a.data),
 	updateSession: async (
 		lib: Library,
@@ -57,7 +57,7 @@ const commands = {
 	restoreVersion: (lib: Library, a: { sessionId: string; versionId: string }) =>
 		restoreVersion(lib, a.sessionId, a.versionId),
 	/** Edits to a closed session's tabs, saved as a new version */
-	saveEdits: (lib: Library, a: { sessionId: string; data: VersionData }) =>
+	saveEdits: (lib: Library, a: { sessionId: string; data: SessionContent }) =>
 		addVersion(lib, a.sessionId, a.data, 'edit'),
 	stashGroup: (lib: Library, a: { groupId: number }) => stash.stashGroup(lib, a.groupId),
 	stashGroups: (lib: Library, a: { groupIds: number[] }) => stash.stashGroups(lib, a.groupIds),
@@ -73,7 +73,7 @@ const commands = {
 		a: {
 			sessionId: string
 			group: Pick<StashedGroup, 'name' | 'color'>
-			tabs: VersionTab[]
+			tabs: SavedTab[]
 			createdAt?: number
 		},
 	) => addStashed(lib, a.sessionId, a.group, a.tabs, a.createdAt),

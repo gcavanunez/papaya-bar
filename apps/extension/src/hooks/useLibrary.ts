@@ -9,7 +9,7 @@ import { pluralize } from '@/lib/format'
 import { openCopy as openCopyOf } from '@/lib/library/actions'
 import { getLibrary, sendCommand } from '@/lib/library/client'
 import type { MigrationResult } from '@/lib/library/migrate'
-import type { VersionData } from '@/lib/library/model'
+import type { SessionContent } from '@/lib/library/model'
 import {
 	HOME_ID,
 	getOpenSessionId,
@@ -296,7 +296,7 @@ export function useLibrary() {
 	/** A session from a file: a new closed session with these tabs */
 	async function createSession(
 		fields: { name: string; description?: string },
-		data?: VersionData,
+		data?: SessionContent,
 	): Promise<string> {
 		return sendCommand('createSession', { fields, data })
 	}
@@ -338,7 +338,7 @@ export function useLibrary() {
 	}
 
 	/** Save edits to a closed session's tabs as a new version */
-	async function saveEdits(id: string, data: VersionData): Promise<void> {
+	async function saveEdits(id: string, data: SessionContent): Promise<void> {
 		await sendCommand('saveEdits', { sessionId: id, data })
 		toast(`Saved your changes to ${nameOf(id)}`, {
 			description: 'The previous version is still in the list.',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { planMigration } from './migrate'
-import { parsePreview, type VersionData } from './model'
+import { parsePreview, type SessionContent } from './model'
 import {
 	MAX_VERSIONS,
 	addVersion,
@@ -21,7 +21,7 @@ import {
 	updateSession,
 } from './store'
 
-const data = (...urls: string[]): VersionData => ({
+const data = (...urls: string[]): SessionContent => ({
 	tabs: urls.map((url) => ({
 		url,
 		title: url,

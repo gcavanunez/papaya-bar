@@ -24,7 +24,7 @@ import { useLibrary } from '@/hooks/useLibrary'
 import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { pluralize, recencyBucket, timeAgo } from '@/lib/format'
 import { savedSessionToData, type OldSavedSession } from '@/lib/library/migrate'
-import { parsePreview, type VersionData } from '@/lib/library/model'
+import { parsePreview, type SessionContent } from '@/lib/library/model'
 import type { SessionSummary } from '@/lib/library/store'
 import { button } from '@/lib/ui'
 import AppButton from '@/components/AppButton.vue'
@@ -159,7 +159,7 @@ async function onFileChange(event: Event) {
 	if (!file) return
 	try {
 		const parsed = JSON.parse(await file.text()) as OldSavedSession
-		const data: VersionData = savedSessionToData(parsed)
+		const data: SessionContent = savedSessionToData(parsed)
 		const name = parsed.title?.trim() || file.name.replace(/\.json$/, '')
 		await createSession({ name, description: parsed.description ?? '' }, data)
 		toast(`Imported ${name}`)

@@ -53,11 +53,11 @@ export interface LibraryVersion {
 	tabCount: number
 	windowCount: number
 	groupCount: number
-	/** JSON of VersionData. Versions never change, so they're stored whole. */
+	/** JSON of SessionContent. Versions never change, so they're stored whole. */
 	data: string
 }
 
-export interface VersionTab {
+export interface SavedTab {
 	url: string
 	title: string
 	favIconUrl: string
@@ -66,7 +66,7 @@ export interface VersionTab {
 	active: boolean
 }
 
-export interface VersionGroup {
+export interface SavedGroup {
 	id: number
 	title: string
 	color: string
@@ -74,7 +74,7 @@ export interface VersionGroup {
 	windowId: number
 }
 
-export interface VersionWindow {
+export interface SavedWindow {
 	id: number
 	left?: number
 	top?: number
@@ -82,10 +82,10 @@ export interface VersionWindow {
 	height?: number
 }
 
-export interface VersionData {
-	tabs: VersionTab[]
-	groups: VersionGroup[]
-	windows: VersionWindow[]
+export interface SessionContent {
+	tabs: SavedTab[]
+	groups: SavedGroup[]
+	windows: SavedWindow[]
 }
 
 export const NO_GROUP = -1
@@ -107,7 +107,7 @@ export function deriveName(title: string | undefined, tabs: { url?: string }[]):
 }
 
 /** Icons for a session's list row: the first tab of up to four different sites */
-export function makePreview(data: Pick<VersionData, 'tabs'>): string {
+export function makePreview(data: Pick<SessionContent, 'tabs'>): string {
 	const seen = new Set<string>()
 	const icons: { favIconUrl: string; url: string }[] = []
 	for (const tab of data.tabs) {
@@ -135,7 +135,7 @@ export function sortVersions<T extends { createdAt: number }>(versions: T[]): T[
 
 export function makeVersion(
 	sessionId: string,
-	data: VersionData,
+	data: SessionContent,
 	reason: VersionReason,
 	createdAt: number,
 ): LibraryVersion {
@@ -150,6 +150,6 @@ export function makeVersion(
 	}
 }
 
-export function parseVersion(version: Pick<LibraryVersion, 'data'>): VersionData {
-	return JSON.parse(version.data) as VersionData
+export function parseVersion(version: Pick<LibraryVersion, 'data'>): SessionContent {
+	return JSON.parse(version.data) as SessionContent
 }

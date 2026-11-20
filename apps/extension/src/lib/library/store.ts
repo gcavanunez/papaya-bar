@@ -10,7 +10,7 @@
  * Every function takes the library first, so tests can use a fresh one.
  */
 import { createMergeableStore, type MergeableStore } from 'tinybase'
-import { memoryBlobs, type VersionBlobs } from './blobs'
+import { memoryBlobs, type ContentBlobs } from './blobs'
 import type { MigrationResult } from './migrate'
 import {
 	makePreview,
@@ -19,9 +19,9 @@ import {
 	type LibrarySession,
 	type LibraryVersion,
 	type SessionStatus,
-	type VersionData,
+	type SessionContent,
 	type VersionReason,
-	type VersionTab,
+	type SavedTab,
 } from './model'
 import { memoryDevice, type DeviceState, type StateStore } from './state'
 import { upgradeLibrary } from './upgrade'
@@ -33,7 +33,7 @@ export const HOME_ID = 'home'
 
 export interface Library {
 	store: MergeableStore
-	blobs: VersionBlobs
+	blobs: ContentBlobs
 	/** This browser's own state, such as its open session; never synced */
 	device: StateStore<DeviceState>
 }
@@ -76,7 +76,7 @@ const LEGACY_VALUES = {
 } as const
 
 export function createLibrary(
-	blobs: VersionBlobs = memoryBlobs(),
+	blobs: ContentBlobs = memoryBlobs(),
 	device: StateStore<DeviceState> = memoryDevice(),
 ): Library {
 	const store = createMergeableStore(LIBRARY_STORE_ID)
@@ -160,12 +160,15 @@ export function listVersions(lib: Library, sessionId: string): VersionSummary[] 
 		.sort((a, b) => b.createdAt - a.createdAt)
 }
 
-export function getVersionData(lib: Library, versionId: string): Promise<VersionData | null> {
+export function getVersionData(lib: Library, versionId: string): Promise<SessionContent | null> {
 	return lib.blobs.get(versionId)
 }
 
 /** What a closed session reopens to: its newest version */
-export async function getSessionData(lib: Library, sessionId: string): Promise<VersionData | null> {
+export async function getSessionData(
+	lib: Library,
+	sessionId: string,
+): Promise<SessionContent | null> {
 	const head = getSession(lib, sessionId)?.headVersionId
 	return head ? getVersionData(lib, head) : null
 }
@@ -193,7 +196,7 @@ export async function createSession(
 		kind?: LibrarySession['kind']
 		id?: string
 	},
-	data?: VersionData,
+	data?: SessionContent,
 	now = Date.now(),
 ): Promise<string> {
 	const id = fields.id ?? newId()
@@ -224,7 +227,7 @@ export async function createSession(
 export async function addVersion(
 	lib: Library,
 	sessionId: string,
-	data: VersionData,
+	data: SessionContent,
 	reason: VersionReason,
 	now = Date.now(),
 ): Promise<string> {
@@ -323,7 +326,7 @@ export function getStashed(lib: Library, id: string): StashedGroup | null {
 	return Object.keys(row).length ? ({ id, ...row } as StashedGroup) : null
 }
 
-export async function getStashedTabs(lib: Library, id: string): Promise<VersionTab[]> {
+export async function getStashedTabs(lib: Library, id: string): Promise<SavedTab[]> {
 	return (await lib.blobs.get(id))?.tabs ?? []
 }
 
@@ -332,7 +335,7 @@ export async function addStashed(
 	lib: Library,
 	sessionId: string,
 	group: { name: string; color: string },
-	tabs: VersionTab[],
+	tabs: SavedTab[],
 	now = Date.now(),
 ): Promise<string> {
 	const id = `stash-${newId()}`

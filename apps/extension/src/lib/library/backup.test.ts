@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sampleV1Store } from '@/test/libraryV1'
 import { exportLibrary, importLibrary, type LibraryBackup } from './backup'
 import { planMigration } from './migrate'
-import type { VersionData } from './model'
+import type { SessionContent } from './model'
 import {
 	addVersion,
 	createLibrary,
@@ -15,7 +15,7 @@ import {
 	markOpen,
 } from './store'
 
-const data = (...urls: string[]): VersionData => ({
+const data = (...urls: string[]): SessionContent => ({
 	tabs: urls.map((url) => ({
 		url,
 		title: url,
