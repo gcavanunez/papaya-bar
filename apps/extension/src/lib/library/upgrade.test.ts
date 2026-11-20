@@ -20,6 +20,7 @@ import {
 	type Library,
 } from './store'
 import { INDEX_V1_KEY, UNKNOWN_SCHEMA_ERROR, upgradeLibrary } from './upgrade'
+import libraryErrorCard from '@/components/LibraryError.vue?raw'
 import { createLibraryWriter } from './writer'
 
 const settle = async () => {
@@ -317,6 +318,12 @@ describe('upgrading a schema 2 library', () => {
 			expect([...fake.storage.keys()].sort()).toEqual(keys)
 		}
 		expect(UNKNOWN_SCHEMA_ERROR).toMatch(/newer version of Papaya/)
+	})
+
+	it('the could-not-open card says once that nothing was changed', () => {
+		const said = (text: string) => text.match(/nothing was changed/gi)?.length ?? 0
+		expect(said(libraryErrorCard)).toBe(1)
+		expect(said(UNKNOWN_SCHEMA_ERROR)).toBe(0)
 	})
 
 	it('a failed upgrade leaves what is stored untouched', async () => {

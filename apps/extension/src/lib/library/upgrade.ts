@@ -24,9 +24,12 @@ export interface UpgradeOptions {
 	keepCopy?: () => Promise<void>
 }
 
-/** Why an index this build does not know is left as it is */
+/**
+ * Why an index this build does not know is left as it is. The could-not-open card it is
+ * shown in already says that nothing was changed.
+ */
 export const UNKNOWN_SCHEMA_ERROR =
-	'These sessions were saved by a newer version of Papaya, and this version cannot open them. Nothing was changed. Update Papaya to open them.'
+	'These sessions were saved by a newer version of Papaya, and this version cannot open them. Update Papaya to open them.'
 
 /**
  * Bring the index up to LIBRARY_SCHEMA_VERSION. An index at a version this build has no
