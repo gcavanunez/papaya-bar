@@ -1,7 +1,8 @@
 /**
- * Contents stored apart from the library index: one chrome.storage entry per version or
- * stashed group (keys keep the original "version" prefix). Entries never change once
- * written, so reads are cached until the stored entry is deleted or replaced.
+ * Contents stored apart from the library index: one chrome.storage entry per session
+ * content, checkpoint or stashed group (keys keep the original "version" prefix).
+ * Entries never change once written, so reads are cached until the stored entry is
+ * deleted or replaced.
  */
 import type { SessionContent } from './model'
 
@@ -10,7 +11,7 @@ export interface ContentBlobs {
 	getMany(ids: string[]): Promise<Map<string, SessionContent>>
 	set(entries: Record<string, SessionContent>): Promise<void>
 	delete(ids: string[]): Promise<void>
-	/** Every stored version id */
+	/** Every stored entry's id */
 	ids(): Promise<string[]>
 }
 
@@ -69,8 +70,11 @@ export function chromeBlobs(options: { readOnly?: boolean } = {}): ContentBlobs 
 			for (const id of ids) cache.delete(id)
 		},
 		async ids() {
-			const all = await chrome.storage.local.get(null)
-			return Object.keys(all)
+			// Keys alone where Chrome can (130+), rather than every stored tab
+			const keys = chrome.storage.local.getKeys
+				? await chrome.storage.local.getKeys()
+				: Object.keys(await chrome.storage.local.get(null))
+			return keys
 				.filter((key) => key.startsWith(VERSION_KEY_PREFIX))
 				.map((key) => key.slice(VERSION_KEY_PREFIX.length))
 		},

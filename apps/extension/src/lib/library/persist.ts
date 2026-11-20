@@ -2,11 +2,11 @@
  * Keep the library index in chrome.storage.local, shared by every extension page and
  * the background worker.
  *
- * The worker saves its whole index after every change; pages only follow it. Every copy
- * merges (never replaces) whatever was saved: Chrome tells every page and the worker
- * when the entry changes. If merging leaves the saving copy with something the saved one
- * lacks (two copies wrote at once), it saves again, so the stored index always ends up
- * with both changes.
+ * The worker saves its whole index after each write that changed it; pages only follow
+ * it. Every copy merges (never replaces) whatever was saved: Chrome tells every page and
+ * the worker when the entry changes. If merging leaves the saving copy with something
+ * the saved one lacks (two copies wrote at once), it saves again, so the stored index
+ * always ends up with both changes.
  */
 import { createCustomPersister } from 'tinybase/persisters'
 import type { MergeableChanges, MergeableContent, MergeableStore } from 'tinybase'
@@ -26,10 +26,15 @@ const asChanges = (content: MergeableContent) => [...content, 1] as unknown as M
  * Load the stored index into the store, then save every change. `beforeSaving` runs
  * once the stored index has loaded and before anything is saved (the upgrade); if it
  * fails, nothing is saved and the store stops following storage.
+ *
+ * Without `autoSave`, changes are saved only when asked (`persister.save()`), so a
+ * writer that changes the store in several steps stores it once; what `beforeSaving`
+ * changed is saved before this resolves.
  */
 export async function startLibraryPersistence(
 	store: MergeableStore,
 	beforeSaving?: () => Promise<void>,
+	options: { autoSave?: boolean } = {},
 ) {
 	let saving = false
 	let persister: ReturnType<typeof createCustomPersister> | null = null
@@ -61,6 +66,7 @@ export async function startLibraryPersistence(
 	)
 	persister = persisterInstance
 	await persisterInstance.startAutoLoad([{}, {}])
+	const loaded = store.getMergeableContentHashes().join()
 	try {
 		await beforeSaving?.()
 	} catch (error) {
@@ -68,7 +74,8 @@ export async function startLibraryPersistence(
 		throw error
 	}
 	saving = true
-	await persisterInstance.startAutoSave()
+	if (options.autoSave ?? true) await persisterInstance.startAutoSave()
+	else if (store.getMergeableContentHashes().join() !== loaded) await persisterInstance.save()
 	return persisterInstance
 }
 

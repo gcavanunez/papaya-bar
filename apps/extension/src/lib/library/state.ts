@@ -21,13 +21,34 @@ export interface StateStore<T extends object> {
 	subscribe(listener: (state: T) => void): () => void
 }
 
-/** Which session this browser's windows belong to; '' means Home */
 export interface DeviceState {
+	/** Which session this browser's windows belong to; '' means Home */
 	openSessionId: string
+	/**
+	 * Set by the upgrade to checkpoints: the next autosave takes what is open as the open
+	 * session's, since before it the open windows were the session by definition
+	 */
+	adoptLive: boolean
 }
 
 export const DEVICE_KEY = 'library:device'
-export const DEVICE_DEFAULTS: DeviceState = { openSessionId: '' }
+export const DEVICE_DEFAULTS: DeviceState = { openSessionId: '', adoptLive: false }
+
+/**
+ * Whether this browser's windows really are the open session's tabs, so autosave may
+ * write them: `unknown` until decided, `unlinked` when Chrome came back without them
+ */
+export type Link = 'unknown' | 'linked' | 'unlinked'
+
+/** State for one run of the browser: Chrome clears it on restart and extension reload */
+export interface RuntimeState {
+	link: Link
+	/** When `link` last changed */
+	linkAt: number
+}
+
+export const RUNTIME_KEY = 'library:runtime'
+export const RUNTIME_DEFAULTS: RuntimeState = { link: 'unknown', linkAt: 0 }
 
 type StorageListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void
 
@@ -128,3 +149,6 @@ export async function chromeState<T extends object>(
 export const chromeDevice = (options?: ChromeStateOptions) =>
 	chromeState('local', DEVICE_KEY, DEVICE_DEFAULTS, options)
 export const memoryDevice = () => memoryState(DEVICE_DEFAULTS)
+export const chromeRuntime = (options?: ChromeStateOptions) =>
+	chromeState('session', RUNTIME_KEY, RUNTIME_DEFAULTS, options)
+export const memoryRuntime = () => memoryState(RUNTIME_DEFAULTS)

@@ -1,7 +1,8 @@
 /**
  * A small in-memory `chrome` for unit tests: windows, tabs, tab groups, displays,
- * storage.local and runtime messages, with enough behavior to check what restore and
- * grouping code did to the browser. Install it with `installFakeChrome()` in a test.
+ * storage.local, storage.session and runtime messages, with enough behavior to check
+ * what restore and grouping code did to the browser. Install it with
+ * `installFakeChrome()` in a test.
  */
 
 interface FakeWindow {
@@ -54,15 +55,47 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 	const tabs = new Map<number, FakeTab>()
 	const groups = new Map<number, FakeGroup>()
 	const storage = new Map<string, unknown>()
+	/** storage.session: Chrome clears it when the browser restarts or the extension reloads */
+	const sessionStorage = new Map<string, unknown>()
 	type StorageListener = (
 		changes: Record<string, chrome.storage.StorageChange>,
 		area: string,
 	) => void
 	const storageListeners = new Set<StorageListener>()
 	/** Like Chrome, listeners hear about a write after it lands, in every "document" */
-	function emitStorage(changes: Record<string, chrome.storage.StorageChange>) {
+	function emitStorage(changes: Record<string, chrome.storage.StorageChange>, area = 'local') {
 		const copy = structuredClone(changes)
-		setTimeout(() => storageListeners.forEach((listener) => listener(copy, 'local')), 0)
+		setTimeout(() => storageListeners.forEach((listener) => listener(copy, area)), 0)
+	}
+	function storageArea(map: Map<string, unknown>, area: string) {
+		return {
+			async get(keys?: string | string[] | null) {
+				const list = keys == null ? [...map.keys()] : Array.isArray(keys) ? keys : [keys]
+				return Object.fromEntries(
+					list.filter((k) => map.has(k)).map((k) => [k, structuredClone(map.get(k))]),
+				)
+			},
+			async getKeys() {
+				return [...map.keys()]
+			},
+			async set(items: Record<string, unknown>) {
+				const changes: Record<string, chrome.storage.StorageChange> = {}
+				for (const [k, v] of Object.entries(items)) {
+					changes[k] = { oldValue: map.get(k), newValue: v }
+					map.set(k, structuredClone(v))
+				}
+				emitStorage(changes, area)
+			},
+			async remove(keys: string | string[]) {
+				const changes: Record<string, chrome.storage.StorageChange> = {}
+				for (const k of Array.isArray(keys) ? keys : [keys]) {
+					if (!map.has(k)) continue
+					changes[k] = { oldValue: map.get(k) }
+					map.delete(k)
+				}
+				if (Object.keys(changes).length) emitStorage(changes, area)
+			},
+		}
 	}
 	type MessageListener = (
 		message: unknown,
@@ -331,34 +364,8 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 			},
 		},
 		storage: {
-			local: {
-				async get(keys?: string | string[] | null) {
-					const list =
-						keys == null ? [...storage.keys()] : Array.isArray(keys) ? keys : [keys]
-					return Object.fromEntries(
-						list
-							.filter((k) => storage.has(k))
-							.map((k) => [k, structuredClone(storage.get(k))]),
-					)
-				},
-				async set(items: Record<string, unknown>) {
-					const changes: Record<string, chrome.storage.StorageChange> = {}
-					for (const [k, v] of Object.entries(items)) {
-						changes[k] = { oldValue: storage.get(k), newValue: v }
-						storage.set(k, structuredClone(v))
-					}
-					emitStorage(changes)
-				},
-				async remove(keys: string | string[]) {
-					const changes: Record<string, chrome.storage.StorageChange> = {}
-					for (const k of Array.isArray(keys) ? keys : [keys]) {
-						if (!storage.has(k)) continue
-						changes[k] = { oldValue: storage.get(k) }
-						storage.delete(k)
-					}
-					if (Object.keys(changes).length) emitStorage(changes)
-				},
-			},
+			local: storageArea(storage, 'local'),
+			session: storageArea(sessionStorage, 'session'),
 			onChanged: {
 				addListener: (listener: StorageListener) => storageListeners.add(listener),
 				removeListener: (listener: StorageListener) => storageListeners.delete(listener),
@@ -368,10 +375,38 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 
 	Object.assign(globalThis, { chrome: api })
 
+	/** The background worker stops: everything it listened to goes with it */
+	function stopWorker() {
+		storageListeners.clear()
+		messageListeners.clear()
+	}
+
 	return {
 		chrome: api,
 		calls,
 		storage,
+		sessionStorage,
+		stopWorker,
+		/** The extension reloads: a new worker, and storage.session is cleared; tabs stay */
+		reloadExtension() {
+			stopWorker()
+			sessionStorage.clear()
+		},
+		/**
+		 * Chrome quits and starts again without restoring anything: no windows, a new
+		 * worker, and only storage.local kept
+		 */
+		restartBrowser() {
+			stopWorker()
+			sessionStorage.clear()
+			windows.clear()
+			tabs.clear()
+			groups.clear()
+		},
+		/** Close a window and its tabs, as the person would */
+		async closeWindow(id: number) {
+			for (const tabId of windows.get(id)?.tabIds ?? []) removeTab(tabId)
+		},
 		/** Each window's tabs in strip order */
 		snapshot() {
 			return [...windows.values()].map((win) => ({

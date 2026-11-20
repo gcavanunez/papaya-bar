@@ -66,8 +66,8 @@ const session = (fields: Record<string, string | number>) => ({
 })
 
 /**
- * A moved-in library: Work open, Trip archived, a Parked session, a closed saved
- * session with a version, Home, and a stashed group
+ * A moved-in library: Work open with an older version, Trip archived, a Parked session,
+ * a closed saved session with a version, Home, and a stashed group
  */
 export function sampleV1Store() {
 	const store = createV1Store()
@@ -94,6 +94,7 @@ export function sampleV1Store() {
 			session({ name: 'Home', kind: 'home', origin: 'home', description: 'notes' }),
 		)
 		store.setRow('versions', 'w1', { sessionId: 'ctx-work', createdAt: 150, reason: 'switch' })
+		store.setRow('versions', 'w0', { sessionId: 'ctx-work', createdAt: 130, reason: 'manual' })
 		store.setRow('versions', 's1', {
 			sessionId: 'saved-a',
 			createdAt: 120,

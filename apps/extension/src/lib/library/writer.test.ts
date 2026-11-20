@@ -9,19 +9,22 @@ import type { SessionContent } from './model'
 import { INDEX_KEY } from './persist'
 import {
 	addStashed,
-	addVersion,
 	applyMigration,
 	createLibrary,
 	createSession,
 	ensureHome,
+	getLink,
 	getOpenSessionId,
 	getSession,
 	getSessionData,
 	getStashedTabs,
 	isMigrated,
+	listCheckpoints,
 	listSessions,
-	listVersions,
 	markOpen,
+	referencedEntries,
+	setContent,
+	setLink,
 	updateSession,
 	type Library,
 } from './store'
@@ -96,14 +99,19 @@ describe('commands from a page', () => {
 		})
 		const page = await client.getLibrary()
 		// Asked together: the save must see the switch finished, not half done
-		const [switched] = await Promise.all([
+		const [switched, checkpoint] = await Promise.all([
 			client.send('switchTo', { sessionId: trip }),
-			client.send('saveVersion'),
+			client.send('saveCheckpoint'),
 		])
 		expect(switched).toEqual({ fromId: 'home', toId: trip, failed: [] })
 		expect(getOpenSessionId(page)).toBe(trip)
-		expect(listVersions(page, 'home').map((v) => v.reason)).toEqual(['switch'])
-		expect(listVersions(page, trip).map((v) => v.reason)).toEqual(['manual', 'manual'])
+		expect(listCheckpoints(page, 'home')).toEqual([])
+		// The checkpoint is of Trip, which was open by then. Saving what was open first kept
+		// Trip's content from before the switch: its first checkpoint.
+		expect(listCheckpoints(page, trip).map((c) => [c.id, c.reason])).toEqual([
+			[checkpoint, 'manual'],
+			[expect.any(String), 'autosave'],
+		])
 		expect(urlsOf(await getSessionData(page, trip))).toEqual(['https://flights.com'])
 		expect(urlsOf(await getSessionData(page, 'home'))).toEqual([
 			'https://home-a.com',
@@ -160,8 +168,11 @@ describe("a page's copy", () => {
 		expect(() => page.store.transaction(() => undefined)).toThrow(/cannot change/)
 		expect(() => page.store.delTables()).toThrow(/cannot change/)
 		expect(() => markOpen(page, id)).toThrow(/cannot change/)
-		await expect(addVersion(page, id, data('https://b.com'), 'manual')).rejects.toThrow(
+		await expect(setContent(page, id, data('https://b.com'), 'never')).rejects.toThrow(
 			/cannot change saved tabs/,
+		)
+		await expect(page.runtime.set({ link: 'linked' })).rejects.toThrow(
+			/cannot change library:runtime/,
 		)
 		await expect(page.blobs.delete(['x'])).rejects.toThrow(/cannot change saved tabs/)
 		await expect(page.device.set({ openSessionId: id })).rejects.toThrow(
@@ -188,9 +199,12 @@ describe("a page's copy", () => {
 		await writer.run('updateSession', { id, fields: { name: 'Trip to Lisbon' } })
 		await writer.run('removeStashed', { id: stashId })
 		await writer.enqueue((lib) => markOpen(lib, id))
+		await writer.enqueue((lib) => setLink(lib, 'unlinked'))
 		await settle()
 		expect(getSession(page, id)?.name).toBe('Trip to Lisbon')
 		expect(getOpenSessionId(page)).toBe(id)
+		// Whether the open windows are its tabs, for the page's banner
+		expect(getLink(page)).toBe('unlinked')
 		// The cached tabs go once the worker deletes them
 		expect(await page.blobs.get(stashId)).toBeNull()
 
@@ -239,7 +253,7 @@ describe('opening', () => {
 
 		await expect(client.getLibrary()).rejects.toThrow('disk full')
 		await expect(writer.library()).rejects.toThrow('disk full')
-		await expect(client.send('saveVersion')).rejects.toThrow('disk full')
+		await expect(client.send('saveCheckpoint')).rejects.toThrow('disk full')
 		await settle()
 		// Nothing was written over the old index
 		expect(fake.storage.get(INDEX_KEY)).toEqual(stored)
@@ -247,7 +261,7 @@ describe('opening', () => {
 
 		full = false
 		const page = await client.getLibrary()
-		expect(page.store.getValue('schemaVersion')).toBe(2)
+		expect(page.store.getValue('schemaVersion')).toBe(3)
 		expect(getOpenSessionId(page)).toBe('ctx-work')
 		expect(fake.storage.get(INDEX_V1_KEY)).toEqual(stored)
 	})
@@ -280,18 +294,25 @@ describe('the move-in and backups, applied by the worker', () => {
 		expect(page.store.getTables()).toEqual(direct.store.getTables())
 		const newer = listSessions(page, { status: 'closed' })[0]
 		expect(urlsOf(await getSessionData(page, newer.id))).toEqual(['https://b.com'])
+
+		// A second plan, late (another page asked too), does not reset what was saved since
+		await client.send('saveEdits', { sessionId: newer.id, data: data('https://edited.com') })
+		await client.send('moveIn', { plan })
+		expect(urlsOf(await getSessionData(page, newer.id))).toEqual(['https://edited.com'])
 	})
 
 	it('imports a backup the page read', async () => {
 		const other = createLibrary()
 		const trip = await createSession(other, { name: 'Trip' }, data('https://flights.com'), 1)
-		await addVersion(other, trip, data('https://flights.com', 'https://hotel.com'), 'switch', 2)
+		await setContent(other, trip, data('https://flights.com', 'https://hotel.com'), 'always', {
+			now: 2,
+		})
 		const backup = await exportLibrary(other)
 		await seed((lib) => createSession(lib, { name: 'Only here' }, data('https://x.com')))
 
 		const page = await client.getLibrary()
 		const summary = await client.send('importLibrary', { source: backup, mode: 'replace' })
-		expect(summary).toEqual({ sessions: 1, versions: 2 })
+		expect(summary).toEqual({ sessions: 1, checkpoints: 1 })
 		expect(listSessions(page).map((s) => s.name)).toEqual(['Trip'])
 		expect(urlsOf(await getSessionData(page, trip))).toEqual([
 			'https://flights.com',
@@ -303,5 +324,61 @@ describe('the move-in and backups, applied by the worker', () => {
 				.map((id) => VERSION_KEY_PREFIX + id)
 				.sort(),
 		)
+	})
+})
+
+describe('what the worker stores', () => {
+	it('work that changes nothing writes nothing', async () => {
+		const id = await seed((lib) => createSession(lib, { name: 'Trip' }, data('https://a.com')))
+		await settle()
+		const writes: string[] = []
+		const set = fake.chrome.storage.local.set
+		fake.chrome.storage.local.set = async (items: Record<string, unknown>) => {
+			writes.push(...Object.keys(items))
+			return set(items)
+		}
+		await writer.enqueue((lib) => setContent(lib, id, data('https://a.com'), 'always'))
+		await writer.enqueue(async (lib) => getSession(lib, id))
+		await settle()
+		expect(writes).toEqual([])
+		await writer.run('updateSession', { id, fields: { name: 'Lisbon' } })
+		expect(writes).toEqual([INDEX_KEY])
+	})
+
+	it('deletes an entry only once the stored index no longer refers to it', async () => {
+		const id = await seed((lib) => createSession(lib, { name: 'Trip' }, data('https://a.com')))
+		const lib = await writer.library()
+		const old = getSession(lib, id)!.contentId
+		const remove = fake.chrome.storage.local.remove
+		const storedRefs: string[][] = []
+		fake.chrome.storage.local.remove = async (keys: string | string[]) => {
+			const stored = createLibrary()
+			stored.store.setMergeableContent(fake.storage.get(INDEX_KEY) as never)
+			storedRefs.push([...referencedEntries(stored)])
+			return remove(keys)
+		}
+		// Many steps in one piece of work: nothing is deleted until the end
+		await writer.enqueue(async (lib) => {
+			await setContent(lib, id, data('https://b.com'), 'never')
+			expect(await lib.blobs.get(old)).not.toBeNull()
+			await setContent(lib, id, data('https://c.com'), 'never')
+		})
+		expect(storedRefs).toHaveLength(1)
+		expect(storedRefs[0]).not.toContain(old)
+		expect(fake.storage.has(VERSION_KEY_PREFIX + old)).toBe(false)
+		// Every stored entry is one the stored index refers to
+		const entries = [...fake.storage.keys()].filter((k) => k.startsWith(VERSION_KEY_PREFIX))
+		expect(entries).toEqual([VERSION_KEY_PREFIX + getSession(lib, id)!.contentId])
+	})
+
+	it('a worker stopped before saving leaves nothing the stored index points at missing', async () => {
+		const id = await seed((lib) => createSession(lib, { name: 'Trip' }, data('https://a.com')))
+		const lib = await writer.library()
+		// The work runs, but the worker stops before the index is stored
+		await setContent(lib, id, data('https://b.com'), 'never')
+		const stored = createLibrary()
+		stored.store.setMergeableContent(fake.storage.get(INDEX_KEY) as never)
+		for (const entry of referencedEntries(stored))
+			expect(fake.storage.has(VERSION_KEY_PREFIX + entry)).toBe(true)
 	})
 })

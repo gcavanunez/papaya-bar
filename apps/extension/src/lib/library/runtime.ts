@@ -5,13 +5,16 @@
 import type { MergeableStore } from 'tinybase'
 import { chromeBlobs } from './blobs'
 import { INDEX_KEY, followLibraryIndex, startLibraryPersistence } from './persist'
-import { chromeDevice } from './state'
-import { createLibrary, type Library } from './store'
+import { chromeDevice, chromeRuntime } from './state'
+import { createLibrary, releaseEntries, type Library } from './store'
 import { keepIndexCopy, upgradeLibrary } from './upgrade'
 
 export interface WriterLibrary {
 	lib: Library
-	/** Save the index now; resolves once it is stored */
+	/**
+	 * Store the index if it changed since it was last stored, then delete the entries it
+	 * stopped referring to; resolves once both are done. Unchanged, it writes nothing.
+	 */
 	save(): Promise<void>
 }
 
@@ -23,14 +26,33 @@ export interface WriterLibrary {
  */
 export async function openLibrary(): Promise<WriterLibrary> {
 	const stored = (await chrome.storage.local.get(INDEX_KEY))[INDEX_KEY]
-	const lib = createLibrary(chromeBlobs(), await chromeDevice())
-	const persister = await startLibraryPersistence(lib.store, () =>
-		upgradeLibrary(lib, { keepCopy: () => keepIndexCopy(stored) }),
+	const dropping = new Set<string>()
+	const lib: Library = {
+		...createLibrary(chromeBlobs(), await chromeDevice(), await chromeRuntime()),
+		dropEntries: async (ids) => {
+			for (const id of ids) dropping.add(id)
+		},
+	}
+	const persister = await startLibraryPersistence(
+		lib.store,
+		() => upgradeLibrary(lib, { keepCopy: () => keepIndexCopy(stored) }),
+		{ autoSave: false },
 	)
+	const hashes = () => lib.store.getMergeableContentHashes().join()
+	let saved = hashes()
 	return {
 		lib,
-		save: async () => {
-			await persister.save()
+		async save() {
+			if (hashes() !== saved) {
+				const saving = hashes()
+				await persister.save()
+				saved = saving
+			}
+			if (!dropping.size) return
+			const ids = [...dropping]
+			dropping.clear()
+			// Only what the stored index still does not refer to
+			await releaseEntries({ ...lib, dropEntries: (free) => lib.blobs.delete(free) }, ids)
 		},
 	}
 }
@@ -50,12 +72,13 @@ export async function followLibrary(): Promise<PageLibrary> {
 	const lib = createLibrary(
 		chromeBlobs({ readOnly: true }),
 		await chromeDevice({ readOnly: true }),
+		await chromeRuntime({ readOnly: true }),
 	)
 	const index = await followLibraryIndex(lib.store)
 	return {
 		lib: { ...lib, store: readOnlyStore(lib.store) },
 		async pull() {
-			await Promise.all([index.pull(), lib.device.refresh()])
+			await Promise.all([index.pull(), lib.device.refresh(), lib.runtime.refresh()])
 		},
 	}
 }

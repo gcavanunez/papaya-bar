@@ -3,7 +3,8 @@
  *
  * Pages and the website palette ask for named commands. Every write, a command or any
  * other work put on the queue, runs alone and in order: the next starts only after the
- * one before has finished, however long it waits on Chrome, and the index is saved.
+ * one before has finished, however long it waits on Chrome, and the index is saved if it
+ * changed.
  * Work on the queue must not wait for other queued work, or both wait forever.
  */
 import * as actions from './actions'
@@ -15,12 +16,12 @@ import { openLibrary, type WriterLibrary } from './runtime'
 import * as stash from './stash'
 import {
 	addStashed,
-	addVersion,
 	applyMigration,
 	createSession,
 	deleteSession,
+	isMigrated,
 	removeStashed,
-	restoreVersion,
+	setContent,
 	setStatus,
 	updateSession,
 	updateStashed,
@@ -34,7 +35,8 @@ import {
  */
 const commands = {
 	switchTo: (lib: Library, a: { sessionId: string }) => actions.switchTo(lib, a.sessionId),
-	saveVersion: (lib: Library) => actions.saveVersion(lib),
+	/** A checkpoint of the open session, made by hand */
+	saveCheckpoint: (lib: Library) => actions.saveCheckpoint(lib),
 	saveOpenAs: (lib: Library, a: { name: string }) => actions.saveOpenAs(lib, a.name),
 	saveCopy: (lib: Library, a: { name?: string; tabIds?: number[] }) =>
 		actions.saveCopy(lib, a.name, a.tabIds),
@@ -54,11 +56,16 @@ const commands = {
 	setStatus: (lib: Library, a: { id: string; status: 'closed' | 'archived' }) =>
 		setStatus(lib, a.id, a.status),
 	deleteSession: (lib: Library, a: { id: string }) => deleteSession(lib, a.id),
-	restoreVersion: (lib: Library, a: { sessionId: string; versionId: string }) =>
-		restoreVersion(lib, a.sessionId, a.versionId),
-	/** Edits to a closed session's tabs, saved as a new version */
+	/** For the open session this also reopens the checkpoint in the browser */
+	restoreCheckpoint: (lib: Library, a: { sessionId: string; checkpointId: string }) =>
+		actions.restoreCheckpoint(lib, a.sessionId, a.checkpointId),
+	/** Edits to a closed session's tabs */
 	saveEdits: (lib: Library, a: { sessionId: string; data: SessionContent }) =>
-		addVersion(lib, a.sessionId, a.data, 'edit'),
+		setContent(lib, a.sessionId, a.data, 'careful', { reason: 'edit' }),
+	/** Unlinked: open the open session's saved tabs next to what's open */
+	reopenSaved: (lib: Library) => actions.reopenSaved(lib),
+	/** Unlinked: what's open becomes the open session's content */
+	keepOpen: (lib: Library) => actions.keepOpen(lib),
 	stashGroup: (lib: Library, a: { groupId: number }) => stash.stashGroup(lib, a.groupId),
 	stashGroups: (lib: Library, a: { groupIds: number[] }) => stash.stashGroups(lib, a.groupIds),
 	/** `windowId`: where to reopen it, which only the asking page knows */
@@ -82,8 +89,13 @@ const commands = {
 		a: { id: string; fields: Partial<Pick<StashedGroup, 'name' | 'color' | 'sessionId'>> },
 	) => updateStashed(lib, a.id, a.fields),
 	removeStashed: (lib: Library, a: { id: string }) => removeStashed(lib, a.id),
-	/** The move-in from the old stores, planned by a page (only pages can read them) */
-	moveIn: (lib: Library, a: { plan: MigrationResult }) => applyMigration(lib, a.plan),
+	/**
+	 * The move-in from the old stores, planned by a page (only pages can read them). Only
+	 * once: a late second plan must not reset what has been saved since.
+	 */
+	moveIn: async (lib: Library, a: { plan: MigrationResult }) => {
+		if (!isMigrated(lib)) await applyMigration(lib, a.plan)
+	},
 	/** A backup's library part, or an old backup planned as a move-in, read by a page */
 	importLibrary: (
 		lib: Library,
@@ -106,7 +118,7 @@ type MessageListener = (
 export interface LibraryWriter {
 	/** The worker's library, opened and upgraded once; a failed open is retried next call */
 	library(): Promise<Library>
-	/** Run some writing work alone, after everything queued before it; the index is saved before it resolves */
+	/** Run some writing work alone, after everything queued before it; the index, if changed, is saved before it resolves */
 	enqueue<T>(work: (lib: Library) => Promise<T>): Promise<T>
 	/** Run a command on the queue */
 	run<N extends CommandName>(name: N, args: CommandArgs<N>): Promise<CommandResult<N>>

@@ -23,7 +23,7 @@ import {
 import { useLibrary } from '@/hooks/useLibrary'
 import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { getDisplayUrl, pluralize, timeAgo } from '@/lib/format'
-import type { SessionContent, SavedGroup, VersionReason, SavedTab } from '@/lib/library/model'
+import type { CheckpointReason, SessionContent, SavedGroup, SavedTab } from '@/lib/library/model'
 import { button } from '@/lib/ui'
 import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
@@ -44,7 +44,7 @@ const {
 	revision,
 	lastUsed,
 	getVersionData,
-	listVersions,
+	listCheckpoints,
 	switchTo,
 	openCopy,
 	saveVersion,
@@ -74,14 +74,26 @@ async function toggleStash(id: string, open: boolean) {
 
 const session = computed(() => sessions.value.find((s) => s.id === props.uid) ?? null)
 const isOpen = computed(() => session.value?.status === 'open')
+/** Its content first, then its checkpoints */
 const versions = computed(() => {
 	void revision.value
-	return listVersions(props.uid)
+	const s = session.value
+	const current = s?.contentId
+		? [
+				{
+					id: s.contentId,
+					createdAt: s.updatedAt,
+					reason: 'autosave' as CheckpointReason,
+					tabCount: s.tabCount,
+				},
+			]
+		: []
+	return [...current, ...listCheckpoints(props.uid)]
 })
 
-/** null shows the newest version */
+/** null shows the content */
 const selectedVersionId = ref<string | null>(null)
-const shownVersionId = computed(() => selectedVersionId.value ?? session.value?.headVersionId ?? '')
+const shownVersionId = computed(() => selectedVersionId.value ?? session.value?.contentId ?? '')
 const data = ref<SessionContent | null>(null)
 watch(
 	shownVersionId,
@@ -192,7 +204,8 @@ const GROUP_DOT: Record<string, string> = {
 	orange: 'bg-orange-500',
 }
 
-const REASONS: Record<VersionReason, string> = {
+const REASONS: Record<CheckpointReason, string> = {
+	autosave: 'Saved automatically',
 	switch: 'Saved when you switched away',
 	close: 'Saved when you put it away',
 	manual: 'Saved by you',
@@ -200,6 +213,10 @@ const REASONS: Record<VersionReason, string> = {
 	edit: 'Your edits',
 	park: 'Tabs parked',
 	migrated: 'Moved into the library',
+	moved: 'Before tabs were moved in',
+	'keep-open': 'Before you kept what was open',
+	upgrade: 'Saved before sessions saved themselves',
+	import: 'Before a backup was imported',
 }
 const relative = (ts: number) => timeAgo(ts)
 const exact = (ts: number) => (ts ? format(ts, 'EEE, MMM d yyyy · h:mm a') : '')
@@ -348,7 +365,7 @@ function confirmDelete() {
 					class="dark:border-vercel-accents-2 dark:text-vercel-accents-6 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:bg-black"
 				>
 					This session is open: its live tabs are in your windows. Below is its last saved
-					version. Change the session in Chrome; it's saved when you switch away.
+					version. Change the session in Chrome; it saves itself as you go.
 				</p>
 				<div
 					v-else-if="selectedVersion"
@@ -593,7 +610,7 @@ function confirmDelete() {
 					role="list"
 					class="card dark:divide-vercel-accents-2/60 divide-y divide-slate-100"
 				>
-					<li v-for="(version, i) in versions" :key="version.id">
+					<li v-for="version in versions" :key="version.id">
 						<button
 							type="button"
 							class="dark:hover:bg-vercel-accents-1 relative w-full px-3 py-2 text-left hover:bg-slate-50"
@@ -604,7 +621,10 @@ function confirmDelete() {
 							"
 							:aria-current="shownVersionId === version.id ? 'true' : undefined"
 							:disabled="!!draft"
-							@click="selectedVersionId = i === 0 ? null : version.id"
+							@click="
+								selectedVersionId =
+									version.id === session.contentId ? null : version.id
+							"
 						>
 							<span
 								v-if="shownVersionId === version.id"
@@ -616,7 +636,7 @@ function confirmDelete() {
 									relative(version.createdAt)
 								}}</time>
 								<span
-									v-if="i === 0"
+									v-if="version.id === session.contentId"
 									class="dark:bg-vercel-accents-2 dark:text-vercel-accents-6 rounded bg-slate-100 px-1.5 text-[11px] text-slate-600"
 								>
 									Newest
@@ -628,7 +648,7 @@ function confirmDelete() {
 								</span>
 							</span>
 							<span class="dark:text-vercel-accents-5 block text-xs text-slate-500">
-								{{ REASONS[version.reason as VersionReason] ?? 'Saved' }}
+								{{ REASONS[version.reason as CheckpointReason] ?? 'Saved' }}
 							</span>
 						</button>
 					</li>

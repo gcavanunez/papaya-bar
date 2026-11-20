@@ -87,7 +87,7 @@ async function runImport(file: File) {
 	try {
 		const summary = await importBackup(file, importMode.value)
 		toast(
-			`Imported ${pluralize(summary.sessions, 'session')} and ${pluralize(summary.versions, 'version')}. Reloading…`,
+			`Imported ${pluralize(summary.sessions, 'session')} and ${pluralize(summary.checkpoints, 'version')}. Reloading…`,
 		)
 		setTimeout(() => location.reload(), 900)
 	} catch (e) {
@@ -190,7 +190,7 @@ function onFileChange(e: Event) {
 							<p class="dark:text-vercel-accents-5 mt-0.5 text-sm text-slate-500">
 								<template v-if="stats">
 									{{ pluralize(stats.sessions, 'session') }} ·
-									{{ pluralize(stats.versions, 'version') }} ·
+									{{ pluralize(stats.checkpoints, 'version') }} ·
 									{{ formatBytes(stats.bytes) }}
 								</template>
 								<template v-else>Calculating…</template>

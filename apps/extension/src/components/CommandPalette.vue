@@ -238,14 +238,14 @@ function toSavedItem(entry: SavedEntry): SavedTabItem {
 }
 
 /**
- * Every tab in every closed session's newest version, and in every stashed group
+ * Every tab in every closed session's content, and in every stashed group
  * (contents load once, then cache)
  */
 async function savedEntries(): Promise<SavedEntry[]> {
 	const lib = await library()
-	const heads = switchable.value.filter((s) => s.headVersionId)
+	const heads = switchable.value.filter((s) => s.contentId)
 	const data = await lib.blobs.getMany([
-		...heads.map((s) => s.headVersionId),
+		...heads.map((s) => s.contentId),
 		...stashedAll.value.map((g) => g.id),
 	])
 	const sessionName = new Map(sessions.value.map((s) => [s.id, s.name]))
@@ -260,7 +260,7 @@ async function savedEntries(): Promise<SavedEntry[]> {
 			})),
 		),
 		...heads.flatMap((s) =>
-			(data.get(s.headVersionId)?.tabs ?? []).map((tab, i) => ({
+			(data.get(s.contentId)?.tabs ?? []).map((tab, i) => ({
 				key: `${s.id}-${i}`,
 				title: tab.title,
 				url: tab.url,
@@ -337,8 +337,7 @@ async function onSelect(item: PaletteItem | null) {
 		await (swap ? swapToStashed(item.id as string) : openStashed(item.id as string))
 	} else if (item.kind === 'group') {
 		await (swap ? swapToGroup(item.id as number) : focusGroup(item.id as number))
-	}
-	else if (item.kind === 'session') await switchTo(item.id)
+	} else if (item.kind === 'session') await switchTo(item.id)
 	else if (item.kind === 'command') await item.run()
 	else if (item.kind === 'tab') activateTab(item.id)
 	else if (item.kind === 'savedtab') chrome.tabs.create({ url: item.url })
@@ -401,7 +400,7 @@ onUnmounted(() => {
 									aria-hidden="true"
 								/>
 								<ComboboxInput
-									class="dark:placeholder:text-vercel-accents-4 h-12 w-full border-0 bg-transparent p-0 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 focus:outline-none dark:text-white"
+									class="dark:placeholder:text-vercel-accents-4 h-12 w-full border-0 bg-transparent p-0 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-white"
 									placeholder="Jump to a group, session, command or open tab…"
 									autocomplete="off"
 									@change="query = $event.target.value"
@@ -416,7 +415,7 @@ onUnmounted(() => {
 							>
 								<!-- Open tab groups -->
 								<template v-if="groupItems.length">
-									<li class="section-label px-2.5 pt-2 pb-1" role="presentation">
+									<li class="section-label px-2.5 pb-1 pt-2" role="presentation">
 										Go to group
 									</li>
 									<ComboboxOption
@@ -441,7 +440,7 @@ onUnmounted(() => {
 												{{ item.label }}
 											</span>
 											<span
-												class="dark:text-vercel-accents-5 text-xs text-slate-400 tabular-nums"
+												class="dark:text-vercel-accents-5 text-xs tabular-nums text-slate-400"
 											>
 												{{ item.stashed ? 'stashed · ' : ''
 												}}{{ item.tabCount }} tabs
@@ -487,7 +486,7 @@ onUnmounted(() => {
 												{{ item.label }}
 											</span>
 											<span
-												class="dark:text-vercel-accents-5 text-xs text-slate-400 tabular-nums"
+												class="dark:text-vercel-accents-5 text-xs tabular-nums text-slate-400"
 											>
 												{{ item.tabCount }} tabs
 											</span>
@@ -497,7 +496,7 @@ onUnmounted(() => {
 
 								<!-- Commands -->
 								<template v-if="commandItems.length">
-									<li class="section-label px-2.5 pt-3 pb-1" role="presentation">
+									<li class="section-label px-2.5 pb-1 pt-3" role="presentation">
 										Actions
 									</li>
 									<ComboboxOption
@@ -523,7 +522,7 @@ onUnmounted(() => {
 
 								<!-- Open tabs -->
 								<template v-if="tabItems.length">
-									<li class="section-label px-2.5 pt-3 pb-1" role="presentation">
+									<li class="section-label px-2.5 pb-1 pt-3" role="presentation">
 										Open tabs
 									</li>
 									<ComboboxOption
@@ -546,7 +545,7 @@ onUnmounted(() => {
 
 								<!-- Saved tabs across all sessions -->
 								<template v-if="savedTabResults.length">
-									<li class="section-label px-2.5 pt-3 pb-1" role="presentation">
+									<li class="section-label px-2.5 pb-1 pt-3" role="presentation">
 										Saved in sessions
 									</li>
 									<ComboboxOption

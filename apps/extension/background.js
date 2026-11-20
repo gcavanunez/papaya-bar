@@ -6,11 +6,31 @@ import {
 	listSessions,
 	listStashed,
 } from './src/lib/library/store'
+import { createAutosaver } from './src/lib/library/autosave'
 import { createLibraryWriter } from './src/lib/library/writer'
 
 // The only writer of the sessions library; pages send it library.* messages
 const library = createLibraryWriter()
 chrome.runtime.onMessage.addListener(library.onMessage)
+
+// Autosave: the open session saves itself as its tabs change (src/lib/library/autosave.ts)
+const autosave = createAutosaver(library)
+const changed = () => autosave.changed()
+chrome.tabs.onCreated.addListener(changed)
+chrome.tabs.onRemoved.addListener(changed)
+chrome.tabs.onMoved.addListener(changed)
+chrome.tabs.onAttached.addListener(changed)
+chrome.tabs.onDetached.addListener(changed)
+chrome.tabs.onReplaced.addListener(changed)
+chrome.tabs.onUpdated.addListener((_tabId, change) => autosave.tabUpdated(change))
+chrome.tabGroups.onCreated.addListener(changed)
+chrome.tabGroups.onUpdated.addListener(changed)
+chrome.tabGroups.onMoved.addListener(changed)
+chrome.tabGroups.onRemoved.addListener(changed)
+chrome.windows.onCreated.addListener(changed)
+chrome.windows.onRemoved.addListener(changed)
+// Decide whether the open windows are the open session's without waiting for a change
+autosave.tick().catch((error) => console.warn('[papaya] autosave', error))
 
 // Get the current tab
 const getCurrentTab = async () => {
@@ -117,8 +137,8 @@ async function paletteSearchSaved(query) {
 			label: `${g.name} · ${sessionName.get(g.sessionId) ?? 'session'}`,
 		})),
 		...sessions
-			.filter((s) => s.status === 'closed' && s.headVersionId)
-			.map((s) => ({ id: s.headVersionId, label: s.name })),
+			.filter((s) => s.status === 'closed' && s.contentId)
+			.map((s) => ({ id: s.contentId, label: s.name })),
 	]
 	const data = await lib.blobs.getMany(sources.map((source) => source.id))
 	const found = []
@@ -154,7 +174,7 @@ async function handlePaletteMessage(message, sender) {
 			await library.run('switchTo', { sessionId: message.sessionId })
 			return { ok: true }
 		case 'palette.saveVersion':
-			await library.run('saveVersion')
+			await library.run('saveCheckpoint')
 			return { ok: true }
 		case 'palette.saveAs':
 			await library.run('saveOpenAs', { name: message.name })

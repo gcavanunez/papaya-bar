@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { installFakeChrome } from '@/test/fakeChrome'
-import { DEVICE_KEY, chromeDevice, chromeState, memoryDevice } from './state'
+import {
+	DEVICE_KEY,
+	RUNTIME_KEY,
+	chromeDevice,
+	chromeRuntime,
+	chromeState,
+	memoryDevice,
+	memoryRuntime,
+} from './state'
 
 const settle = async () => {
 	for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 5))
@@ -16,21 +24,21 @@ describe('device state', () => {
 		const device = memoryDevice()
 		const heard: string[] = []
 		device.subscribe((state) => heard.push(state.openSessionId))
-		expect(device.get()).toEqual({ openSessionId: '' })
+		expect(device.get()).toEqual({ openSessionId: '', adoptLive: false })
 		await device.set({ openSessionId: 'a' })
 		await device.set({ openSessionId: 'a' })
 		expect(device.get().openSessionId).toBe('a')
-		expect(await device.read()).toEqual({ openSessionId: 'a' })
+		expect(await device.read()).toEqual({ openSessionId: 'a', adoptLive: false })
 		expect(heard).toEqual(['a'])
 	})
 
 	it('loads what is stored, ignoring anything malformed', async () => {
 		fake.storage.set(DEVICE_KEY, { openSessionId: 'trip', stray: 1 })
-		expect((await chromeDevice()).get()).toEqual({ openSessionId: 'trip' })
-		fake.storage.set(DEVICE_KEY, { openSessionId: 42 })
-		expect((await chromeDevice()).get()).toEqual({ openSessionId: '' })
+		expect((await chromeDevice()).get()).toEqual({ openSessionId: 'trip', adoptLive: false })
+		fake.storage.set(DEVICE_KEY, { openSessionId: 42, adoptLive: 'yes' })
+		expect((await chromeDevice()).get()).toEqual({ openSessionId: '', adoptLive: false })
 		fake.storage.set(DEVICE_KEY, 'nonsense')
-		expect((await chromeDevice()).get()).toEqual({ openSessionId: '' })
+		expect((await chromeDevice()).get()).toEqual({ openSessionId: '', adoptLive: false })
 	})
 
 	it('reads its own write at once and stores it', async () => {
@@ -38,7 +46,7 @@ describe('device state', () => {
 		const write = device.set({ openSessionId: 'trip' })
 		expect(device.get().openSessionId).toBe('trip')
 		await write
-		expect(fake.storage.get(DEVICE_KEY)).toEqual({ openSessionId: 'trip' })
+		expect(fake.storage.get(DEVICE_KEY)).toEqual({ openSessionId: 'trip', adoptLive: false })
 	})
 
 	it('every page and the worker follow a change made in any of them', async () => {
@@ -65,5 +73,32 @@ describe('device state', () => {
 		await settle()
 		expect(one.get()).toEqual({ a: '3', b: '2' })
 		expect(two.get()).toEqual({ a: '3', b: '2' })
+	})
+})
+
+describe('runtime state', () => {
+	it('starts unknown, in memory and in chrome.storage.session', async () => {
+		expect(memoryRuntime().get()).toEqual({ link: 'unknown', linkAt: 0 })
+		expect((await chromeRuntime()).get()).toEqual({ link: 'unknown', linkAt: 0 })
+	})
+
+	it('is kept in storage.session, which a page reads but cannot write', async () => {
+		const worker = await chromeRuntime()
+		const page = await chromeRuntime({ readOnly: true })
+		await worker.set({ link: 'unlinked', linkAt: 5 })
+		expect(fake.sessionStorage.get(RUNTIME_KEY)).toEqual({ link: 'unlinked', linkAt: 5 })
+		expect(fake.storage.has(RUNTIME_KEY)).toBe(false)
+		await settle()
+		expect(page.get().link).toBe('unlinked')
+		await expect(page.set({ link: 'linked' })).rejects.toThrow(/cannot change library:runtime/)
+		// Device state, in storage.local, does not hear of it
+		const device = await chromeDevice()
+		expect(device.get()).toEqual({ openSessionId: '', adoptLive: false })
+	})
+
+	it('is gone after the extension reloads', async () => {
+		await (await chromeRuntime()).set({ link: 'linked', linkAt: 1 })
+		fake.reloadExtension()
+		expect((await chromeRuntime()).get().link).toBe('unknown')
 	})
 })

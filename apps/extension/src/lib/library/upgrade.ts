@@ -9,13 +9,14 @@
  */
 import type { Library } from './store'
 
-export const LIBRARY_SCHEMA_VERSION = 2
+export const LIBRARY_SCHEMA_VERSION = 3
 /** Where the index is kept as it was before the first upgrade, in case one goes wrong */
 export const INDEX_V1_KEY = 'library:index:v1'
 
 /** Each link takes the index from its version to the next, and records that it did */
 const LINKS: Record<number, (lib: Library) => Promise<void>> = {
 	1: oneToTwo,
+	2: twoToThree,
 }
 
 export interface UpgradeOptions {
@@ -70,4 +71,56 @@ async function oneToTwo(lib: Library): Promise<void> {
 		for (const key of LEGACY_VALUES) store.delValue(key)
 		store.setValue('schemaVersion', 2)
 	})
+}
+
+const text = (value: unknown) => (typeof value === 'string' ? value : '')
+const count = (value: unknown) => (typeof value === 'number' ? value : 0)
+
+/**
+ * 2 → 3: a session's newest version becomes its content, and every other version a
+ * checkpoint with the same id, so each entry keeps exactly one owner. A row whose entry
+ * is not stored is dropped (a session with a missing newest version has no content), so
+ * nothing points at nothing. The next autosave takes what is open as the open session's.
+ */
+async function twoToThree(lib: Library): Promise<void> {
+	const { store } = lib
+	const stored = new Set(await lib.blobs.ids())
+	store.transaction(() => {
+		const contents = new Set<string>()
+		for (const [id, row] of Object.entries(store.getTable('sessions'))) {
+			const head = text(row.headVersionId)
+			// A content written since (an interrupted upgrade, a merged copy) stays
+			let content = text(row.contentId)
+			if (!content && head) {
+				if (stored.has(head)) {
+					content = head
+					store.setCell('sessions', id, 'contentId', head)
+				} else if (count(row.tabCount) || text(row.preview) !== '[]') {
+					store.setPartialRow('sessions', id, {
+						contentId: '',
+						tabCount: 0,
+						preview: '[]',
+					})
+				}
+			}
+			if (content) contents.add(content)
+			else if (row.contentId === undefined) store.setCell('sessions', id, 'contentId', '')
+			if (row.headVersionId !== undefined) store.delCell('sessions', id, 'headVersionId')
+		}
+		for (const [id, row] of Object.entries(store.getTable('versions'))) {
+			if (!contents.has(id) && stored.has(id)) {
+				store.setRow('checkpoints', id, {
+					sessionId: text(row.sessionId),
+					createdAt: count(row.createdAt),
+					reason: text(row.reason) || 'manual',
+					tabCount: count(row.tabCount),
+					windowCount: count(row.windowCount),
+					groupCount: count(row.groupCount),
+				})
+			}
+			store.delRow('versions', id)
+		}
+		store.setValue('schemaVersion', 3)
+	})
+	await lib.device.set({ adoptLive: true })
 }

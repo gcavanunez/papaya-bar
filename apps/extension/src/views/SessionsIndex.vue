@@ -62,22 +62,22 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const query = computed(() => search.value.trim().toLowerCase())
 
 // ---------- Searching inside sessions ----------
-// Tab text lives in each session's newest version, loaded the first time you search
+// Tab text lives in each session's content, loaded the first time you search
 
 const tabText = ref(new Map<string, string[]>())
 let loadedFor = ''
 watch(query, async (q) => {
 	if (q.length < 2) return
-	const key = sessions.value.map((s) => s.headVersionId).join()
+	const key = sessions.value.map((s) => s.contentId).join()
 	if (key === loadedFor) return
 	loadedFor = key
 	const library_ = await library()
-	const heads = sessions.value.filter((s) => s.headVersionId)
-	const data = await library_.blobs.getMany(heads.map((s) => s.headVersionId))
+	const heads = sessions.value.filter((s) => s.contentId)
+	const data = await library_.blobs.getMany(heads.map((s) => s.contentId))
 	tabText.value = new Map(
 		heads.map((s) => [
 			s.id,
-			(data.get(s.headVersionId)?.tabs ?? []).map((t) => `${t.title} ${t.url}`.toLowerCase()),
+			(data.get(s.contentId)?.tabs ?? []).map((t) => `${t.title} ${t.url}`.toLowerCase()),
 		]),
 	)
 })

@@ -2,7 +2,7 @@
  * Manual data backup — "Download my data" / "Import data".
  *
  * Bundles everything that's *yours* into one JSON file:
- *  - library:        your sessions and every version's contents
+ *  - library:        your sessions, their checkpoints and stashed groups
  *  - tinybase:       the old contexts store, kept as the rollback copy
  *  - legacySessions: the old saved-sessions list (chrome.storage.local)
  *  - settings:       UI preferences
@@ -78,7 +78,7 @@ export async function downloadBackup(): Promise<void> {
 export interface BackupStats {
 	/** Sessions in the library */
 	sessions: number
-	versions: number
+	checkpoints: number
 	bytes: number
 }
 
@@ -89,7 +89,7 @@ export async function getBackupStats(): Promise<BackupStats> {
 	const lib = await getLibrary()
 	return {
 		sessions: Object.keys(lib.store.getTable('sessions')).length,
-		versions: Object.keys(lib.store.getTable('versions')).length,
+		checkpoints: Object.keys(lib.store.getTable('checkpoints')).length,
 		bytes,
 	}
 }
@@ -98,7 +98,7 @@ export type ImportMode = 'replace' | 'merge'
 
 export interface ImportSummary {
 	sessions: number
-	versions: number
+	checkpoints: number
 }
 
 /**
