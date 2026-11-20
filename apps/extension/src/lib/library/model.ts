@@ -7,8 +7,9 @@
  */
 import { getHostname } from '@/lib/format'
 
+/** Derived, never stored: open on this device, archived, or closed */
 export type SessionStatus = 'open' | 'closed' | 'archived'
-export type SessionKind = 'home' | 'normal' | 'parked'
+export type SessionKind = 'home' | 'normal'
 export type VersionReason = 'switch' | 'close' | 'manual' | 'restore' | 'edit' | 'park' | 'migrated'
 /** Where a migrated session came from */
 export type SessionOrigin = 'home' | 'context' | 'saved-session' | 'synced-session'
@@ -19,7 +20,8 @@ export interface LibrarySession {
 	description: string
 	color: string
 	kind: SessionKind
-	status: SessionStatus
+	/** When it was archived; 0 when it is not */
+	archivedAt: number
 	createdAt: number
 	updatedAt: number
 	/** 0 when never opened since the migration */
@@ -33,6 +35,15 @@ export interface LibrarySession {
 	origin: SessionOrigin
 	/** The old context id, saved-session key or synced session id */
 	originId: string
+}
+
+/**
+ * A session row as schema 1 stored it, with its status and the Parked kind. Old
+ * indexes and backups hold these, and the move-in from the old stores still plans them.
+ */
+export interface LibrarySessionV1 extends Omit<LibrarySession, 'kind' | 'archivedAt'> {
+	kind: SessionKind | 'parked'
+	status: SessionStatus
 }
 
 export interface LibraryVersion {

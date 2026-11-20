@@ -21,7 +21,7 @@ import {
 	deriveName,
 	makePreview,
 	makeVersion,
-	type LibrarySession,
+	type LibrarySessionV1,
 	type LibraryVersion,
 	type SessionOrigin,
 	type VersionData,
@@ -122,7 +122,7 @@ export interface MigrationReport {
 }
 
 export interface MigrationResult {
-	sessions: Record<string, LibrarySession>
+	sessions: Record<string, LibrarySessionV1>
 	versions: Record<string, LibraryVersion>
 	values: { openSessionId: string; parkedSessionId: string; homeSessionId: string }
 	report: MigrationReport
@@ -271,7 +271,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 
 	const fixes: Fixes = { missingGroups: 0, bigFavicons: 0 }
 	const warnings: string[] = []
-	const sessions: Record<string, LibrarySession> = {}
+	const sessions: Record<string, LibrarySessionV1> = {}
 	const versions: Record<string, LibraryVersion> = {}
 	const dropped = { copies: 0, duplicates: 0, empty: 0 }
 
@@ -288,7 +288,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 
 	function addSession(
 		id: string,
-		session: Omit<LibrarySession, 'headVersionId' | 'tabCount' | 'preview'>,
+		session: Omit<LibrarySessionV1, 'headVersionId' | 'tabCount' | 'preview'>,
 		sessionVersions: {
 			id: string
 			data: VersionData
@@ -455,7 +455,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 		const head = versions[sessions[id]?.headVersionId ?? '']
 		return head ? (JSON.parse(head.data) as VersionData) : { tabs: [], groups: [], windows: [] }
 	}
-	const newSession = (id: string, name: string, kind: LibrarySession['kind'], at: number) =>
+	const newSession = (id: string, name: string, kind: LibrarySessionV1['kind'], at: number) =>
 		addSession(
 			id,
 			{
@@ -564,7 +564,7 @@ export function planMigration(input: MigrationInput): MigrationResult {
 	// ---------- Report ----------
 	const all = Object.values(sessions)
 	const dated = all.filter((s) => s.kind !== 'home').map((s) => s.createdAt)
-	const largest = all.reduce<LibrarySession | null>(
+	const largest = all.reduce<LibrarySessionV1 | null>(
 		(best, s) => (!best || s.tabCount > best.tabCount ? s : best),
 		null,
 	)

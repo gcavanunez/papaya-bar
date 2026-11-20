@@ -64,6 +64,8 @@ function start(): Promise<Library> {
 		refresh()
 		library.store.addTablesListener(refresh)
 		library.store.addValuesListener(refresh)
+		// The open session is this device's, changed by any page or the worker
+		library.device.subscribe(refresh)
 		ready.value = true
 		return library
 	})
@@ -298,14 +300,14 @@ export function useLibrary() {
 
 	async function archive(id: string): Promise<void> {
 		const library = await start()
-		setStatus(library, id, 'archived')
+		await setStatus(library, id, 'archived')
 		toast(`Archived ${nameOf(id)}`, {
-			action: { label: 'Undo', onClick: () => setStatus(library, id, 'closed') },
+			action: { label: 'Undo', onClick: () => void setStatus(library, id, 'closed') },
 		})
 	}
 
 	async function unarchive(id: string): Promise<void> {
-		setStatus(await start(), id, 'closed')
+		await setStatus(await start(), id, 'closed')
 	}
 
 	async function remove(id: string): Promise<void> {

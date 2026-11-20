@@ -34,11 +34,11 @@ export interface OpenResult {
 }
 
 /** The open session, or Home when none is (stashed groups always belong to a session) */
-function openSessionOf(lib: Library, now: number): string {
+async function openSessionOf(lib: Library, now: number): Promise<string> {
 	const open = getOpenSessionId(lib)
 	if (open) return open
 	const home = ensureHome(lib, now)
-	markOpen(lib, home, now)
+	await markOpen(lib, home, now)
 	return home
 }
 
@@ -71,7 +71,7 @@ export async function stashGroup(
 		chrome.tabs.query({ groupId }),
 	])
 	if (!tabs.length) throw new Error('That group has no tabs')
-	const sessionId = openSessionOf(lib, now)
+	const sessionId = await openSessionOf(lib, now)
 	const name = group.title || 'Unnamed group'
 	const stashId = await addStashed(
 		lib,

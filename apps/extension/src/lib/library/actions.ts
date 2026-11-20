@@ -117,7 +117,7 @@ export async function switchTo(
 		// An empty session still needs a window, or closing the old tabs closes Chrome
 		await chrome.windows.create({})
 	}
-	markOpen(lib, targetId, now)
+	await markOpen(lib, targetId, now)
 	if (closeIds.length) await chrome.tabs.remove(closeIds)
 	return { fromId, toId: targetId, failed }
 }
@@ -125,7 +125,7 @@ export async function switchTo(
 /** Save a version of the open session without closing anything */
 export async function saveVersion(lib: Library, now = Date.now()): Promise<string> {
 	const openId = getOpenSessionId(lib) || ensureHome(lib, now)
-	if (!getOpenSessionId(lib)) markOpen(lib, openId, now)
+	if (!getOpenSessionId(lib)) await markOpen(lib, openId, now)
 	return addVersion(lib, openId, await captureOpen(), 'manual', now)
 }
 
@@ -142,7 +142,7 @@ export async function saveOpenAs(lib: Library, name: string, now = Date.now()): 
 		for (const group of listStashed(lib, HOME_ID))
 			updateStashed(lib, group.id, { sessionId: id })
 	}
-	markOpen(lib, id, now)
+	await markOpen(lib, id, now)
 	return id
 }
 

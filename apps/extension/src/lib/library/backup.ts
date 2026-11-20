@@ -8,8 +8,9 @@
  */
 import type { MergeableContent } from 'tinybase'
 import type { MigrationResult } from './migrate'
-import { parseVersion, type VersionData } from './model'
-import { createLibrary, type Library } from './store'
+import type { VersionData } from './model'
+import { applyMigration, createLibrary, getOpenSessionId, getSession, type Library } from './store'
+import { upgradeLibrary } from './upgrade'
 
 export interface LibraryBackup {
 	index: MergeableContent
@@ -29,43 +30,42 @@ export async function exportLibrary(lib: Library): Promise<LibraryBackup> {
 type Tables = Record<string, Record<string, Record<string, string | number | boolean>>>
 type Values = Record<string, string | number | boolean>
 
-/** Rows and contents to import, from a library backup or a planned migration */
-function rowsOf(source: LibraryBackup | MigrationResult): {
+/**
+ * Rows and contents to import, from a library backup or a planned migration, brought up
+ * to the current schema in a library of their own
+ */
+async function rowsOf(source: LibraryBackup | MigrationResult): Promise<{
 	tables: Tables
 	values: Values
 	versions: Record<string, VersionData>
-} {
+}> {
+	const temp = createLibrary()
+	let versions: Record<string, VersionData>
 	if ('index' in source) {
-		const temp = createLibrary()
 		temp.store.setMergeableContent(source.index)
-		return {
-			tables: temp.store.getTables() as Tables,
-			values: temp.store.getValues() as Values,
-			versions: source.versions,
-		}
-	}
-	const versions: Record<string, VersionData> = {}
-	const versionRows: Tables[string] = {}
-	for (const [id, { data, ...meta }] of Object.entries(source.versions)) {
-		versions[id] = parseVersion({ data })
-		versionRows[id] = meta as unknown as Tables[string][string]
+		versions = source.versions
+		await upgradeLibrary(temp)
+	} else {
+		await applyMigration(temp, source)
+		versions = Object.fromEntries(await temp.blobs.getMany(Object.keys(source.versions)))
 	}
 	return {
-		tables: {
-			sessions: source.sessions as unknown as Tables[string],
-			versions: versionRows,
-		},
-		values: { ...source.values, schemaVersion: 1, migratedAt: Date.now() },
+		tables: temp.store.getTables() as Tables,
+		values: temp.store.getValues() as Values,
 		versions,
 	}
 }
 
+/**
+ * Bring a backup's sessions into the library. Which session is open on this device
+ * stays as it is; if that session is gone afterwards, the device has none (Home).
+ */
 export async function importLibrary(
 	lib: Library,
 	source: LibraryBackup | MigrationResult,
 	mode: 'replace' | 'merge',
 ): Promise<{ sessions: number; versions: number }> {
-	const { tables, values, versions } = rowsOf(source)
+	const { tables, values, versions } = await rowsOf(source)
 	await lib.blobs.set(versions)
 	const replaced =
 		mode === 'replace'
@@ -79,7 +79,7 @@ export async function importLibrary(
 		for (const [tableId, rows] of Object.entries(tables)) {
 			for (const [rowId, row] of Object.entries(rows)) lib.store.setRow(tableId, rowId, row)
 		}
-		// Keep the open session if the backup has none; otherwise take the backup's
+		// Merging keeps the library's own schema version and move-in date
 		lib.store.setPartialValues(
 			mode === 'merge'
 				? Object.fromEntries(
@@ -88,6 +88,8 @@ export async function importLibrary(
 				: values,
 		)
 	})
+	const open = getOpenSessionId(lib)
+	if (open && !getSession(lib, open)) await lib.device.set({ openSessionId: '' })
 	await lib.blobs.delete(replaced.filter((id) => !(id in versions)))
 	return {
 		sessions: Object.keys(tables.sessions ?? {}).length,
