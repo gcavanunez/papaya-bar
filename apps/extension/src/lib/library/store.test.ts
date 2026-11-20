@@ -336,6 +336,13 @@ describe('setContent', () => {
 		expect(await getSessionData(lib, id)).toBeNull()
 		await setContent(lib, id, data('https://v1.com'), 'always', { now: 2 })
 		expect(listCheckpoints(lib, id)).toEqual([])
+		// Nor does content of blank and new tab pages only
+		await setContent(lib, id, data('chrome://newtab/', 'about:blank'), 'never', { now: 3 })
+		await setContent(lib, id, data('https://v2.com'), 'always', { now: 4 })
+		expect(listCheckpoints(lib, id)).toEqual([])
+		expect(await addCheckpoint(lib, id, 'manual', 5)).toBeTruthy()
+		await setContent(lib, id, data('chrome://newtab/'), 'never', { now: 6 })
+		expect(await addCheckpoint(lib, id, 'manual', 7)).toBeNull()
 		await expectSingleOwners(lib)
 	})
 

@@ -15,6 +15,7 @@ import { memoryBlobs, type ContentBlobs } from './blobs'
 import type { MigrationResult } from './migrate'
 import {
 	emptyContent,
+	isRealUrl,
 	makeCheckpoint,
 	makePreview,
 	parseVersion,
@@ -280,8 +281,8 @@ export interface ContentWrite {
 /**
  * The one way a session's content is written. Nothing happens if it is unchanged.
  * Otherwise the new entry is stored before the session points at it, and the content it
- * replaces becomes a checkpoint (as `mode` decides; empty content never does) or is
- * deleted. Only the newest MAX_CHECKPOINTS checkpoints are kept; `keep` is never one
+ * replaces becomes a checkpoint (as `mode` decides; content with no real tabs never
+ * does) or is deleted. Only the newest MAX_CHECKPOINTS checkpoints are kept; `keep` is never one
  * of those pushed out.
  */
 export async function setContent(
@@ -298,7 +299,7 @@ export async function setContent(
 	const old = oldId ? await lib.blobs.get(oldId) : emptyContent()
 	if (old && sameContent(old, data)) return { changed: false, checkpointId: null }
 
-	const kept = !!old?.tabs.length && wantsCheckpoint(lib, sessionId, mode, now)
+	const kept = !!old && hasRealTabs(old) && wantsCheckpoint(lib, sessionId, mode, now)
 	// A session with no tabs points at nothing
 	const id = data.tabs.length ? newId() : ''
 	if (id) await lib.blobs.set({ [id]: data })
@@ -366,9 +367,12 @@ export async function releaseEntries(lib: Library, ids: string[]): Promise<void>
 	if (free.length) await lib.dropEntries(free)
 }
 
+/** Blank and new tab pages alone are nothing worth going back to */
+const hasRealTabs = (data: SessionContent) => data.tabs.some((tab) => isRealUrl(tab.url))
+
 /**
  * Keep a copy of a session's content as a checkpoint, leaving the content as it is.
- * Returns null when there is nothing to keep (no tabs).
+ * Returns null when there is nothing to keep (no real tabs).
  */
 export async function addCheckpoint(
 	lib: Library,
@@ -377,7 +381,7 @@ export async function addCheckpoint(
 	now = Date.now(),
 ): Promise<string | null> {
 	const data = await getSessionData(lib, sessionId)
-	if (!data?.tabs.length) return null
+	if (!data || !hasRealTabs(data)) return null
 	const id = newId()
 	await lib.blobs.set({ [id]: data })
 	let pruned: string[] = []
