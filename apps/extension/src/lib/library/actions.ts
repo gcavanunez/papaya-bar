@@ -177,8 +177,9 @@ async function settleLinked(lib: Library, now: number): Promise<void> {
 async function leave(lib: Library, fromId: string, now: number): Promise<string | undefined> {
 	const capture = await captureOpen()
 	if ((await saveLinked(lib, fromId, capture, 'switch', now)).linked) return undefined
-	if (!capture.tabs.some((tab) => isRealUrl(tab.url))) return undefined
-	return createSession(lib, { name: deriveName('', capture.tabs) }, capture, now)
+	const real = capture.tabs.filter((tab) => isRealUrl(tab.url))
+	if (!real.length) return undefined
+	return createSession(lib, { name: deriveName('', real) }, capture, now)
 }
 
 /** Open a content in new windows; an empty one still gets a window, so closing the old tabs never closes Chrome */

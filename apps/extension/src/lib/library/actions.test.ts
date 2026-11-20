@@ -147,6 +147,17 @@ describe('switchTo', () => {
 		await expectOwned()
 	})
 
+	it('unlinked: names the open tabs it saves from their sites, not from blank tabs', async () => {
+		const trip = await createSession(lib, { name: 'Trip' }, data('https://flights.com'))
+		await cameBackWithout(
+			'home',
+			['https://home-a.com'],
+			['chrome://newtab/', 'https://news.com', 'chrome://newtab/', 'https://mail.com'],
+		)
+		const result = await switchTo(lib, trip)
+		expect(getSession(lib, result!.savedAs!)?.name).toBe('news.com, mail.com')
+	})
+
 	it('unlinked with only blank tabs open: nothing to save first', async () => {
 		const trip = await createSession(lib, { name: 'Trip' }, data('https://flights.com'))
 		await cameBackWithout('home', ['https://home-a.com'], ['chrome://newtab/'])
