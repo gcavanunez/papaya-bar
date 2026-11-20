@@ -173,7 +173,7 @@ async function handlePaletteMessage(message, sender) {
 		case 'palette.switch':
 			await library.run('switchTo', { sessionId: message.sessionId })
 			return { ok: true }
-		case 'palette.saveVersion':
+		case 'palette.saveCheckpoint':
 			await library.run('saveCheckpoint')
 			return { ok: true }
 		case 'palette.saveAs':

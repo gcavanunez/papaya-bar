@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * The side panel: the open session, its tab groups and loose tabs, and the sessions you
- * can switch to.
+ * The side panel: the open session and when it last saved itself, its tab groups and
+ * loose tabs, and the sessions you can switch to.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useLibrary } from '@/hooks/useLibrary'
@@ -11,7 +11,6 @@ import {
 	ArchiveBoxArrowDownIcon,
 	ArrowsPointingInIcon,
 	ArrowTopRightOnSquareIcon,
-	BookmarkIcon,
 	ChevronDownIcon,
 	EllipsisHorizontalIcon,
 	HomeIcon,
@@ -32,9 +31,12 @@ import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
 import AppMenuItems from '@/components/menu/AppMenuItems.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LibraryError from '@/components/LibraryError.vue'
 import LibraryMoveCard from '@/components/LibraryMoveCard.vue'
+import SavedStatus from '@/components/SavedStatus.vue'
 import SearchInput from '@/components/forms/SearchInput.vue'
 import TabFavicon from '@/components/TabFavicon.vue'
+import UnlinkedBanner from '@/components/UnlinkedBanner.vue'
 
 const {
 	migrated,
@@ -43,7 +45,6 @@ const {
 	homeId,
 	lastUsed,
 	switchTo,
-	saveVersion,
 	saveOpenAs,
 	putAway,
 	openCopy,
@@ -266,7 +267,9 @@ onUnmounted(() => {
 		</header>
 
 		<div class="flex-1 space-y-4 overflow-y-auto p-4">
+			<LibraryError compact />
 			<LibraryMoveCard compact />
+			<UnlinkedBanner compact />
 
 			<!-- The open session -->
 			<section v-if="migrated" class="card p-3" aria-label="Open session">
@@ -294,21 +297,11 @@ onUnmounted(() => {
 					<span v-else class="min-w-0 flex-1 truncate text-sm font-medium">
 						{{ openSession?.name ?? 'Home' }}
 					</span>
-					<span
-						class="bg-papaya-900/10 text-papaya-900 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-					>
-						Open
-					</span>
+					<SavedStatus class="shrink-0" />
 				</div>
-				<p class="dark:text-vercel-accents-5 mt-1 text-xs text-slate-500">
-					<template v-if="isHome">
-						Where you start. Name these tabs to make them a session you can leave and
-						come back to.
-					</template>
-					<template v-else>
-						Saved {{ ago(openSession!.updatedAt) }}. Switching away saves it as you left
-						it.
-					</template>
+				<p v-if="isHome" class="dark:text-vercel-accents-5 mt-1 text-xs text-slate-500">
+					Where you start. Name these tabs to make them a session you can leave and come
+					back to.
 				</p>
 
 				<form v-if="naming" class="mt-3 flex gap-2" @submit.prevent="onSaveAs">
@@ -334,10 +327,6 @@ onUnmounted(() => {
 					Save as a session…
 				</AppButton>
 				<div v-else class="mt-3 flex gap-2">
-					<AppButton size="sm" class="flex-1" @click="saveVersion">
-						<BookmarkIcon class="size-3.5" aria-hidden="true" />
-						Save version
-					</AppButton>
 					<AppButton
 						size="sm"
 						class="flex-1"

@@ -44,7 +44,7 @@ const lines = computed(() => {
 		out.push(`${pluralize(report.found.savedSessions, 'saved session')}`)
 	if (report.found.contexts) {
 		out.push(
-			`${pluralize(report.found.contexts, 'context')} with ${pluralize(report.found.contextVersions, 'version')}`,
+			`${pluralize(report.found.contexts, 'context')}, with ${pluralize(report.found.contextVersions, 'saved state')}`,
 		)
 	}
 	if (report.found.pendingChanges || report.found.pendingParked) {
@@ -97,8 +97,9 @@ async function move() {
 		</div>
 		<template v-if="plan">
 			<p class="dark:text-vercel-accents-6 text-xs text-slate-600">
-				Saved sessions and contexts become one list of sessions you can switch into, each
-				with its last 10 versions. Nothing is deleted: today's data stays where it is.
+				Saved sessions and contexts become one list of sessions you can switch into. Each
+				saves itself and keeps its earlier states in History. Nothing is deleted: today's
+				data stays where it is.
 			</p>
 			<ul
 				class="dark:text-vercel-accents-6 list-disc space-y-0.5 pl-4 text-xs text-slate-600"

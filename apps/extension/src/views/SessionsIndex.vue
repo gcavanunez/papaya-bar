@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * The sessions library: every session in one list. Switch into any of them; Papaya
- * saves a version of the one you leave.
+ * The sessions library: every session in one list. Switch into any of them; the open one
+ * saves itself, so the one you leave is kept as you left it.
  */
 import { computed, ref, watch } from 'vue'
 import { differenceInCalendarDays, format } from 'date-fns'
@@ -31,10 +31,12 @@ import AppButton from '@/components/AppButton.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
 import AppMenuItems from '@/components/menu/AppMenuItems.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LibraryError from '@/components/LibraryError.vue'
 import LibraryMoveCard from '@/components/LibraryMoveCard.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import SearchInput from '@/components/forms/SearchInput.vue'
 import TabFavicon from '@/components/TabFavicon.vue'
+import UnlinkedBanner from '@/components/UnlinkedBanner.vue'
 
 const {
 	ready,
@@ -137,7 +139,7 @@ const exact = (ts: number) => (ts ? format(ts, 'EEE, MMM d yyyy · h:mm a') : ''
 const confirmDelete = (session: SessionSummary) => {
 	triggerConfirm(() => void remove(session.id), {
 		title: 'Delete this session?',
-		message: `“${session.name}”, its ${pluralize(session.tabCount, 'tab')} and all its versions will be removed.`,
+		message: `“${session.name}”, its ${pluralize(session.tabCount, 'tab')} and its History will be removed.`,
 		confirmLabel: 'Delete',
 	})
 }
@@ -199,8 +201,10 @@ async function onFileChange(event: Event) {
 			</template>
 		</PageHeader>
 
-		<div class="mt-6 max-w-xl">
+		<div class="mt-6 max-w-xl space-y-4 empty:hidden">
+			<LibraryError />
 			<LibraryMoveCard />
+			<UnlinkedBanner />
 		</div>
 
 		<template v-if="migrated">

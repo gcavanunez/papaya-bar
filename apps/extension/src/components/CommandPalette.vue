@@ -17,7 +17,9 @@ import {
 } from '@headlessui/vue'
 import {
 	ArchiveBoxArrowDownIcon,
+	ArrowPathIcon,
 	BookmarkIcon,
+	CheckIcon,
 	HomeIcon,
 	MagnifyingGlassIcon,
 	PlusIcon,
@@ -82,8 +84,12 @@ const {
 	stashed,
 	stashedAll,
 	sessions,
+	currentSession,
+	needsChoice,
 	switchTo,
-	saveVersion,
+	saveCheckpoint,
+	reopenSaved,
+	keepOpen,
 	saveOpenAs,
 	putAway,
 	openStashed,
@@ -170,14 +176,34 @@ const sessionItems = computed<SessionItem[]>(() =>
 const commandItems = computed<CommandItem[]>(() => {
 	const cmds: CommandItem[] = []
 	const open = openSession.value
+	// Chrome came back without the open session's tabs: the two ways to settle it
+	if (needsChoice.value) {
+		const name = currentSession.value?.name ?? 'Home'
+		cmds.push(
+			{
+				kind: 'command',
+				key: 'cmd-reopen',
+				label: `Reopen ${name}'s tabs`,
+				icon: ArrowPathIcon,
+				run: reopenSaved,
+			},
+			{
+				kind: 'command',
+				key: 'cmd-keep',
+				label: `Keep what's open as ${name}`,
+				icon: CheckIcon,
+				run: keepOpen,
+			},
+		)
+	}
 	if (open && open.id !== homeId) {
 		cmds.push(
 			{
 				kind: 'command',
-				key: 'cmd-version',
-				label: `Save a version of “${open.name}”`,
+				key: 'cmd-checkpoint',
+				label: `Save a checkpoint of “${open.name}”`,
 				icon: BookmarkIcon,
-				run: saveVersion,
+				run: saveCheckpoint,
 			},
 			{
 				kind: 'command',

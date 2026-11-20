@@ -5,13 +5,14 @@
  */
 import { computed, ref, shallowRef } from 'vue'
 import { toast } from 'vue-sonner'
-import { pluralize } from '@/lib/format'
+import { pluralize, timeAgo } from '@/lib/format'
 import { openCopy as openCopyOf } from '@/lib/library/actions'
 import { getLibrary, sendCommand } from '@/lib/library/client'
 import type { MigrationResult } from '@/lib/library/migrate'
 import type { SessionContent } from '@/lib/library/model'
 import {
 	HOME_ID,
+	getCheckpoint,
 	getCheckpointData,
 	getLink,
 	getOpenSessionId,
@@ -41,9 +42,30 @@ const migrated = ref(false)
 const ready = ref(false)
 /** Whether the open windows are the open session's tabs (`unlinked`: Chrome came back without them) */
 const link = ref<Link>('unknown')
+/** When `link` last changed */
+const linkAt = ref(0)
+/**
+ * Unlinked for long enough that Chrome is not just slow restoring its windows, so the
+ * person is asked to choose. Until then the state may still settle by itself.
+ */
+const needsChoice = ref(false)
+/** Why the library could not open; '' when it did, or has not tried yet */
+const openError = ref('')
 /** Bumps on every library change, for views that read checkpoints */
 const revision = ref(0)
 let starting: Promise<Library> | null = null
+
+/** How long Chrome gets to restore a session's windows before Papaya asks */
+export const UNLINKED_GRACE_MS = 8_000
+let graceTimer: ReturnType<typeof setTimeout> | undefined
+
+function settleChoice(): void {
+	clearTimeout(graceTimer)
+	const unlinked = link.value === 'unlinked'
+	const wait = linkAt.value + UNLINKED_GRACE_MS - Date.now()
+	needsChoice.value = unlinked && wait <= 0
+	if (unlinked && wait > 0) graceTimer = setTimeout(settleChoice, wait)
+}
 
 function refresh(): void {
 	if (!lib.value) return
@@ -52,6 +74,8 @@ function refresh(): void {
 	openId.value = getOpenSessionId(lib.value)
 	migrated.value = isMigrated(lib.value)
 	link.value = getLink(lib.value)
+	linkAt.value = lib.value.runtime.get().linkAt
+	settleChoice()
 	revision.value++
 }
 
@@ -65,12 +89,14 @@ function start(): Promise<Library> {
 			// The open session is this device's, and the link this browser run's, changed by the worker
 			library.device.subscribe(refresh)
 			library.runtime.subscribe(refresh)
+			openError.value = ''
 			ready.value = true
 			return library
 		},
 		(error) => {
 			// The library did not open (its upgrade failed, say); the next call tries again
 			starting = null
+			openError.value = errorText(error)
 			throw error
 		},
 	)
@@ -79,6 +105,21 @@ function start(): Promise<Library> {
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const nameOf = (id: string) => (lib.value ? getSession(lib.value, id)?.name : null) ?? 'session'
+
+/** A session's page: here, if this is the library's page; otherwise in a new tab (from the side panel) */
+function showSession(id: string): void {
+	const path = `#/sessions/${encodeURIComponent(id)}`
+	if (location.hash.startsWith('#/panel') || location.hash.startsWith('#/popup')) {
+		void chrome.tabs.create({ url: chrome.runtime.getURL(`index.html${path}`) })
+	} else {
+		location.hash = path
+	}
+}
+
+/** What a switch did with open tabs that were not the session's */
+function savedAsDescription(savedAs: string, fromId: string): string {
+	return `The tabs that were open weren't part of ${nameOf(fromId)}, so Papaya saved them as a new session, “${nameOf(savedAs)}”.`
+}
 
 /** The window this page lives in (a side panel's window, or a tab's), where groups reopen */
 async function thisWindow(): Promise<number | undefined> {
@@ -91,6 +132,10 @@ export function useLibrary() {
 	start().catch((error) => console.warn('[papaya] could not open the library', error))
 
 	const openSession = computed(() => sessions.value.find((s) => s.id === openId.value) ?? null)
+	/** The session the open windows belong to: the open one, or Home when none is */
+	const currentSession = computed(
+		() => sessions.value.find((s) => s.id === (openId.value || HOME_ID)) ?? null,
+	)
 	/**
 	 * When the session the open windows belong to (Home when none is open) last changed:
 	 * its tabs saved, or renamed. Autosave keeps it current while `link` is `linked`.
@@ -230,11 +275,18 @@ export function useLibrary() {
 		try {
 			const result = await sendCommand('switchTo', { sessionId: id })
 			if (!result) return
+			const { savedAs } = result
 			toast(`Switched to ${nameOf(id)}`, {
-				description: result.savedAs
-					? `Your open tabs were saved as ${nameOf(result.savedAs)}.`
-					: `${nameOf(result.fromId)} was saved as you left it.`,
-				action: { label: 'Undo', onClick: () => void switchTo(result.fromId) },
+				...(savedAs
+					? {
+							description: savedAsDescription(savedAs, result.fromId),
+							action: { label: 'Show it', onClick: () => showSession(savedAs) },
+							duration: 10_000,
+						}
+					: {
+							description: `${nameOf(result.fromId)} was saved as you left it.`,
+							action: { label: 'Undo', onClick: () => void switchTo(result.fromId) },
+						}),
 			})
 			if (result.failed.length) {
 				toast.warning(`Chrome wouldn't reopen ${pluralize(result.failed.length, 'tab')}`)
@@ -244,34 +296,49 @@ export function useLibrary() {
 		}
 	}
 
-	/** A checkpoint of the open session, made by hand */
-	async function saveVersion(): Promise<void> {
+	/** A checkpoint of the open session, made on purpose */
+	async function saveCheckpoint(): Promise<void> {
 		const library = await start()
-		const id = await sendCommand('saveCheckpoint')
-		const name = nameOf(getOpenSessionId(library) || HOME_ID)
-		if (id) toast(`Saved a version of ${name}`)
-		else toast(`${name} has no tabs to save`)
+		try {
+			const id = await sendCommand('saveCheckpoint')
+			const name = nameOf(getOpenSessionId(library) || HOME_ID)
+			if (id)
+				toast(`Saved a checkpoint of ${name}`, {
+					description: `You can go back to it from ${name}'s History.`,
+				})
+			else toast(`${name} has no tabs to keep yet`)
+		} catch (error) {
+			toast.error(`Couldn't save a checkpoint: ${errorText(error)}`)
+		}
 	}
 
 	/** Unlinked: open the open session's saved tabs next to what's open */
 	async function reopenSaved(): Promise<void> {
+		const name = currentName()
 		try {
 			const { failed } = await sendCommand('reopenSaved')
+			toast(`Reopened ${name}`, { description: `Papaya is saving ${name} again.` })
 			if (failed.length)
 				toast.warning(`Chrome wouldn't reopen ${pluralize(failed.length, 'tab')}`)
 		} catch (error) {
-			toast.error(`Couldn't reopen them: ${errorText(error)}`)
+			toast.error(`Couldn't reopen its tabs: ${errorText(error)}`)
 		}
 	}
 
 	/** Unlinked: what's open becomes the open session's tabs; what it had is kept as a checkpoint */
 	async function keepOpen(): Promise<void> {
+		const name = currentName()
 		try {
 			await sendCommand('keepOpen')
+			toast(`${name} now has the tabs that are open`, {
+				description: 'The tabs it had are kept in its History.',
+			})
 		} catch (error) {
-			toast.error(`Couldn't save them: ${errorText(error)}`)
+			toast.error(`Couldn't keep what's open: ${errorText(error)}`)
 		}
 	}
+
+	const currentName = () => nameOf(openId.value || HOME_ID)
 
 	async function saveOpenAs(name: string): Promise<string> {
 		const id = await sendCommand('saveOpenAs', { name })
@@ -301,9 +368,17 @@ export function useLibrary() {
 		try {
 			const result = await sendCommand('putAway')
 			if (!result) return
-			toast(`Put ${nameOf(leaving)} away`, {
-				action: { label: 'Undo', onClick: () => void switchTo(leaving) },
-			})
+			const { savedAs } = result
+			toast(
+				`Put ${nameOf(leaving)} away`,
+				savedAs
+					? {
+							description: savedAsDescription(savedAs, leaving),
+							action: { label: 'Show it', onClick: () => showSession(savedAs) },
+							duration: 10_000,
+						}
+					: { action: { label: 'Undo', onClick: () => void switchTo(leaving) } },
+			)
 		} catch (error) {
 			toast.error(`Couldn't put it away: ${errorText(error)}`)
 		}
@@ -372,12 +447,28 @@ export function useLibrary() {
 	 * Go back to a checkpoint. For the session the open windows belong to, they are
 	 * replaced with its tabs, as in a switch.
 	 */
-	async function restoreOlder(id: string, checkpointId: string): Promise<void> {
+	async function restoreCheckpoint(id: string, checkpointId: string): Promise<void> {
+		const library = await start()
+		const when = timeAgo(getCheckpoint(library, checkpointId)?.createdAt ?? 0)
 		try {
 			const result = await sendCommand('restoreCheckpoint', { sessionId: id, checkpointId })
-			toast(`Restored an older version of ${nameOf(id)}`, {
-				description: 'The version it replaced is still in the list.',
-			})
+			const { savedAs } = result
+			toast(
+				when && when !== 'just now'
+					? `${nameOf(id)} is back to how it was ${when}`
+					: `Restored ${nameOf(id)}`,
+				savedAs
+					? {
+							description: savedAsDescription(savedAs, id),
+							action: { label: 'Show it', onClick: () => showSession(savedAs) },
+							duration: 10_000,
+						}
+					: {
+							description: result.reopened
+								? 'The tabs that were open are kept in its History.'
+								: 'What it had is kept in its History.',
+						},
+			)
 			if (result.failed.length) {
 				toast.warning(`Chrome wouldn't reopen ${pluralize(result.failed.length, 'tab')}`)
 			}
@@ -386,12 +477,9 @@ export function useLibrary() {
 		}
 	}
 
-	/** Save edits to a closed session's tabs */
+	/** Replace a closed session's tabs with an edited copy; rejects if it could not */
 	async function saveEdits(id: string, data: SessionContent): Promise<void> {
 		await sendCommand('saveEdits', { sessionId: id, data })
-		toast(`Saved your changes to ${nameOf(id)}`, {
-			description: 'The previous version is still in the list.',
-		})
 	}
 
 	/** The move-in: this page planned it from the old stores; the worker applies it */
@@ -411,17 +499,26 @@ export function useLibrary() {
 		stashedCount,
 		revision,
 		link,
+		needsChoice,
+		openError,
+		/** Try opening the library again after it failed; a new failure lands in `openError` */
+		retry: () =>
+			start().then(
+				() => undefined,
+				() => undefined,
+			),
+		currentSession,
 		savedAt,
 		homeId: HOME_ID,
 		lastUsed,
 		library: () => start(),
 		getData: async (id: string) => getSessionData(await start(), id),
 		/** The tabs in a stored entry: a session's content or a checkpoint */
-		getVersionData: async (entryId: string) => getCheckpointData(await start(), entryId),
+		getContent: async (entryId: string) => getCheckpointData(await start(), entryId),
 		/** A session's checkpoints, newest first (its content is not one of them) */
 		listCheckpoints: (id: string) => (lib.value ? listCheckpoints(lib.value, id) : []),
 		switchTo,
-		saveVersion,
+		saveCheckpoint,
 		reopenSaved,
 		keepOpen,
 		saveOpenAs,
@@ -435,7 +532,7 @@ export function useLibrary() {
 		archive,
 		unarchive,
 		remove,
-		restoreOlder,
+		restoreCheckpoint,
 		saveEdits,
 		applyMove,
 		stashGroup,

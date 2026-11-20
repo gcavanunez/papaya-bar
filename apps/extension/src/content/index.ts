@@ -173,10 +173,10 @@ function installPalette(): void {
 		if (open && !open.home) {
 			cmds.push(
 				{
-					label: `Save a version of “${open.name}”`,
+					label: `Save a checkpoint of “${open.name}”`,
 					sub: 'command',
 					icon: cmd,
-					run: () => act({ type: 'palette.saveVersion' }),
+					run: () => act({ type: 'palette.saveCheckpoint' }),
 				},
 				{
 					label: `Put “${open.name}” away`,
