@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
 	ArchiveBoxArrowDownIcon,
+	ArrowPathIcon,
 	ArrowsPointingInIcon,
 	ArrowsPointingOutIcon,
 	ArrowsRightLeftIcon,
@@ -15,6 +16,7 @@ import {
 	MagnifyingGlassIcon,
 	PlusIcon,
 	RectangleStackIcon,
+	SparklesIcon,
 	Square2StackIcon,
 	Squares2X2Icon,
 	TagIcon,
@@ -58,7 +60,11 @@ import { useGlobalConfirm } from '@/hooks/useGlobalConfirm'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
 import { popoverButtonOf, useAnchoredPanel } from '@/hooks/useAnchoredPanel'
 import { useKeymap, type CtrlLayer, type KeyBinding, type KeymapMode } from '@/hooks/useKeymap'
+import { useSmartGroup, type SmartGroupMode } from '@/hooks/useSmartGroup'
+import { isGroupableTab, isLooseTab } from '@/lib/tabGroups'
 import AppButton from '@/components/AppButton.vue'
+import AppModal from '@/components/AppModal.vue'
+import SmartGroupReview from '@/components/SmartGroupReview.vue'
 import AppMenuItems from '@/components/menu/AppMenuItems.vue'
 import AppMenuItem from '@/components/menu/AppMenuItem.vue'
 import AppSwitch from '@/components/forms/AppSwitch.vue'
@@ -303,6 +309,80 @@ const managedTabs = computed(() => props.loadedTabs.filter((tab) => !isOwnExtens
 const selectedGroup = computed(() => {
 	return props.loadedTabs.filter((row) => tabsSelected.value.has(row.stableId))
 })
+
+// ---------- Smart group ----------
+// The side panel's suggestion and review, in a dialog. Closing the dialog leaves a
+// running suggestion going, and the toolbar button brings it back.
+const smart = useSmartGroup()
+const { review: smartReview, running: smartRunning, suggest: suggestGroups } = smart
+const smartOpen = ref(false)
+const smartTitle = ref('')
+const smartDescription = ref('')
+const looseTabs = computed(() => props.loadedTabs.filter(isLooseTab))
+const groupableTabs = computed(() => props.loadedTabs.filter(isGroupableTab))
+const selectedGroupable = computed(() => selectedGroup.value.filter(isGroupableTab))
+/** A suggestion is running, or waits to be reviewed */
+const smartBusy = computed(() => smartRunning.value || smartReview.value.length > 0)
+// Applied, cancelled or stopped: the dialog has nothing left to show
+watch(smartBusy, (busy) => {
+	if (!busy) smartOpen.value = false
+})
+
+/** New groups avoid the colors of these; a regroup of every tab passes none */
+const groupColors = () => props.loadedGroups.map((group) => group.color)
+
+function startSmartGroup(
+	tabs: Tab[],
+	text: { title: string; description: string },
+	options: { mode: SmartGroupMode; usedColors: string[] },
+) {
+	if (tabs.length < 2) {
+		toast('Smart group needs at least 2 tabs that can be grouped', {
+			description: 'Pinned tabs and Papaya pages are left out.',
+		})
+		return
+	}
+	smartTitle.value = text.title
+	smartDescription.value = text.description
+	smartOpen.value = true
+	void suggestGroups(tabs, options)
+}
+
+const smartGroupLoose = () =>
+	startSmartGroup(
+		looseTabs.value,
+		{
+			title: 'Group loose tabs',
+			description: `Groups for the ${pluralize(looseTabs.value.length, 'tab')} not in a group. Nothing changes until you apply.`,
+		},
+		{ mode: 'loose', usedColors: groupColors() },
+	)
+
+const regroupEverything = () =>
+	startSmartGroup(
+		groupableTabs.value,
+		{
+			title: 'Regroup every tab',
+			description: `A fresh grouping of all ${pluralize(groupableTabs.value.length, 'tab')}, ones in groups included. Nothing changes until you apply.`,
+		},
+		{ mode: 'all', usedColors: [] },
+	)
+
+/** The selection; any of it already in a group leaves that group when applied */
+function smartGroupSelected() {
+	const tabs = selectedGroupable.value
+	const grouped = tabs.filter((tab) => !isLooseTab(tab)).length
+	startSmartGroup(
+		tabs,
+		{
+			title: 'Group the selected tabs',
+			description: grouped
+				? `Groups for ${pluralize(tabs.length, 'selected tab')}, ${grouped} of them in groups now. Nothing changes until you apply.`
+				: `Groups for ${pluralize(tabs.length, 'selected tab')}. Nothing changes until you apply.`,
+		},
+		{ mode: grouped ? 'all' : 'loose', usedColors: groupColors() },
+	)
+}
 
 const historySet = computed(() => {
 	const checkSet = new Set<string>()
@@ -1471,6 +1551,28 @@ const allBindings: KeyBinding[] = [
 		},
 	},
 	{
+		id: 'action-smart-group',
+		keys: 'm s',
+		group: 'Actions',
+		description: 'Smart group (selection or loose tabs)…',
+		run: () => {
+			const selection = tabsSelected.value.size > 0
+			exitVisual(false)
+			if (selection) smartGroupSelected()
+			else smartGroupLoose()
+		},
+	},
+	{
+		id: 'action-regroup-all',
+		keys: 'm S',
+		group: 'Actions',
+		description: 'Regroup every tab…',
+		run: () => {
+			exitVisual(false)
+			regroupEverything()
+		},
+	},
+	{
 		id: 'action-save',
 		keys: 's',
 		modes: ['normal'],
@@ -1962,6 +2064,87 @@ onMounted(() => {
 						icon-only
 					/>
 
+					<!-- Smart group: while it runs or waits for review, the button brings it back -->
+					<AppButton
+						v-if="smartBusy && !smartOpen"
+						:square="!isWide"
+						:title="
+							smartRunning
+								? 'Smart group is still working. Show it.'
+								: 'Your suggested groups are waiting. Review them.'
+						"
+						@click="smartOpen = true"
+					>
+						<SparklesIcon
+							class="size-4"
+							:class="smartRunning ? 'animate-pulse' : ''"
+							aria-hidden="true"
+						/>
+						<span :class="isWide ? '' : 'sr-only'">
+							{{ smartRunning ? 'Grouping…' : 'Review groups' }}
+						</span>
+					</AppButton>
+					<Menu v-else as="div" class="relative">
+						<MenuButton
+							:class="button({ intent: 'secondary', square: !isWide })"
+							title="Smart group: suggest tab groups, review them, then apply (m s)"
+						>
+							<SparklesIcon class="size-4" aria-hidden="true" />
+							<span :class="isWide ? '' : 'sr-only'">Smart group</span>
+						</MenuButton>
+						<AppMenuItems width="w-72">
+							<AppMenuItem
+								v-if="selectedGroupable.length"
+								:icon="SparklesIcon"
+								:disabled="selectedGroupable.length < 2"
+								@click="smartGroupSelected"
+							>
+								Group the selected tabs
+								<template #trailing>
+									<span
+										class="dark:text-vercel-accents-4 text-xs text-slate-400 tabular-nums"
+									>
+										{{ selectedGroupable.length }}
+									</span>
+								</template>
+							</AppMenuItem>
+							<AppMenuItem
+								:icon="SparklesIcon"
+								:disabled="looseTabs.length < 2"
+								@click="smartGroupLoose"
+							>
+								Group loose tabs
+								<template #trailing>
+									<span
+										class="dark:text-vercel-accents-4 text-xs text-slate-400 tabular-nums"
+									>
+										{{ looseTabs.length }}
+									</span>
+								</template>
+							</AppMenuItem>
+							<AppMenuItem
+								:icon="ArrowPathIcon"
+								:disabled="groupableTabs.length < 2"
+								@click="regroupEverything"
+							>
+								Regroup every tab
+								<template #trailing>
+									<span
+										class="dark:text-vercel-accents-4 text-xs text-slate-400 tabular-nums"
+									>
+										{{ groupableTabs.length }}
+									</span>
+								</template>
+							</AppMenuItem>
+							<p
+								class="dark:text-vercel-accents-5 px-3 pt-1 pb-2 text-xs text-slate-500"
+							>
+								You review the groups before anything changes, and Undo puts every
+								tab back.
+							</p>
+						</AppMenuItems>
+					</Menu>
+
 					<Menu as="div" class="relative">
 						<MenuButton
 							:class="button({ intent: 'secondary', square: true })"
@@ -2253,6 +2436,17 @@ onMounted(() => {
 						</template>
 					</AppMenuItems>
 				</Menu>
+				<AppButton
+					intent="ghost"
+					size="sm"
+					:disabled="selectedGroupable.length < 2 || smartRunning"
+					title="Suggest groups for the selected tabs; you review them first"
+					@click="smartGroupSelected"
+				>
+					<SparklesIcon class="size-3.5" aria-hidden="true" />
+					Smart group
+					<kbd class="kbd hidden lg:inline-flex">ms</kbd>
+				</AppButton>
 				<AppButton intent="ghost" size="sm" @click="saveTargets">
 					<BookmarkIcon class="size-3.5" aria-hidden="true" />
 					Save
@@ -2285,6 +2479,23 @@ onMounted(() => {
 			</div>
 		</div>
 	</transition>
+
+	<!-- Smart group's review; closing it keeps a running suggestion going. Focus starts on
+	     the content, which stays while the progress turns into the review. -->
+	<AppModal
+		v-slot="slotProps"
+		v-model="smartOpen"
+		:title="smartTitle"
+		:description="smartDescription"
+	>
+		<div
+			:ref="(el) => slotProps.trigger(el as HTMLElement | null)"
+			tabindex="-1"
+			class="space-y-2 focus:outline-none"
+		>
+			<SmartGroupReview :smart="smart" />
+		</div>
+	</AppModal>
 
 	<!-- Vim-style statusline -->
 	<TabManagerStatusline

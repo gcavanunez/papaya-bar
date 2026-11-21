@@ -28,8 +28,22 @@ import {
 	type GroupColor,
 } from '@/lib/tabGroups'
 
-/** Group the loose tabs, or regroup every tab afresh */
+/**
+ * Group loose tabs, or regroup: the tabs leave the groups they're in first (every tab,
+ * or a selection holding grouped ones)
+ */
 export type SmartGroupMode = 'loose' | 'all'
+
+/** What Smart group reads of a tab: the side panel passes Chrome's tabs, the Tabs page its own */
+export type SuggestTab = Pick<chrome.tabs.Tab, 'id' | 'title' | 'url' | 'pendingUrl' | 'favIconUrl'>
+
+export interface SuggestOptions {
+	engine?: Engine | 'auto'
+	usedColors?: string[]
+	mode?: SmartGroupMode
+}
+
+export type SmartGroup = ReturnType<typeof useSmartGroup>
 
 export interface ReviewTab {
 	id: number
@@ -67,6 +81,8 @@ export function useSmartGroup() {
 	let nextKey = 0
 	/** The tabs the last suggestion looked at; a regroup takes them all out of their groups */
 	let inputIds: number[] = []
+	/** The last request, to ask again with another engine */
+	let lastRequest: { tabs: SuggestTab[]; options: SuggestOptions } | null = null
 
 	const reviewTabCount = computed(() => review.value.reduce((n, g) => n + g.tabs.length, 0))
 	const leftLoose = computed(() => Math.max(0, inputCount.value - reviewTabCount.value))
@@ -87,11 +103,9 @@ export function useSmartGroup() {
 	onMounted(() => chrome.storage.onChanged.addListener(onStorageChanged))
 	onUnmounted(() => chrome.storage.onChanged.removeListener(onStorageChanged))
 
-	async function suggest(
-		tabs: chrome.tabs.Tab[],
-		options: { engine?: Engine | 'auto'; usedColors?: string[]; mode?: SmartGroupMode } = {},
-	): Promise<void> {
+	async function suggest(tabs: SuggestTab[], options: SuggestOptions = {}): Promise<void> {
 		cancel()
+		lastRequest = { tabs, options }
 		mode.value = options.mode ?? 'loose'
 		const byId = new Map<number, ReviewTab>()
 		for (const tab of tabs) {
@@ -158,6 +172,12 @@ export function useSmartGroup() {
 				live.value = null
 			}
 		}
+	}
+
+	/** Ask again for the same tabs, with another engine */
+	function suggestAgain(preferred: Engine): void {
+		if (lastRequest)
+			void suggest(lastRequest.tabs, { ...lastRequest.options, engine: preferred })
 	}
 
 	function cancel(): void {
@@ -289,6 +309,7 @@ export function useSmartGroup() {
 		downloadFraction,
 		live,
 		mode,
+		suggestAgain,
 		refreshModelStatus,
 		opencode,
 		suggest,
