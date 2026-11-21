@@ -151,11 +151,38 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 				query: async () => snapshot(),
 				group: async ({
 					tabIds,
+					groupId: existing,
 					createProperties,
 				}: {
 					tabIds: number[]
-					createProperties: { windowId: number }
+					groupId?: number
+					createProperties?: { windowId: number }
 				}) => {
+					if (existing != null) {
+						// Joining tabs land next to the group: ones left of it before it, the rest after
+						const windowId = groupProps.get(existing)!.windowId
+						const inWindow = () => order.get(windowId)!
+						const joining = tabIds.filter((id) => tabs.get(id)!.groupId !== existing)
+						const members = inWindow().filter(
+							(id) => tabs.get(id)!.groupId === existing,
+						)
+						const start = inWindow().indexOf(members[0])
+						const left = joining.filter((id) => {
+							const index = inWindow().indexOf(id)
+							return index !== -1 && index < start
+						})
+						const right = joining.filter((id) => !left.includes(id))
+						remove(joining)
+						const pos = inWindow().indexOf(members[0])
+						inWindow().splice(pos + members.length, 0, ...right)
+						inWindow().splice(pos, 0, ...left)
+						for (const id of joining) {
+							tabs.get(id)!.groupId = existing
+							tabs.get(id)!.windowId = windowId
+						}
+						return existing
+					}
+					if (!createProperties) throw new Error('fake: pass createProperties.windowId')
 					const groupId = nextGroup++
 					groupProps.set(groupId, {
 						title: '',
@@ -188,7 +215,9 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 			tabGroups: {
 				get: async (id: number) => {
 					const group = groupProps.get(id)
-					if (!group) throw new Error(`No group with id: ${id}.`)
+					// Like Chrome, a group is gone once its last tab leaves
+					const hasTabs = [...tabs.values()].some((tab) => tab.groupId === id)
+					if (!group || !hasTabs) throw new Error(`No group with id: ${id}.`)
 					return { id, ...group }
 				},
 				update: async (id: number, props: object) => {
@@ -335,8 +364,15 @@ describe('regroupInPlace and undoRegroup', () => {
 		expect(groupOf(5)).toBe(-1)
 		expect(result.involved.sort()).toEqual(allTabs)
 		expect(result.previous).toEqual([
-			{ title: 'Old', color: 'red', collapsed: true, windowId: 1, tabIds: [1, 2] },
-			{ title: 'Other', color: 'blue', collapsed: false, windowId: 1, tabIds: [4, 5] },
+			{ id: 50, title: 'Old', color: 'red', collapsed: true, windowId: 1, tabIds: [1, 2] },
+			{
+				id: 51,
+				title: 'Other',
+				color: 'blue',
+				collapsed: false,
+				windowId: 1,
+				tabIds: [4, 5],
+			},
 		])
 	})
 
@@ -362,6 +398,26 @@ describe('regroupInPlace and undoRegroup', () => {
 		expect(result.involved).not.toContain(6)
 		expect(strip.tabs.get(6)!.groupId).toBe(-1)
 	})
+
+	for (const at of ['start', 'end'] as const) {
+		it(`takes only some of a group's tabs, and undo puts them back in it (new groups at the ${at})`, async () => {
+			const strip = grouped(at)
+			// A selection: tab 1 of Old, loose 3, tab 4 of Other
+			const result = await regroupInPlace(
+				[{ name: 'New', color: 'green', tabIds: [1, 3, 4] }],
+				[1, 3, 4],
+			)
+			expect(strip.tabs.get(2)!.groupId).toBe(50)
+			expect(strip.tabs.get(5)!.groupId).toBe(51)
+			expect(strip.tabs.get(1)!.groupId).toBe(strip.tabs.get(4)!.groupId)
+			await undoRegroup(result)
+			expect(strip.order(1)).toEqual([1, 2, 3, 4, 5, 6])
+			// Back in the very same groups, not copies of them
+			expect([1, 2, 3, 4, 5, 6].map((id) => strip.tabs.get(id)!.groupId)).toEqual([
+				50, 50, -1, 51, 51, -1,
+			])
+		})
+	}
 
 	it('undo skips a tab closed in between', async () => {
 		const strip = grouped('start')

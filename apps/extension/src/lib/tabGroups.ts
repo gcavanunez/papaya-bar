@@ -52,6 +52,7 @@ export interface GroupedResult {
 
 /** A tab group as it was before a regroup, to bring it back on undo */
 export interface GroupSnapshot {
+	id: number
 	title: string
 	color: string
 	collapsed: boolean
@@ -68,21 +69,29 @@ export interface RegroupedResult extends GroupedResult {
 }
 
 type ChromeTab = chrome.tabs.Tab
+/** What the checks below read of a tab, so Chrome's tabs and the Tabs page's both fit */
+type TabLike = {
+	id?: number
+	url?: string
+	pendingUrl?: string
+	groupId?: number
+	pinned?: boolean
+}
 
 const NO_GROUP = -1
 
-function isOwnPage(tab: ChromeTab): boolean {
+function isOwnPage(tab: TabLike): boolean {
 	const prefix = `chrome-extension://${chrome.runtime.id}`
 	return (tab.url || '').startsWith(prefix) || (tab.pendingUrl || '').startsWith(prefix)
 }
 
 /** Open tabs that can be grouped, whether they're in a group or not (pinned tabs can't). */
-export function isGroupableTab(tab: ChromeTab): boolean {
+export function isGroupableTab(tab: TabLike): boolean {
 	return !tab.pinned && !isOwnPage(tab) && tab.id != null
 }
 
 /** Open tabs that aren't in a group and can be grouped. */
-export function isLooseTab(tab: ChromeTab): boolean {
+export function isLooseTab(tab: TabLike): boolean {
 	return (tab.groupId ?? NO_GROUP) === NO_GROUP && isGroupableTab(tab)
 }
 
@@ -290,6 +299,7 @@ export async function regroupInPlace(
 		const group = await chrome.tabGroups.get(groupId).catch(() => null)
 		if (!group) continue
 		previous.push({
+			id: groupId,
 			title: group.title ?? '',
 			color: group.color,
 			collapsed: group.collapsed,
@@ -315,8 +325,9 @@ export async function regroupInPlace(
 
 /**
  * Undo for regroupInPlace: the new groups go, every tab goes back where it was, and
- * the old groups come back with their names, colors and folding. Tabs closed in the
- * meantime are skipped.
+ * the old groups come back with their names, colors and folding. A group that kept
+ * some tabs (ones the regroup didn't take) still exists, so its tabs rejoin it. Tabs
+ * closed in the meantime are skipped.
  */
 export async function undoRegroup(result: RegroupedResult): Promise<void> {
 	await ungroupTabs(result.involved, result.positions)
@@ -330,6 +341,14 @@ export async function undoRegroup(result: RegroupedResult): Promise<void> {
 		.sort((a, b) => a.first.windowId - b.first.windowId || a.first.index - b.first.index)
 	for (const { group, first } of groups) {
 		try {
+			const kept = await chrome.tabGroups.get(group.id).catch(() => null)
+			if (kept && kept.windowId === first.windowId) {
+				await chrome.tabs.group({
+					groupId: group.id,
+					tabIds: group.tabIds as [number, ...number[]],
+				})
+				continue
+			}
 			const groupId = await chrome.tabs.group({
 				tabIds: group.tabIds as [number, ...number[]],
 				createProperties: { windowId: first.windowId },
