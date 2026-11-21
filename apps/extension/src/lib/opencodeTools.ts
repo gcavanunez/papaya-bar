@@ -14,6 +14,7 @@
  * doesn't exist goes back to the model as an error to fix) and sees each group the
  * moment it's proposed.
  */
+import { pluralize } from '@/lib/format'
 import { authHeader, firstSentence, request, type OpencodeConnection } from '@/lib/opencode'
 import {
 	GROUPING_RULES,
@@ -372,10 +373,59 @@ interface SessionMessage {
 	error?: { message?: string }
 }
 
+/** What a Smart group run records on its session when it ends */
+export interface RunRecord {
+	outcome: 'grouped' | 'failed' | 'stopped'
+	groups?: number
+	reason?: string
+}
+
+/**
+ * Keep a run's session as its log: stop it if it's still going, title it with what
+ * happened, record that in its metadata, and archive it. In opencode it's then among
+ * the archived sessions of Papaya's folder.
+ */
+async function archiveRun(
+	connection: OpencodeConnection,
+	sessionID: string,
+	tabs: number,
+	record: RunRecord,
+	stillRunning: boolean,
+	fetchImpl: Fetch,
+): Promise<void> {
+	if (stillRunning) {
+		await request(
+			connection,
+			`/api/session/${sessionID}/interrupt`,
+			{ method: 'POST' },
+			fetchImpl,
+		).catch(() => {})
+	}
+	const summary =
+		record.outcome === 'grouped'
+			? `${pluralize(record.groups ?? 0, 'group')} from ${pluralize(tabs, 'tab')}`
+			: record.outcome === 'failed'
+				? `failed: ${record.reason}`
+				: 'stopped'
+	await request(
+		connection,
+		`/api/session/${sessionID}`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify({
+				title: `Papaya: Smart group · ${summary}`,
+				metadata: { papaya: { kind: 'smart-group', tabs, ...record } },
+				archived: true,
+			}),
+		},
+		fetchImpl,
+	).catch(() => {})
+}
+
 /**
  * Group tabs in a short opencode session in Papaya's folder, allowed only Papaya's
  * tools, with the model picked in Settings (or opencode's default). The session is
- * deleted afterwards, also when the run is stopped or fails.
+ * archived afterwards as the run's log, also when the run is stopped or fails.
  */
 export async function groupWithTools(
 	tabs: GroupableTab[],
@@ -403,6 +453,9 @@ export async function groupWithTools(
 	})
 	const hosted = await hostTools(connection, folder, [tool], options)
 	let sessionID: string | undefined
+	// What the archived session will say about the run; still running until wait returns
+	let record: RunRecord = { outcome: 'stopped' }
+	let finished = false
 	try {
 		const created = await request<{ id?: string; data?: { id?: string } }>(
 			connection,
@@ -412,6 +465,7 @@ export async function groupWithTools(
 				body: JSON.stringify({
 					title: 'Papaya: Smart group',
 					location: { directory: folder },
+					metadata: { papaya: { kind: 'smart-group', tabs: tabs.length } },
 					...(connection.choice
 						? {
 								model: {
@@ -448,6 +502,7 @@ export async function groupWithTools(
 			{ method: 'POST', body: '{}', signal },
 			fetchImpl,
 		)
+		finished = true
 		const messages = await request<{ data?: SessionMessage[] }>(
 			connection,
 			`/api/session/${sessionID}/message?order=desc&limit=5`,
@@ -458,23 +513,21 @@ export async function groupWithTools(
 		if (end?.outcome === 'failed') {
 			throw new Error(firstSentence(end.error?.message ?? 'the model stopped with an error'))
 		}
-		return mergeSuggestions(found)
+		const groups = mergeSuggestions(found)
+		record = { outcome: 'grouped', groups: groups.length }
+		return groups
 	} catch (error) {
 		if (options.signal?.aborted) throw error
-		if (signal.aborted) {
-			throw new Error(`it took longer than ${Math.round(timeoutMs / 60_000) || 1} min`)
-		}
-		throw error
+		const failure = signal.aborted
+			? new Error(`it took longer than ${Math.round(timeoutMs / 60_000) || 1} min`)
+			: error instanceof Error
+				? error
+				: new Error(String(error))
+		record = { outcome: 'failed', reason: failure.message.replace(/[.\s]+$/, '') }
+		throw failure
 	} finally {
 		hosted.close()
-		// Deleting a session also stops it if it's still running
-		if (sessionID) {
-			void request(
-				connection,
-				`/api/session/${sessionID}`,
-				{ method: 'DELETE' },
-				fetchImpl,
-			).catch(() => {})
-		}
+		if (sessionID)
+			void archiveRun(connection, sessionID, tabs.length, record, !finished, fetchImpl)
 	}
 }

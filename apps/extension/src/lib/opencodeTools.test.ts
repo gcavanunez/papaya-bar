@@ -45,6 +45,9 @@ function fakeOpencode(
 	}[] = []
 	const replies: ToolReply[] = []
 	const deleted: string[] = []
+	/** What each PATCH to the session set: the run's log, archived */
+	const archived: Record<string, unknown>[] = []
+	const stopped: string[] = []
 	let socket: FakeSocket | null = null
 	let modelDone: Promise<void> = Promise.resolve()
 
@@ -147,6 +150,14 @@ function fakeOpencode(
 				],
 			})
 		}
+		if (pathname === '/api/session/ses_1/interrupt') {
+			stopped.push('ses_1')
+			return json(200, { interrupted: true })
+		}
+		if (pathname === '/api/session/ses_1' && init.method === 'PATCH') {
+			archived.push(body as Record<string, unknown>)
+			return new Response(null, { status: 204 })
+		}
 		if (pathname === '/api/session/ses_1' && init.method === 'DELETE') {
 			deleted.push('ses_1')
 			return new Response(null, { status: 204 })
@@ -154,7 +165,16 @@ function fakeOpencode(
 		return json(404, {})
 	}) as unknown as typeof fetch
 
-	return { fetchImpl, openSocket, requests, replies, deleted, socket: () => socket! }
+	return {
+		fetchImpl,
+		openSocket,
+		requests,
+		replies,
+		archived,
+		stopped,
+		deleted,
+		socket: () => socket!,
+	}
 }
 
 const connection: OpencodeConnection = {
@@ -280,7 +300,7 @@ describe('hosting tools', () => {
 })
 
 describe('Smart group with tool calls', () => {
-	it('collects each proposed group as it lands, then deletes the session', async () => {
+	it('collects each proposed group as it lands, then archives the session as its log', async () => {
 		const server = fakeOpencode({
 			calls: [
 				{ name: 'propose_group', arguments: { name: 'Rust', tabs: [1, 2] } },
@@ -304,6 +324,7 @@ describe('Smart group with tool calls', () => {
 		const created = server.requests.find((r) => r.path === '/api/session')!
 		expect(created.body).toMatchObject({
 			location: { directory: FOLDER },
+			metadata: { papaya: { kind: 'smart-group', tabs: 5 } },
 			model: { providerID: 'anthropic', id: 'claude-haiku-5-5' },
 			permissions: [
 				{ action: '*', resource: '*', effect: 'deny' },
@@ -316,7 +337,18 @@ describe('Smart group with tool calls', () => {
 		expect(prompt.text.startsWith(TOOLS_INSTRUCTIONS)).toBe(true)
 		expect(prompt.text).toContain('5. Vue guide (vuejs.org)')
 		await flush()
-		expect(server.deleted).toEqual(['ses_1'])
+		// Kept, not deleted: titled with what happened, and out of the way
+		expect(server.archived).toEqual([
+			{
+				title: 'Papaya: Smart group · 2 groups from 5 tabs',
+				metadata: {
+					papaya: { kind: 'smart-group', tabs: 5, outcome: 'grouped', groups: 2 },
+				},
+				archived: true,
+			},
+		])
+		expect(server.stopped).toEqual([])
+		expect(server.deleted).toEqual([])
 		expect(server.socket().closed).toBe(true)
 	})
 
@@ -357,7 +389,7 @@ describe('Smart group with tool calls', () => {
 		])
 	})
 
-	it("fails with the model's own reason, and still deletes the session", async () => {
+	it("fails with the model's own reason, and keeps the session saying so", async () => {
 		const server = fakeOpencode({
 			end: {
 				outcome: 'failed',
@@ -368,10 +400,25 @@ describe('Smart group with tool calls', () => {
 			/^Free usage limit reached\.$/,
 		)
 		await flush()
-		expect(server.deleted).toEqual(['ses_1'])
+		expect(server.archived).toEqual([
+			{
+				title: 'Papaya: Smart group · failed: Free usage limit reached',
+				metadata: {
+					papaya: {
+						kind: 'smart-group',
+						tabs: 5,
+						outcome: 'failed',
+						reason: 'Free usage limit reached',
+					},
+				},
+				archived: true,
+			},
+		])
+		// It had already ended: nothing to interrupt
+		expect(server.stopped).toEqual([])
 	})
 
-	it('stops when asked, deleting the session', async () => {
+	it('stops when asked: interrupts the session, then archives it as stopped', async () => {
 		const server = fakeOpencode({ hang: true })
 		const stop = new AbortController()
 		const run = groupWithTools(TABS, connection, { ...server, signal: stop.signal })
@@ -379,7 +426,14 @@ describe('Smart group with tool calls', () => {
 		stop.abort()
 		await expect(run).rejects.toThrow()
 		await flush()
-		expect(server.deleted).toEqual(['ses_1'])
+		expect(server.stopped).toEqual(['ses_1'])
+		expect(server.archived).toEqual([
+			{
+				title: 'Papaya: Smart group · stopped',
+				metadata: { papaya: { kind: 'smart-group', tabs: 5, outcome: 'stopped' } },
+				archived: true,
+			},
+		])
 	})
 
 	it('gives up after its time limit, saying so', async () => {
@@ -387,6 +441,12 @@ describe('Smart group with tool calls', () => {
 		await expect(
 			groupWithTools(TABS, connection, { ...server, timeoutMs: 20 }),
 		).rejects.toThrow('it took longer than 1 min')
+		await flush()
+		expect(server.stopped).toEqual(['ses_1'])
+		expect(server.archived[0]).toMatchObject({
+			title: 'Papaya: Smart group · failed: it took longer than 1 min',
+			archived: true,
+		})
 	})
 
 	it('needs the folder first', async () => {

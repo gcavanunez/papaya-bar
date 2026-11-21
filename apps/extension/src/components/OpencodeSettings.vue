@@ -386,8 +386,9 @@ onMounted(load)
 								<code
 									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
 									>~/{{ PAPAYA_FOLDER }}</code
-								>
-								that's deleted afterwards.
+								>. Each run's session is then archived as its log, titled with how
+								it went: open opencode's archived sessions in that folder to look
+								back.
 							</template>
 							<template v-else-if="folderStatus?.state === 'missing'">
 								So the model can propose groups as tool calls instead of writing
