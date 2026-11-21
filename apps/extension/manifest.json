@@ -48,7 +48,7 @@
 		{
 			"matches": ["<all_urls>", "*://*/*", "https://*.google.com/*"],
 			"js": ["src/content/index.ts"],
-			"run_at": "document_idle"
+			"run_at": "document_start"
 		}
 	],
 	"commands": {

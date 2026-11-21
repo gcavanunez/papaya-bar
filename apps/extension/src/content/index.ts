@@ -2,6 +2,9 @@
  * Content script (isolated world) — matches the working layout in
  * src/content/. Handles clipboard/screenshot messages AND injects the global
  * ⌥K command palette.
+ *
+ * It runs at document_start so its key listener comes before any the page adds: while
+ * the palette is open, the page sees none of your keys (see onKey).
  */
 // Zero imports on purpose — keeps the dynamically-imported content chunk
 // self-contained and trivial to load.
@@ -84,7 +87,10 @@ function installPalette(): void {
 	}
 	const STYLE =
 		':host{all:initial}' +
-		'.overlay{position:fixed;inset:0;z-index:2147483647;display:flex;justify-content:center;align-items:flex-start;padding-top:14vh;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}' +
+		// A modal <dialog> covering the viewport (its browser styles undone)
+		'.overlay{position:fixed;inset:0;z-index:2147483647;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;box-sizing:border-box;overflow:hidden;color:inherit;display:flex;justify-content:center;align-items:flex-start;padding:14vh 0 0;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}' +
+		'.overlay:not([open]){display:none}' +
+		'.overlay::backdrop{background:transparent}' +
 		'.box{width:90%;max-width:560px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}' +
 		'.search{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #eef2f7}' +
 		'.search input{flex:1;border:0;outline:0;font-size:15px;color:#0f172a;background:transparent}' +
@@ -99,8 +105,26 @@ function installPalette(): void {
 		'.hint{font-size:11px;color:#94a3b8}' +
 		'@media (prefers-color-scheme:dark){.box{background:#111}.search{border-color:#333}.search input{color:#fff}.row.active{background:#222}.label{color:#fff}.tag{background:#222;color:#999}}'
 
+	const CONTAINED_EVENTS = [
+		'beforeinput',
+		'input',
+		'compositionstart',
+		'compositionupdate',
+		'compositionend',
+		'paste',
+		'copy',
+		'cut',
+		'focusin',
+		'focusout',
+	]
+
 	let host: HTMLDivElement | null = null
 	let root: ShadowRoot | null = null
+	let input: HTMLInputElement | null = null
+	/** What had focus before the palette opened; it gets it back on close */
+	let returnFocus: HTMLElement | null = null
+	/** Keys the palette took (by code) whose keyup hasn't come yet */
+	const ownKeys = new Set<string>()
 	let isOpen = false
 	let model: Model | null = null
 	let items: Item[] = []
@@ -129,6 +153,9 @@ function installPalette(): void {
 		const style = document.createElement('style')
 		style.textContent = STYLE
 		root.appendChild(style)
+		// Text, clipboard and focus events from the input stop at the palette's edge, so the
+		// page doesn't take them for its own. (Keys are stopped earlier, on window.)
+		for (const type of CONTAINED_EVENTS) host.addEventListener(type, (e) => e.stopPropagation())
 		document.documentElement.appendChild(host)
 	}
 
@@ -261,22 +288,37 @@ function installPalette(): void {
 	function open() {
 		ensureDom()
 		if (!root) return
+		const focused = document.activeElement
+		returnFocus = focused instanceof HTMLElement && focused !== host ? focused : null
 		isOpen = true
 		query = ''
 		saved = []
 		activeIndex = 0
-		root.querySelectorAll('.overlay').forEach((n) => n.remove())
-		const overlay = document.createElement('div')
+		removeOverlays()
+		const overlay = document.createElement('dialog')
 		overlay.className = 'overlay'
 		overlay.innerHTML =
 			'<div class="box"><div class="search"><span class="hint">⌥K</span><input type="text" placeholder="Go to a group, switch session, jump to a tab…" /></div><div class="list"></div></div>'
 		overlay.addEventListener('click', (e) => {
 			if (e.target === overlay) close()
 		})
+		overlay.addEventListener('cancel', (e) => {
+			e.preventDefault()
+			close()
+		})
 		root.appendChild(overlay)
-		const input = root.querySelector<HTMLInputElement>('.search input')!
-		input.addEventListener('input', () => {
-			query = input.value
+		// As a modal it sits in the top layer, above the page's own dialogs and overlays (and
+		// a fullscreen video), and the page is inert under it: nothing there can take focus,
+		// so a page's focus trap can't pull your typing back into its search box
+		try {
+			overlay.showModal()
+		} catch {
+			overlay.setAttribute('open', '')
+		}
+		const field = root.querySelector<HTMLInputElement>('.search input')!
+		input = field
+		field.addEventListener('input', () => {
+			query = field.value
 			activeIndex = 0
 			render()
 			// Tabs saved in sessions come from the background, a moment after typing stops
@@ -290,7 +332,7 @@ function installPalette(): void {
 				})
 			}, 150)
 		})
-		input.focus()
+		field.focus()
 		render()
 		void send({ type: 'palette.getModel' }).then((m) => {
 			model = m
@@ -298,40 +340,84 @@ function installPalette(): void {
 		})
 	}
 
+	function removeOverlays() {
+		root?.querySelectorAll<HTMLDialogElement>('.overlay').forEach((overlay) => {
+			if (overlay.open) overlay.close()
+			overlay.remove()
+		})
+	}
+
 	function close() {
 		isOpen = false
 		model = null
-		root?.querySelectorAll('.overlay').forEach((n) => n.remove())
+		input = null
+		removeOverlays()
+		// The page carries on where it was
+		const back = returnFocus
+		returnFocus = null
+		if (back?.isConnected) back.focus({ preventScroll: true })
 	}
 
-	window.addEventListener(
-		'keydown',
-		(e: KeyboardEvent) => {
-			if (e.altKey && (e.key === 'k' || e.code === 'KeyK')) {
-				e.preventDefault()
-				e.stopPropagation()
-				isOpen ? close() : open()
-				return
-			}
-			if (!isOpen) return
-			if (e.key === 'Escape') {
-				e.preventDefault()
-				close()
-			} else if (e.key === 'ArrowDown') {
-				e.preventDefault()
-				activeIndex = Math.min(activeIndex + 1, items.length - 1)
-				render()
-			} else if (e.key === 'ArrowUp') {
-				e.preventDefault()
-				activeIndex = Math.max(activeIndex - 1, 0)
-				render()
-			} else if (e.key === 'Enter') {
-				e.preventDefault()
-				items[activeIndex]?.run(e.shiftKey)
-			}
-		},
-		true,
-	)
+	/**
+	 * Every key event on the page passes here first: this listener is on window, in the
+	 * capture phase, and was added before any of the page's (document_start). While the
+	 * palette is open it stops them all, so no site shortcut runs (YouTube's "k", GitHub's
+	 * "/" pulling focus into its own search box). Stopping an event doesn't stop its
+	 * typing, so the palette's input still fills.
+	 */
+	function onKey(e: KeyboardEvent) {
+		// The keyup of a key the palette took is its too, even once it has closed (Escape)
+		if (e.type === 'keyup' && ownKeys.delete(e.code)) {
+			e.stopImmediatePropagation()
+			return
+		}
+		if (e.type === 'keydown' && e.altKey && (e.key === 'k' || e.code === 'KeyK')) {
+			e.preventDefault()
+			e.stopImmediatePropagation()
+			ownKeys.add(e.code)
+			if (isOpen) close()
+			else open()
+			return
+		}
+		if (!isOpen) {
+			// Pressed again: whatever we kept of its last press is stale (its keyup went elsewhere)
+			if (e.type === 'keydown') ownKeys.delete(e.code)
+			return
+		}
+		e.stopImmediatePropagation()
+		if (e.type === 'keydown') {
+			ownKeys.add(e.code)
+			onPaletteKey(e)
+		}
+	}
+
+	function onPaletteKey(e: KeyboardEvent) {
+		// If the page took focus back, this key types into the palette all the same: a key
+		// lands wherever focus is once its keydown is done
+		if (input && root?.activeElement !== input) input.focus()
+		// Enter and the arrows belong to an IME while it composes
+		if (e.isComposing) return
+		const step = (by: number) => {
+			e.preventDefault()
+			activeIndex = Math.min(Math.max(activeIndex + by, 0), Math.max(items.length - 1, 0))
+			render()
+		}
+		if (e.key === 'Escape') {
+			e.preventDefault()
+			close()
+		} else if (e.key === 'ArrowDown') step(1)
+		else if (e.key === 'ArrowUp') step(-1)
+		// Tab would move focus out into the page; it moves through the list instead
+		else if (e.key === 'Tab') step(e.shiftKey ? -1 : 1)
+		else if (e.key === 'Enter') {
+			e.preventDefault()
+			items[activeIndex]?.run(e.shiftKey)
+		}
+	}
+
+	for (const type of ['keydown', 'keypress', 'keyup'] as const) {
+		window.addEventListener(type, onKey, true)
+	}
 
 	w.__papayaPalette = open
 	console.warn('[papaya] global palette ready — press Alt/⌥+K')
