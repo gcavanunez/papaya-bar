@@ -47,6 +47,7 @@ import { isAfter, isBefore, isWithinInterval, sub } from 'date-fns'
 import { copyToClipboard, formatTabAsMarkdown } from '../utils'
 import { closeTab, closeDuplicates, goTo, moveTabs, pinTabs, undoCloseTabs } from '@/helpers'
 import { getHostname, isOwnExtensionUrl, pluralize, recencyBucket } from '@/lib/format'
+import { pathTree, type PathFolder, type PathTree } from '@/lib/pathGroups'
 import { button } from '@/lib/ui'
 import { browserReservedCtrlKeys, isMac, paletteShortcutLabel } from '@/lib/platform'
 import type { Group, HistoryMap, LookUpTab, Tab, TabGroupBy, TabSection, WindowsMap } from '@/types'
@@ -67,6 +68,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import TabRow from '@/components/TabRow.vue'
 import TabListItem from '@/components/TabListItem.vue'
 import TabSectionHeader from '@/components/TabSectionHeader.vue'
+import TabPathFolder from '@/components/TabPathFolder.vue'
 import TabMoveToMenu from '@/components/TabMoveToMenu.vue'
 import TabManagerStatusline from '@/components/TabManagerStatusline.vue'
 import KeymapHelpOverlay from '@/components/KeymapHelpOverlay.vue'
@@ -524,21 +526,23 @@ const toggleCollapse = (key: string) => {
 const collapseAll = () => (collapsedKeys.value = new Set(sections.value.map((row) => row.key)))
 const expandAll = () => (collapsedKeys.value = new Set())
 
-const sectionSelection = (section: TabSection): 'none' | 'some' | 'all' => {
+const tabsSelection = (tabs: Tab[]): 'none' | 'some' | 'all' => {
 	let selected = 0
-	for (const tab of section.tabs) {
+	for (const tab of tabs) {
 		if (tabsSelected.value.has(tab.stableId)) selected++
 	}
 	if (selected === 0) return 'none'
-	return selected === section.tabs.length ? 'all' : 'some'
+	return selected === tabs.length ? 'all' : 'some'
 }
-const toggleSectionSelection = (section: TabSection) => {
-	if (sectionSelection(section) === 'all') {
-		section.tabs.forEach((tab) => tabsSelected.value.delete(tab.stableId))
+const toggleTabsSelection = (tabs: Tab[]) => {
+	if (tabsSelection(tabs) === 'all') {
+		tabs.forEach((tab) => tabsSelected.value.delete(tab.stableId))
 	} else {
-		selectGroup(section.tabs)
+		selectGroup(tabs)
 	}
 }
+const sectionSelection = (section: TabSection) => tabsSelection(section.tabs)
+const toggleSectionSelection = (section: TabSection) => toggleTabsSelection(section.tabs)
 
 const groupChipFor = (tab: Tab) => {
 	if (groupBy.value === 'group' || !tab.groupId || tab.groupId === -1) return null
@@ -643,26 +647,89 @@ const flatTabs = computed(() => {
 
 // ---------------------------------------------------------------------------
 // Rows: every section header plus the tabs of expanded sections. The keyboard
-// cursor, the virtualized list and the grid all index into this one list.
+// cursor, the virtualized list and the grid all index into this one list. In the
+// list view by site, a site's tabs fold into folders by address path
+// (github.com/gcavanunez/…), each with its own row.
 // ---------------------------------------------------------------------------
 type Row =
 	| { type: 'header'; key: string; section: TabSection }
-	| { type: 'tab'; key: string; tab: Tab; section: TabSection }
+	| {
+			type: 'folder'
+			key: string
+			section: TabSection
+			folder: PathFolder<Tab>
+			depth: number
+			/** The folder or section header this row sits under */
+			parentKey: string
+	  }
+	| {
+			type: 'tab'
+			key: string
+			tab: Tab
+			section: TabSection
+			depth: number
+			/** The folder or section header this row sits under */
+			parentKey: string
+	  }
 
 const tabRowKey = (section: TabSection, tab: Tab) =>
 	`${section.key}|${tab.windowId}-${tab.stableId}`
+const folderKey = (section: TabSection, folder: PathFolder<Tab>) =>
+	`${section.key}|path:${folder.path}`
+
+/** Site sections as folders by address path; the list view only, for sites with 3+ tabs */
+const pathTrees = computed(() => {
+	const trees = new Map<string, PathTree<Tab>>()
+	if (!isListView.value || groupBy.value !== 'site') return trees
+	for (const section of sections.value) {
+		if (section.isOther || section.tabs.length < 3) continue
+		const tree = pathTree(section.tabs)
+		if (tree.folders.length) trees.set(section.key, tree)
+	}
+	return trees
+})
 
 const rows = computed<Row[]>(() => {
 	const items: Row[] = []
+	const addTabs = (section: TabSection, tabs: Tab[], depth: number, parentKey: string) => {
+		for (const tab of tabs) {
+			items.push({
+				type: 'tab',
+				key: tabRowKey(section, tab),
+				tab,
+				section,
+				depth,
+				parentKey,
+			})
+		}
+	}
+	// Folders first (biggest first), then the tabs in no folder, as in a file tree
+	const addTree = (
+		section: TabSection,
+		tree: PathTree<Tab>,
+		depth: number,
+		parentKey: string,
+	) => {
+		for (const folder of tree.folders) {
+			const key = folderKey(section, folder)
+			items.push({ type: 'folder', key, section, folder, depth, parentKey })
+			if (!isCollapsed(key)) addTree(section, folder, depth + 1, key)
+		}
+		addTabs(section, tree.items, depth, parentKey)
+	}
 	for (const section of sections.value) {
 		items.push({ type: 'header', key: section.key, section })
 		if (isCollapsed(section.key)) continue
-		for (const tab of section.tabs) {
-			items.push({ type: 'tab', key: tabRowKey(section, tab), tab, section })
-		}
+		const tree = pathTrees.value.get(section.key)
+		if (tree) addTree(section, tree, 0, section.key)
+		else addTabs(section, section.tabs, 0, section.key)
 	}
 	return items
 })
+
+/** The tabs a row stands for: a header or folder covers all of its tabs */
+const tabsOfRow = (row: Row): Tab[] =>
+	row.type === 'header' ? row.section.tabs : row.type === 'folder' ? row.folder.all : [row.tab]
 
 const rowIndexByKey = computed(() => new Map(rows.value.map((row, index) => [row.key, index])))
 const headerRowIndexes = computed(() =>
@@ -674,13 +741,11 @@ const firstTabRowIndex = () =>
 		rows.value.findIndex((row) => row.type === 'tab'),
 	)
 
-/** Tabs covered by `count` rows from `start`; a header row covers its whole group */
+/** Tabs covered by `count` rows from `start`; a header or folder row covers all its tabs */
 const tabsInRows = (start: number, count: number): Tab[] => {
 	const tabs = new Map<string, Tab>()
 	for (const row of rows.value.slice(start, start + count)) {
-		for (const tab of row.type === 'header' ? row.section.tabs : [row.tab]) {
-			tabs.set(tab.stableId, tab)
-		}
+		for (const tab of tabsOfRow(row)) tabs.set(tab.stableId, tab)
 	}
 	return [...tabs.values()]
 }
@@ -706,11 +771,30 @@ const sectionHeaderBindings = (section: TabSection) => ({
 	onCreateGroup: ({ tabs }: { tabs: Tab[] }) => onCreateNewGroup({ tabs }),
 })
 
+const folderRowBindings = (row: Extract<Row, { type: 'folder' }>, index: number) => ({
+	label: row.folder.label,
+	place: `${row.section.label}${row.folder.path}`,
+	tabs: row.folder.all,
+	depth: row.depth,
+	collapsed: isCollapsed(row.key),
+	selection: tabsSelection(row.folder.all),
+	isCursor: index === cursorIndex.value,
+	windowsMap: props.windowsMap,
+	loadedGroups: props.loadedGroups,
+	onFocus: () => (cursorIndex.value = index),
+	onToggleCollapse: () => toggleCollapse(row.key),
+	onToggleSelect: () => toggleTabsSelection(row.folder.all),
+	onCopy: () => copyLinks(row.folder.all),
+	onClose: () => closeTabs(row.folder.all),
+	onCreateGroup: ({ tabs }: { tabs: Tab[] }) => onCreateNewGroup({ tabs }),
+})
+
 // ---------------------------------------------------------------------------
 // Virtualized list view (section headers + rows)
 // ---------------------------------------------------------------------------
 const ROW_HEIGHT = 44
 const HEADER_HEIGHT = 40
+const FOLDER_HEIGHT = 36
 
 const listRef = ref<HTMLElement | null>(null)
 const stickyHeaderRef = ref<HTMLElement | null>(null)
@@ -736,8 +820,10 @@ onMounted(measureLayout)
 
 const virtualizerOptions = computed(() => ({
 	count: rows.value.length,
-	estimateSize: (index: number) =>
-		rows.value[index]?.type === 'header' ? HEADER_HEIGHT : ROW_HEIGHT,
+	estimateSize: (index: number) => {
+		const type = rows.value[index]?.type
+		return type === 'header' ? HEADER_HEIGHT : type === 'folder' ? FOLDER_HEIGHT : ROW_HEIGHT
+	},
 	getItemKey: (index: number) => rows.value[index]?.key ?? index,
 	overscan: 12,
 	scrollMargin: listOffset.value,
@@ -889,12 +975,12 @@ const targetTabs = (count = 1): Tab[] => {
 	return tabsInRows(cursorIndex.value, count)
 }
 
-/** Enter / o: open the tab, or fold / unfold the group on a header */
+/** Enter / o: open the tab, or fold / unfold the group or folder on its row */
 const activateCursor = () => {
 	const row = cursorRow.value
 	if (!row) return
-	if (row.type === 'header') toggleCollapse(row.section.key)
-	else goToTab(row.tab)
+	if (row.type === 'tab') goToTab(row.tab)
+	else toggleCollapse(row.key)
 }
 
 const openTab = (tab: Tab, rowIndex?: number) => {
@@ -905,18 +991,20 @@ const openTab = (tab: Tab, rowIndex?: number) => {
 const toggleCursorSelection = () => {
 	const row = cursorRow.value
 	if (!row) return
-	if (row.type === 'header') toggleSectionSelection(row.section)
-	else toggleSelection(row.tab)
+	if (row.type === 'tab') toggleSelection(row.tab)
+	else toggleTabsSelection(tabsOfRow(row))
 }
 
-// Fold the cursor's group (vim: za); the cursor ends up on the group's header
+// Fold or unfold where the cursor is (vim: za): a header or folder row folds itself, a
+// tab its folder or group. The cursor ends up on the folded row.
 const toggleCursorSection = () => {
 	const row = cursorRow.value
 	if (!row) return
-	toggleCollapse(row.section.key)
+	const key = row.type === 'tab' ? row.parentKey : row.key
+	toggleCollapse(key)
 	nextTick(() => {
-		const header = rowIndexByKey.value.get(row.section.key)
-		if (header !== undefined) cursorIndex.value = header
+		const folded = rowIndexByKey.value.get(key)
+		if (folded !== undefined) cursorIndex.value = folded
 		afterCursorMove()
 	})
 }
@@ -926,6 +1014,13 @@ const selectSameDomain = () => {
 	if (row?.type === 'header') {
 		selectGroup(row.section.tabs)
 		toast(`Selected ${pluralize(row.section.tabs.length, 'tab')} in ${row.section.label}`)
+		return
+	}
+	if (row?.type === 'folder') {
+		selectGroup(row.folder.all)
+		toast(
+			`Selected ${pluralize(row.folder.all.length, 'tab')} in ${row.section.label}${row.folder.path}`,
+		)
 		return
 	}
 	const current = row?.tab
@@ -1573,11 +1668,14 @@ watch([rows, queryKey], ([nextRows, query], [prevRows, prevQuery]) => {
 		cursorIndex.value = kept
 		return
 	}
-	if (previous?.type === 'tab' && isCollapsed(previous.section.key)) {
-		const header = rowIndexByKey.value.get(previous.section.key)
-		if (header !== undefined) {
-			cursorIndex.value = header
-			return
+	// A row that folded away: the cursor goes to the folder or header it folded into
+	if (previous && previous.type !== 'header') {
+		for (const key of [previous.parentKey, previous.section.key]) {
+			const folded = rowIndexByKey.value.get(key)
+			if (folded !== undefined) {
+				cursorIndex.value = folded
+				return
+			}
 		}
 	}
 	cursorIndex.value = Math.min(cursorIndex.value, nextRows.length - 1)
@@ -1967,9 +2065,14 @@ onMounted(() => {
 							v-if="vRow.item.type === 'header'"
 							v-bind="sectionHeaderBindings(vRow.item.section)"
 						/>
+						<TabPathFolder
+							v-else-if="vRow.item.type === 'folder'"
+							v-bind="folderRowBindings(vRow.item, vRow.index)"
+						/>
 						<TabListItem
 							v-else
 							:tab="vRow.item.tab"
+							:depth="vRow.item.depth"
 							:is-cursor="vRow.index === cursorIndex"
 							:is-selected="tabsSelected.has(vRow.item.tab.stableId)"
 							:is-duplicate="
@@ -2189,7 +2292,7 @@ onMounted(() => {
 		:pending="pendingDisplay"
 		:cursor="cursorIndex"
 		:total="rows.length"
-		:on-header="cursorRow?.type === 'header'"
+		:on-header="cursorRow?.type === 'header' || cursorRow?.type === 'folder'"
 		:selected-count="tabsSelected.size"
 		:category="`by ${groupByLabel.toLowerCase()}`"
 		:which-key="whichKey"

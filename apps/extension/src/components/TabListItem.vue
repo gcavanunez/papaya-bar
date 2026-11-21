@@ -21,6 +21,8 @@ defineProps<{
 	loadedGroups: Group[]
 	/** Tab-group chip; omitted when the list is already grouped by tab group */
 	groupChip?: { title: string; color: string } | null
+	/** How many path folders deep the tab sits (site view), for its indent */
+	depth?: number
 }>()
 
 const emit = defineEmits<{
@@ -46,6 +48,7 @@ const actionClass = button({ intent: 'ghost', size: 'xs', square: true })
 					? 'dark:bg-vercel-accents-1 bg-slate-50'
 					: 'dark:hover:bg-vercel-accents-1 hover:bg-slate-50',
 		]"
+		:style="depth ? { paddingLeft: `${16 + depth * 20}px` } : undefined"
 		@click="emit('focus')"
 	>
 		<span
