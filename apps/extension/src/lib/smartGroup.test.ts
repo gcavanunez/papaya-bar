@@ -325,6 +325,40 @@ describe('the opencode engine', () => {
 		})
 	})
 
+	it('uses tool calls instead of asking for JSON when they are set up', async () => {
+		const json = fakeOpencode()
+		const landed: string[] = []
+		const result = await suggestGroups(pile(6), {
+			opencode: json.ask,
+			opencodeTools: async (tabs, run) => {
+				const group = { name: 'Rust', tabIds: tabs.slice(0, 2).map((t) => t.id) }
+				run.onGroup?.(group, 1)
+				return [group]
+			},
+			onGroup: (group) => landed.push(group.name),
+			lm: null,
+		})
+		expect(result).toEqual({
+			engine: 'opencode',
+			suggestions: [{ name: 'Rust', tabIds: [1, 2] }],
+		})
+		expect(landed).toEqual(['Rust'])
+		expect(json.prompts).toEqual([])
+	})
+
+	it('falls back, saying why, when the tool-call run fails', async () => {
+		const result = await suggestGroups(pile(6), {
+			opencodeTools: async () => {
+				throw new Error('Free usage limit reached.')
+			},
+			lm: null,
+		})
+		expect(result).toMatchObject({
+			engine: 'site',
+			fallbackReason: 'opencode: Free usage limit reached',
+		})
+	})
+
 	it('is skipped when another engine is asked for', async () => {
 		const opencode = fakeOpencode()
 		expect(

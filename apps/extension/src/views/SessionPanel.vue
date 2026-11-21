@@ -71,6 +71,7 @@ const {
 	reviewTabCount,
 	modelStatus,
 	downloadFraction,
+	live,
 	refreshModelStatus,
 	opencode,
 	suggest,
@@ -175,6 +176,8 @@ const percent = (fraction: number) => Math.round(fraction * 100)
 const groupingPercent = computed(() =>
 	progress.value.total ? percent(progress.value.done / progress.value.total) : 0,
 )
+/** opencode proposes groups one tool call at a time, so the panel shows each as it lands */
+const viaTools = computed(() => !!opencode.value?.folder)
 
 // ---------- The open session ----------
 
@@ -551,7 +554,14 @@ onUnmounted(() => {
 
 				<div v-if="running" class="card space-y-2 p-3 text-xs" role="status">
 					<div class="flex items-center justify-between gap-2">
-						<span>
+						<!-- With tool calls, the line shows each group as the model proposes it -->
+						<span v-if="live" class="min-w-0 truncate">
+							<span class="font-medium text-slate-900 dark:text-white">{{
+								live.name
+							}}</span>
+							· {{ pluralize(live.tabs, 'tab') }}
+						</span>
+						<span v-else>
 							{{
 								opencode
 									? `Grouping by topic with ${opencode.model} (opencode)…`
@@ -560,25 +570,45 @@ onUnmounted(() => {
 										: 'Grouping…'
 							}}
 						</span>
-						<button
-							type="button"
-							class="dark:text-vercel-accents-5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
-							@click="cancel"
-						>
-							Stop
-						</button>
+						<span class="flex shrink-0 items-center gap-3">
+							<span
+								v-if="live"
+								class="dark:text-vercel-accents-5 tabular-nums text-slate-500"
+							>
+								{{ pluralize(live.count, 'group') }}
+							</span>
+							<button
+								type="button"
+								class="dark:text-vercel-accents-5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+								@click="cancel"
+							>
+								Stop
+							</button>
+						</span>
 					</div>
-					<div
-						class="dark:bg-vercel-accents-2 h-1 overflow-hidden rounded-full bg-slate-100"
+					<p
+						v-if="opencode && viaTools"
+						class="dark:text-vercel-accents-5 text-slate-500"
 					>
-						<div
-							class="bg-papaya-900 h-full transition-[width]"
-							:style="{ width: `${groupingPercent}%` }"
-						/>
-					</div>
-					<p class="dark:text-vercel-accents-5 tabular-nums text-slate-500">
-						{{ progress.done }} of {{ pluralize(progress.total, 'tab') }}
+						{{
+							live
+								? `${opencode.model} is proposing groups…`
+								: `${opencode.model} is reading ${pluralize(progress.total, 'tab')}…`
+						}}
 					</p>
+					<template v-else>
+						<div
+							class="dark:bg-vercel-accents-2 h-1 overflow-hidden rounded-full bg-slate-100"
+						>
+							<div
+								class="bg-papaya-900 h-full transition-[width]"
+								:style="{ width: `${groupingPercent}%` }"
+							/>
+						</div>
+						<p class="dark:text-vercel-accents-5 tabular-nums text-slate-500">
+							{{ progress.done }} of {{ pluralize(progress.total, 'tab') }}
+						</p>
+					</template>
 				</div>
 
 				<template v-if="review.length && !running">

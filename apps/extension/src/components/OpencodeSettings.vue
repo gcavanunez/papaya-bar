@@ -18,6 +18,13 @@ import {
 	type OpencodeConnection,
 	type OpencodeModel,
 } from '@/lib/opencode'
+import {
+	MAKE_FOLDER,
+	PAPAYA_FOLDER,
+	allowOriginCommand,
+	checkFolder,
+	type FolderStatus,
+} from '@/lib/opencodeTools'
 import AppButton from '@/components/AppButton.vue'
 import AppSwitch from '@/components/forms/AppSwitch.vue'
 import SearchInput from '@/components/forms/SearchInput.vue'
@@ -112,6 +119,52 @@ async function choose(model: OpencodeModel | null) {
 	toast(`Smart group now uses ${connection.value.model}`)
 }
 
+// ---------- Tool calls: Papaya's folder for its opencode sessions ----------
+
+const folderStatus = ref<FolderStatus | null>(null)
+const checkingFolder = ref(false)
+
+/** See whether ~/.config/papaya-bar exists, and remember it on the connection if it does */
+async function refreshFolder(announce = false) {
+	if (!connection.value) return
+	checkingFolder.value = true
+	try {
+		const status = await checkFolder(connection.value)
+		folderStatus.value = status
+		const folder = status.state === 'ready' ? status.folder : undefined
+		if (connection.value.folder !== folder) {
+			await updateConnection({ folder })
+			connection.value = { ...connection.value, folder }
+		}
+		if (announce) {
+			if (status.state === 'ready') toast('Smart group now uses tool calls')
+			else if (status.state === 'missing') toast(`~/${PAPAYA_FOLDER} isn't there yet`)
+			else if (status.state === 'blocked') toast("opencode doesn't allow Papaya yet")
+		}
+	} catch (e) {
+		folderStatus.value = { state: 'unsupported', reason: errorText(e) }
+	} finally {
+		checkingFolder.value = false
+	}
+}
+
+/** What opencode has to allow: this extension's origin, chrome-extension://<its id> */
+const allowCommand = allowOriginCommand(location.origin)
+
+/** The one-time setup step still to do, as a terminal command */
+const setupCommand = computed(() =>
+	folderStatus.value?.state === 'missing'
+		? MAKE_FOLDER
+		: folderStatus.value?.state === 'blocked'
+			? allowCommand
+			: '',
+)
+
+async function copySetupCommand() {
+	await navigator.clipboard.writeText(setupCommand.value)
+	toast('Copied', { description: 'Run it in a terminal, then check again.' })
+}
+
 async function load() {
 	connection.value = await loadConnection()
 	enabled.value = !!connection.value?.enabled
@@ -134,7 +187,9 @@ async function load() {
 		connection.value = { ...connection.value, ...changes }
 	} catch (e) {
 		problem.value = errorText(e)
+		return
 	}
+	await refreshFolder()
 }
 
 async function connect() {
@@ -163,6 +218,7 @@ async function forget() {
 	models.value = null
 	defaultModel.value = null
 	picking.value = false
+	folderStatus.value = null
 	toast('Disconnected from opencode')
 }
 
@@ -306,6 +362,79 @@ onMounted(load)
 						</div>
 					</div>
 				</div>
+				<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4">
+					<div class="min-w-60 flex-1">
+						<p class="text-sm font-medium text-slate-900 dark:text-white">
+							Tool calls:
+							{{
+								!folderStatus
+									? 'checking…'
+									: folderStatus.state === 'ready'
+										? 'on'
+										: folderStatus.state === 'missing'
+											? 'needs a folder'
+											: folderStatus.state === 'blocked'
+												? "needs opencode's OK"
+												: 'not available'
+							}}
+						</p>
+						<p class="dark:text-vercel-accents-5 mt-0.5 text-sm text-slate-500">
+							<template v-if="folderStatus?.state === 'ready'">
+								The model proposes each group as a tool call that Papaya checks, in
+								a short opencode session in
+								<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>~/{{ PAPAYA_FOLDER }}</code
+								>
+								that's deleted afterwards.
+							</template>
+							<template v-else-if="folderStatus?.state === 'missing'">
+								So the model can propose groups as tool calls instead of writing
+								JSON, Papaya needs a folder for its opencode sessions. Run
+								<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>{{ MAKE_FOLDER }}</code
+								>
+								in a terminal, then check again.
+							</template>
+							<template v-else-if="folderStatus?.state === 'blocked'">
+								opencode only takes tool connections from origins it allows, and
+								Papaya's is
+								<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>{{ allowCommand.split(' ').pop() }}</code
+								>. Allow it once with
+								<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>{{ allowCommand }}</code
+								>. That stops opencode's background service (and any session running
+								in it); open opencode again, or run
+								<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>opencode service start</code
+								>, then check again. The command replaces the list:
+								<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>opencode service get cors</code
+								>
+								shows any origins already on it to add, separated by commas.
+							</template>
+							<template v-else-if="folderStatus?.state === 'unsupported'">
+								{{ folderStatus.reason.replace(/[.\s]+$/, '') }}. Smart group asks
+								the model for JSON instead.
+							</template>
+						</p>
+					</div>
+					<div v-if="folderStatus && folderStatus.state !== 'ready'" class="flex gap-2">
+						<AppButton v-if="setupCommand" @click="copySetupCommand">
+							Copy command
+						</AppButton>
+						<AppButton :disabled="checkingFolder" @click="refreshFolder(true)">
+							{{ checkingFolder ? 'Checking…' : 'Check again' }}
+						</AppButton>
+					</div>
+				</div>
+
 				<SwitchGroup as="div" class="flex items-center justify-between gap-6 px-5 py-4">
 					<div class="min-w-60 flex-1">
 						<SwitchLabel

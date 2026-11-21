@@ -38,6 +38,11 @@ export interface OpencodeConnection {
 	choice?: ModelRef
 	/** The model's limits, which size Smart group's batches */
 	limits?: ModelLimits
+	/**
+	 * Papaya's folder for its opencode sessions (~/.config/papaya-bar), once it exists:
+	 * then Smart group runs as tool calls instead of asking for JSON
+	 */
+	folder?: string
 }
 
 export const OPENCODE_KEY = 'papaya:opencode'
@@ -59,9 +64,14 @@ export function parsePairLink(link: string): { url: string; code: string } {
 	return { url: `${parsed.origin}${match[1]}`, code: match[2] }
 }
 
-const authHeader = (token: string) => `Basic ${btoa(`opencode:${token}`)}`
+export const authHeader = (token: string) => `Basic ${btoa(`opencode:${token}`)}`
 
-async function request<T>(
+/** The first sentence says what happened; the rest is usually an advert or a link */
+export const firstSentence = (message: string) =>
+	message.trim().match(/^.*?[.!?](?=\s|$)/)?.[0] ?? message.trim()
+
+/** One authenticated request to opencode; an empty reply (204) gives null */
+export async function request<T>(
 	connection: Pick<OpencodeConnection, 'url' | 'token'>,
 	path: string,
 	init: RequestInit = {},
@@ -85,7 +95,8 @@ async function request<T>(
 		throw new Error('opencode no longer accepts this pairing. Pair again in Settings.')
 	}
 	if (!response.ok) throw new Error(await failureText(response))
-	return (await response.json()) as T
+	const text = await response.text()
+	return (text ? JSON.parse(text) : null) as T
 }
 
 /** What went wrong, in opencode's words when it gives them, e.g. a free model's usage limit */
@@ -98,8 +109,7 @@ async function failureText(response: Response): Promise<string> {
 	}
 	const message = typeof body?.message === 'string' ? body.message.trim() : ''
 	if (!message) return `opencode answered ${response.status}`
-	// The first sentence says what happened; the rest is usually an advert or a link
-	const first = message.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? message
+	const first = firstSentence(message)
 	const wait = typeof body?.retryAfterMs === 'number' ? body.retryAfterMs : 0
 	return wait > 0 ? `${first} Try again in ${Math.ceil(wait / 60_000)} min.` : first
 }

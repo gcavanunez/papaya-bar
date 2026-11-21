@@ -151,12 +151,15 @@ const MODEL_OPTIONS = {
 	expectedOutputs: [{ type: 'text', languages: ['en'] }],
 }
 
-const SYSTEM_PROMPT = `You sort a person's open browser tabs into groups, the way they would label Chrome tab groups.
+/** How to group, whatever form the groups come back in */
+export const GROUPING_RULES = `You sort a person's open browser tabs into groups, the way they would label Chrome tab groups.
 Rules:
 - Group by topic, project or task, not just by website.
 - Names are 1 to 3 words, like "Trip to Lisbon", "Rust", "Taxes", "Hiring".
 - Each tab number goes in at most one group. Leave out tabs that fit no group.
-- Prefer fewer, broader groups. A group needs at least 2 tabs.
+- Prefer fewer, broader groups. A group needs at least 2 tabs.`
+
+const SYSTEM_PROMPT = `${GROUPING_RULES}
 Reply only with JSON.`
 
 export const RESPONSE_SCHEMA = {
@@ -221,7 +224,8 @@ export function buildPrompt(batch: GroupableTab[], knownNames: string[]): string
 	return `Tabs:\n${lines.join('\n')}${reuse}`
 }
 
-function cleanName(value: unknown): string {
+/** A group name as given, trimmed to one line of at most MAX_NAME_LENGTH characters */
+export function cleanName(value: unknown): string {
 	if (typeof value !== 'string') return ''
 	return value.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH).trim()
 }
@@ -408,10 +412,17 @@ export function groupWithOpencode(
 const message = (error: unknown) =>
 	(error instanceof Error ? error.message : String(error)).replace(/[.\s]+$/, '')
 
+/** Group with an opencode model that proposes each group as a tool call */
+export type GroupWithTools = (
+	tabs: GroupableTab[],
+	options: { signal?: AbortSignal; onGroup?: (group: Suggestion, count: number) => void },
+) => Promise<Suggestion[]>
+
 /**
- * Pick an engine and group. "auto" escalates: opencode when it's connected, else the
- * on-device model when it's ready, else by site. If a model fails, the next engine
- * down is used and the reply says why. Blank and new tab pages are left out.
+ * Pick an engine and group. "auto" escalates: opencode when it's connected (with tool
+ * calls when they're set up, else by asking for JSON), else the on-device model when
+ * it's ready, else by site. If a model fails, the next engine down is used and the
+ * reply says why. Blank and new tab pages are left out.
  */
 export async function suggestGroups(
 	allTabs: GroupableTab[],
@@ -419,9 +430,13 @@ export async function suggestGroups(
 		engine?: Engine | 'auto'
 		signal?: AbortSignal
 		onProgress?: (done: number, total: number) => void
+		/** Each group as an opencode model proposes it (tool calls only) */
+		onGroup?: (group: Suggestion, count: number) => void
 		lm?: LanguageModelApi | null
 		/** How to reach opencode, when it's connected and turned on */
 		opencode?: Ask | null
+		/** opencode with tool calls, when Papaya's folder is set up; preferred over `opencode` */
+		opencodeTools?: GroupWithTools | null
 		/** The opencode model's limits, which size its batches */
 		opencodeLimits?: ModelLimits
 	} = {},
@@ -431,15 +446,21 @@ export async function suggestGroups(
 	const wanted = options.engine ?? 'auto'
 	const reasons: string[] = []
 	const enough = tabs.length >= MIN_GROUP_SIZE
+	const viaOpencode = options.opencodeTools || options.opencode
 
-	if (enough && options.opencode && (wanted === 'auto' || wanted === 'opencode')) {
+	if (enough && viaOpencode && (wanted === 'auto' || wanted === 'opencode')) {
 		try {
 			return {
 				engine: 'opencode',
-				suggestions: await groupWithOpencode(tabs, options.opencode, {
-					...options,
-					limits: options.opencodeLimits,
-				}),
+				suggestions: options.opencodeTools
+					? await options.opencodeTools(tabs, {
+							signal: options.signal,
+							onGroup: options.onGroup,
+						})
+					: await groupWithOpencode(tabs, options.opencode!, {
+							...options,
+							limits: options.opencodeLimits,
+						}),
 			}
 		} catch (error) {
 			if (options.signal?.aborted) throw error

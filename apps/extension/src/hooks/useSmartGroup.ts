@@ -7,6 +7,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { pluralize } from '@/lib/format'
 import { OPENCODE_KEY, askOpencode, loadConnection, type OpencodeConnection } from '@/lib/opencode'
+import { groupWithTools } from '@/lib/opencodeTools'
 import {
 	downloadOnDeviceModel,
 	onDeviceStatus,
@@ -49,6 +50,8 @@ export function useSmartGroup() {
 	const modelStatus = ref<OnDeviceStatus>('unavailable')
 	/** 0–1 while the on-device model downloads, otherwise null */
 	const downloadFraction = ref<number | null>(null)
+	/** While opencode proposes groups as tool calls: the latest one, and how many so far */
+	const live = ref<{ name: string; tabs: number; count: number } | null>(null)
 
 	let controller: AbortController | null = null
 	let nextKey = 0
@@ -91,14 +94,24 @@ export function useSmartGroup() {
 		controller = own
 		running.value = true
 		progress.value = { done: 0, total: byId.size }
+		live.value = null
 		void refreshModelStatus()
+		const connection = opencode.value
 		try {
 			const result = await suggestGroups([...byId.values()], {
 				engine: options.engine,
 				signal: own.signal,
 				onProgress: (done, total) => (progress.value = { done, total }),
-				opencode: opencode.value ? askOpencode(opencode.value) : null,
-				opencodeLimits: opencode.value?.limits,
+				onGroup: (group, count) => {
+					if (controller === own)
+						live.value = { name: group.name, tabs: group.tabIds.length, count }
+				},
+				opencode: connection ? askOpencode(connection) : null,
+				// With Papaya's folder set up, the model proposes groups as tool calls
+				opencodeTools: connection?.folder
+					? (tabs, run) => groupWithTools(tabs, connection, run)
+					: null,
+				opencodeLimits: connection?.limits,
 			})
 			if (own.signal.aborted) return
 			const colors = pickColors(result.suggestions.length, options.usedColors)
@@ -128,6 +141,7 @@ export function useSmartGroup() {
 			if (controller === own) {
 				controller = null
 				running.value = false
+				live.value = null
 			}
 		}
 	}
@@ -136,6 +150,7 @@ export function useSmartGroup() {
 		controller?.abort()
 		controller = null
 		running.value = false
+		live.value = null
 	}
 
 	function dismiss(): void {
@@ -225,6 +240,7 @@ export function useSmartGroup() {
 		reviewTabCount,
 		modelStatus,
 		downloadFraction,
+		live,
 		refreshModelStatus,
 		opencode,
 		suggest,
