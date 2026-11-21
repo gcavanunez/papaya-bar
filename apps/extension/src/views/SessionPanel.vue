@@ -60,7 +60,13 @@ const {
 	moveStashed,
 	deleteStashed,
 } = useLibrary()
-const { groups: openGroups, looseTabs, focusedGroupId, windowNumbers } = useOpenGroups()
+const {
+	groups: openGroups,
+	looseTabs,
+	groupableTabs,
+	focusedGroupId,
+	windowNumbers,
+} = useOpenGroups()
 const {
 	review,
 	engine,
@@ -72,6 +78,7 @@ const {
 	modelStatus,
 	downloadFraction,
 	live,
+	mode: groupingMode,
 	refreshModelStatus,
 	opencode,
 	suggest,
@@ -153,6 +160,21 @@ function smartGroup(preferred: Engine | 'auto' = 'auto') {
 		usedColors: openGroups.value.map((g) => g.color),
 	})
 }
+
+/** A fresh regrouping of every tab, ones already in groups included */
+function regroupAll(preferred: Engine | 'auto' = 'auto') {
+	expandedKey.value = null
+	void suggest(groupableTabs.value, { engine: preferred, mode: 'all' })
+}
+
+/** Ask again with another engine, for the same tabs */
+const rerun = (preferred: Engine) =>
+	groupingMode.value === 'all' ? regroupAll(preferred) : smartGroup(preferred)
+
+/** While a regroup runs or is in review, the section is about every tab */
+const regrouping = computed(
+	() => groupingMode.value === 'all' && (running.value || !!review.value.length),
+)
 
 /** The other ways to group, offered under a suggestion */
 const otherEngines = computed(() => {
@@ -369,19 +391,32 @@ onUnmounted(() => {
 			<section v-if="visibleGroups.length">
 				<div class="mb-2 flex items-center justify-between">
 					<p class="section-label">Open groups · {{ visibleGroups.length }}</p>
-					<button
-						v-if="migrated && otherGroupIds.length"
-						type="button"
-						class="dark:text-vercel-accents-5 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
-						:title="
-							focusedGroupId
-								? 'Keep the group you are in open and stash the rest'
-								: 'Stash every open group'
-						"
-						@click="stashGroups(otherGroupIds)"
-					>
-						{{ focusedGroupId ? 'Stash the others' : 'Stash all' }}
-					</button>
+					<div class="flex items-center gap-3">
+						<button
+							v-if="groupableTabs.length >= 2"
+							type="button"
+							class="dark:text-vercel-accents-5 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 disabled:opacity-50 dark:hover:text-white"
+							:disabled="running"
+							title="Group every tab afresh, including tabs already in groups. You review it first, and Undo brings your groups back."
+							@click="regroupAll()"
+						>
+							<SparklesIcon class="size-3" aria-hidden="true" />
+							Regroup all
+						</button>
+						<button
+							v-if="migrated && otherGroupIds.length"
+							type="button"
+							class="dark:text-vercel-accents-5 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
+							:title="
+								focusedGroupId
+									? 'Keep the group you are in open and stash the rest'
+									: 'Stash every open group'
+							"
+							@click="stashGroups(otherGroupIds)"
+						>
+							{{ focusedGroupId ? 'Stash the others' : 'Stash all' }}
+						</button>
+					</div>
 				</div>
 				<ul
 					role="list"
@@ -539,9 +574,12 @@ onUnmounted(() => {
 			<!-- Loose tabs and smart grouping. Applying creates tab groups; nothing closes. -->
 			<section v-if="looseTabs.length || review.length || running" class="space-y-2">
 				<div class="flex items-center justify-between gap-2">
-					<p class="section-label">Loose tabs · {{ looseTabs.length }}</p>
+					<p v-if="regrouping" class="section-label">
+						Regrouping · {{ pluralize(groupableTabs.length, 'tab') }}
+					</p>
+					<p v-else class="section-label">Loose tabs · {{ looseTabs.length }}</p>
 					<AppButton
-						v-if="!review.length"
+						v-if="!review.length && !regrouping"
 						size="xs"
 						:disabled="looseTabs.length < 2 || running"
 						title="Suggest groups for these tabs. You review them before anything changes."
@@ -622,6 +660,9 @@ onUnmounted(() => {
 						</template>
 						<template v-else>Grouped by site.</template>
 						Rename, merge or drop groups, then apply. Nothing closes.
+						<template v-if="groupingMode === 'all'">
+							Applying replaces your current groups; Undo brings them back.
+						</template>
 					</p>
 					<ul
 						role="list"
@@ -729,7 +770,8 @@ onUnmounted(() => {
 						</li>
 					</ul>
 					<p v-if="leftLoose" class="dark:text-vercel-accents-5 text-xs text-slate-500">
-						{{ pluralize(leftLoose, 'tab') }} fit no group and stay loose.
+						{{ pluralize(leftLoose, 'tab') }} fit no group and
+						{{ groupingMode === 'all' ? 'will be loose' : 'stay loose' }}.
 					</p>
 					<p v-if="fallbackReason" class="text-xs text-amber-700 dark:text-amber-300">
 						{{ fallbackReason }}. So these are grouped
@@ -737,7 +779,8 @@ onUnmounted(() => {
 					</p>
 					<div class="flex gap-2">
 						<AppButton intent="primary" size="sm" class="flex-1" @click="apply">
-							Group {{ pluralize(reviewTabCount, 'tab') }}
+							{{ groupingMode === 'all' ? 'Regroup' : 'Group' }}
+							{{ pluralize(reviewTabCount, 'tab') }}
 						</AppButton>
 						<AppButton size="sm" @click="dismiss">Cancel</AppButton>
 					</div>
@@ -747,7 +790,7 @@ onUnmounted(() => {
 							:key="other.engine"
 							type="button"
 							class="dark:text-vercel-accents-5 text-xs text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline dark:hover:text-white"
-							@click="smartGroup(other.engine)"
+							@click="rerun(other.engine)"
 						>
 							{{ other.label }}
 						</button>

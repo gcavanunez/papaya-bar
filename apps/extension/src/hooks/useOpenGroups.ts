@@ -3,11 +3,13 @@
  * while the page is open.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { buildOpenGroups, isLooseTab, type OpenGroup } from '@/lib/tabGroups'
+import { buildOpenGroups, isGroupableTab, isLooseTab, type OpenGroup } from '@/lib/tabGroups'
 
 export function useOpenGroups() {
 	const groups = ref<OpenGroup[]>([])
 	const looseTabs = ref<chrome.tabs.Tab[]>([])
+	/** Every tab that can be grouped, in a group or not: what "Regroup all" works on */
+	const groupableTabs = ref<chrome.tabs.Tab[]>([])
 	const focusedWindowId = ref<number | null>(null)
 
 	async function refresh(): Promise<void> {
@@ -19,6 +21,7 @@ export function useOpenGroups() {
 		])
 		groups.value = buildOpenGroups(tabGroups, tabs)
 		looseTabs.value = tabs.filter(isLooseTab)
+		groupableTabs.value = tabs.filter(isGroupableTab)
 		focusedWindowId.value = focused?.id ?? null
 	}
 
@@ -66,5 +69,5 @@ export function useOpenGroups() {
 		events.forEach((event) => event.removeListener(scheduleRefresh))
 	})
 
-	return { groups, looseTabs, focusedGroupId, windowNumbers, refresh }
+	return { groups, looseTabs, groupableTabs, focusedGroupId, windowNumbers, refresh }
 }

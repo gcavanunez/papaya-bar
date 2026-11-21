@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { buildOpenGroups, groupInPlace, nextGroupId, pickColors, ungroupTabs } from './tabGroups'
+import {
+	buildOpenGroups,
+	groupInPlace,
+	nextGroupId,
+	pickColors,
+	regroupInPlace,
+	undoRegroup,
+	ungroupTabs,
+} from './tabGroups'
 
 const group = (id: number, windowId = 1, title = `G${id}`) => ({
 	id,
@@ -122,6 +130,10 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 		}
 	}
 	let nextGroup = 100
+	const groupProps = new Map<
+		number,
+		{ title: string; color: string; collapsed: boolean; windowId: number }
+	>()
 	const remove = (ids: number[]) => {
 		for (const [windowId, list] of order)
 			order.set(
@@ -145,6 +157,12 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 					createProperties: { windowId: number }
 				}) => {
 					const groupId = nextGroup++
+					groupProps.set(groupId, {
+						title: '',
+						color: 'grey',
+						collapsed: false,
+						windowId: createProperties.windowId,
+					})
 					remove(tabIds)
 					const list = order.get(createProperties.windowId)!
 					if (at === 'start') list.unshift(...tabIds)
@@ -167,7 +185,28 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 					for (const id of list) tabs.get(id)!.windowId = windowId
 				},
 			},
-			tabGroups: { update: async () => ({}) },
+			tabGroups: {
+				get: async (id: number) => {
+					const group = groupProps.get(id)
+					if (!group) throw new Error(`No group with id: ${id}.`)
+					return { id, ...group }
+				},
+				update: async (id: number, props: object) => {
+					Object.assign(groupProps.get(id) ?? {}, props)
+					return {}
+				},
+				move: async (id: number, { index }: { index: number }) => {
+					const windowId = groupProps.get(id)!.windowId
+					const members = order
+						.get(windowId)!
+						.filter((tabId) => tabs.get(tabId)!.groupId === id)
+					remove(members)
+					// remove() replaces the window's list, so read it again
+					const list = order.get(windowId)!
+					list.splice(index === -1 ? list.length : index, 0, ...members)
+					return {}
+				},
+			},
 		},
 	})
 	return {
@@ -176,6 +215,36 @@ function fakeStrip(layout: Record<number, number[]>, at: 'start' | 'end') {
 		close: (id: number) => {
 			remove([id])
 			tabs.delete(id)
+		},
+		/** An existing group, its tabs already next to each other */
+		addGroup: (
+			id: number,
+			tabIds: number[],
+			props: { title: string; color: string; collapsed: boolean },
+		) => {
+			const windowId = tabs.get(tabIds[0])!.windowId
+			groupProps.set(id, { ...props, windowId })
+			for (const tabId of tabIds) tabs.get(tabId)!.groupId = id
+		},
+		/** Each group in a window, as its title and tabs in strip order */
+		groupsIn: (windowId: number) => {
+			const out: { title: string; color: string; collapsed: boolean; tabs: number[] }[] = []
+			for (const id of order.get(windowId)!) {
+				const groupId = tabs.get(id)!.groupId
+				if (groupId === -1) continue
+				const props = groupProps.get(groupId)!
+				const last = out.at(-1)
+				if (last && last.title === props.title && last.color === props.color)
+					last.tabs.push(id)
+				else
+					out.push({
+						title: props.title,
+						color: props.color,
+						collapsed: props.collapsed,
+						tabs: [id],
+					})
+			}
+			return out
 		},
 	}
 }
@@ -235,5 +304,74 @@ describe('groupInPlace and ungroupTabs', () => {
 		strip.close(5)
 		await ungroupTabs(result.tabIds, result.positions)
 		expect(strip.order(1)).toEqual([1, 2, 3, 4, 6, 7, 8])
+	})
+})
+
+describe('regroupInPlace and undoRegroup', () => {
+	/** Window 1: Old (1, 2) and Other (4, 5) are groups, 3 and 6 are loose; window 2: 7, 8 */
+	function grouped(at: 'start' | 'end') {
+		const strip = fakeStrip({ 1: [1, 2, 3, 4, 5, 6], 2: [7, 8] }, at)
+		strip.addGroup(50, [1, 2], { title: 'Old', color: 'red', collapsed: true })
+		strip.addGroup(51, [4, 5], { title: 'Other', color: 'blue', collapsed: false })
+		return strip
+	}
+	const allTabs = [1, 2, 3, 4, 5, 6, 7, 8]
+	const fresh = [
+		{ name: 'Mixed', color: 'green', tabIds: [2, 4, 6] },
+		{ name: 'Across', color: 'yellow', tabIds: [1, 7, 8] },
+	]
+
+	it('takes tabs out of their groups, then groups them afresh; the rest end up loose', async () => {
+		const strip = grouped('end')
+		const result = await regroupInPlace(fresh, allTabs)
+		const groupOf = (id: number) => strip.tabs.get(id)!.groupId
+		expect(groupOf(2)).toBe(groupOf(4))
+		expect(groupOf(4)).toBe(groupOf(6))
+		// Across has two tabs in window 2, so tab 1 moves there
+		expect(strip.tabs.get(1)!.windowId).toBe(2)
+		expect(groupOf(1)).toBe(groupOf(7))
+		// Tabs 3 and 5 fit no new group: loose, their old group gone
+		expect(groupOf(3)).toBe(-1)
+		expect(groupOf(5)).toBe(-1)
+		expect(result.involved.sort()).toEqual(allTabs)
+		expect(result.previous).toEqual([
+			{ title: 'Old', color: 'red', collapsed: true, windowId: 1, tabIds: [1, 2] },
+			{ title: 'Other', color: 'blue', collapsed: false, windowId: 1, tabIds: [4, 5] },
+		])
+	})
+
+	for (const at of ['start', 'end'] as const) {
+		it(`undo brings back the old groups and order (new groups placed at the ${at})`, async () => {
+			const strip = grouped(at)
+			const result = await regroupInPlace(fresh, allTabs)
+			await undoRegroup(result)
+			expect(strip.order(1)).toEqual([1, 2, 3, 4, 5, 6])
+			expect(strip.order(2)).toEqual([7, 8])
+			expect(strip.groupsIn(1)).toEqual([
+				{ title: 'Old', color: 'red', collapsed: true, tabs: [1, 2] },
+				{ title: 'Other', color: 'blue', collapsed: false, tabs: [4, 5] },
+			])
+			expect(strip.groupsIn(2)).toEqual([])
+		})
+	}
+
+	it('leaves pinned tabs and their groups alone', async () => {
+		const strip = grouped('end')
+		strip.tabs.get(6)!.pinned = true
+		const result = await regroupInPlace(fresh, allTabs)
+		expect(result.involved).not.toContain(6)
+		expect(strip.tabs.get(6)!.groupId).toBe(-1)
+	})
+
+	it('undo skips a tab closed in between', async () => {
+		const strip = grouped('start')
+		const result = await regroupInPlace(fresh, allTabs)
+		strip.close(2)
+		await undoRegroup(result)
+		expect(strip.order(1)).toEqual([1, 3, 4, 5, 6])
+		expect(strip.groupsIn(1)).toEqual([
+			{ title: 'Old', color: 'red', collapsed: true, tabs: [1] },
+			{ title: 'Other', color: 'blue', collapsed: false, tabs: [4, 5] },
+		])
 	})
 })

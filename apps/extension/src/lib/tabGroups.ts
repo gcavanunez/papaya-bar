@@ -50,6 +50,23 @@ export interface GroupedResult {
 	positions: TabPosition[]
 }
 
+/** A tab group as it was before a regroup, to bring it back on undo */
+export interface GroupSnapshot {
+	title: string
+	color: string
+	collapsed: boolean
+	windowId: number
+	/** Its tabs, in tab-strip order */
+	tabIds: number[]
+}
+
+export interface RegroupedResult extends GroupedResult {
+	/** Every tab the regroup took in, grouped or left loose */
+	involved: number[]
+	/** The groups those tabs were in before */
+	previous: GroupSnapshot[]
+}
+
 type ChromeTab = chrome.tabs.Tab
 
 const NO_GROUP = -1
@@ -59,11 +76,14 @@ function isOwnPage(tab: ChromeTab): boolean {
 	return (tab.url || '').startsWith(prefix) || (tab.pendingUrl || '').startsWith(prefix)
 }
 
-/** Open tabs that aren't in a group and can be grouped (pinned tabs can't). */
+/** Open tabs that can be grouped, whether they're in a group or not (pinned tabs can't). */
+export function isGroupableTab(tab: ChromeTab): boolean {
+	return !tab.pinned && !isOwnPage(tab) && tab.id != null
+}
+
+/** Open tabs that aren't in a group and can be grouped. */
 export function isLooseTab(tab: ChromeTab): boolean {
-	return (
-		(tab.groupId ?? NO_GROUP) === NO_GROUP && !tab.pinned && !isOwnPage(tab) && tab.id != null
-	)
+	return (tab.groupId ?? NO_GROUP) === NO_GROUP && isGroupableTab(tab)
 }
 
 // ==================== Pure helpers ====================
@@ -248,6 +268,83 @@ export async function groupInPlace(plans: GroupPlan[]): Promise<GroupedResult> {
 		return { id, windowId: tab.windowId, index: tab.index }
 	})
 	return { groupIds, tabIds, positions }
+}
+
+/**
+ * A fresh regrouping: the given tabs leave the groups they're in, then the plans group
+ * them as groupInPlace does. Tabs no plan takes stay loose. Pinned tabs and Papaya's
+ * own pages are left alone. Returns what undo needs: where every tab was, and the
+ * groups they were in.
+ */
+export async function regroupInPlace(
+	plans: GroupPlan[],
+	tabIds: number[],
+): Promise<RegroupedResult> {
+	const wanted = new Set(tabIds)
+	const tabs = (await chrome.tabs.query({ windowType: 'normal' })).filter(
+		(tab) => tab.id != null && wanted.has(tab.id) && isGroupableTab(tab),
+	)
+	const previous: GroupSnapshot[] = []
+	for (const groupId of new Set(tabs.map((tab) => tab.groupId ?? NO_GROUP))) {
+		if (groupId === NO_GROUP) continue
+		const group = await chrome.tabGroups.get(groupId).catch(() => null)
+		if (!group) continue
+		previous.push({
+			title: group.title ?? '',
+			color: group.color,
+			collapsed: group.collapsed,
+			windowId: group.windowId,
+			tabIds: tabs
+				.filter((tab) => tab.groupId === groupId)
+				.sort((a, b) => a.index - b.index)
+				.map((tab) => tab.id as number),
+		})
+	}
+	const positions = tabs.map((tab) => ({
+		id: tab.id as number,
+		windowId: tab.windowId,
+		index: tab.index,
+	}))
+	const grouped = tabs
+		.filter((tab) => (tab.groupId ?? NO_GROUP) !== NO_GROUP)
+		.map((tab) => tab.id as number)
+	if (grouped.length) await chrome.tabs.ungroup(grouped as [number, ...number[]])
+	const result = await groupInPlace(plans)
+	return { ...result, positions, involved: positions.map((p) => p.id), previous }
+}
+
+/**
+ * Undo for regroupInPlace: the new groups go, every tab goes back where it was, and
+ * the old groups come back with their names, colors and folding. Tabs closed in the
+ * meantime are skipped.
+ */
+export async function undoRegroup(result: RegroupedResult): Promise<void> {
+	await ungroupTabs(result.involved, result.positions)
+	// Every tab is loose and back in its place; each old group is remade where its first
+	// tab is now, left to right, so one group's placement never shifts another's
+	const live = new Map((await chrome.tabs.query({})).map((tab) => [tab.id, tab]))
+	const groups = result.previous
+		.map((group) => ({ ...group, tabIds: group.tabIds.filter((id) => live.has(id)) }))
+		.filter((group) => group.tabIds.length)
+		.map((group) => ({ group, first: live.get(group.tabIds[0])! }))
+		.sort((a, b) => a.first.windowId - b.first.windowId || a.first.index - b.first.index)
+	for (const { group, first } of groups) {
+		try {
+			const groupId = await chrome.tabs.group({
+				tabIds: group.tabIds as [number, ...number[]],
+				createProperties: { windowId: first.windowId },
+			})
+			// Grouping can move the tabs; the group goes back to where they were
+			await chrome.tabGroups.move(groupId, { index: first.index })
+			await chrome.tabGroups.update(groupId, {
+				title: group.title,
+				color: group.color as chrome.tabGroups.Color,
+				collapsed: group.collapsed,
+			})
+		} catch (error) {
+			console.warn('[papaya] could not bring a group back', error)
+		}
+	}
 }
 
 /**

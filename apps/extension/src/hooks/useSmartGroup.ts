@@ -2,6 +2,9 @@
  * useSmartGroup — suggest groups for loose tabs, review them (rename, recolor, merge,
  * drop), then apply them as Chrome tab groups in place. Nothing closes, and Undo puts
  * the tabs back where they were. The engines live in lib/smartGroup.
+ *
+ * "Regroup all" is a fresh regrouping of every tab, grouped ones included: applying it
+ * replaces the groups they're in, and Undo brings those groups back.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
@@ -19,9 +22,14 @@ import {
 	GROUP_COLORS,
 	groupInPlace,
 	pickColors,
+	regroupInPlace,
+	undoRegroup,
 	ungroupTabs,
 	type GroupColor,
 } from '@/lib/tabGroups'
+
+/** Group the loose tabs, or regroup every tab afresh */
+export type SmartGroupMode = 'loose' | 'all'
 
 export interface ReviewTab {
 	id: number
@@ -52,9 +60,13 @@ export function useSmartGroup() {
 	const downloadFraction = ref<number | null>(null)
 	/** While opencode proposes groups as tool calls: the latest one, and how many so far */
 	const live = ref<{ name: string; tabs: number; count: number } | null>(null)
+	/** What the running or reviewed suggestion is for */
+	const mode = ref<SmartGroupMode>('loose')
 
 	let controller: AbortController | null = null
 	let nextKey = 0
+	/** The tabs the last suggestion looked at; a regroup takes them all out of their groups */
+	let inputIds: number[] = []
 
 	const reviewTabCount = computed(() => review.value.reduce((n, g) => n + g.tabs.length, 0))
 	const leftLoose = computed(() => Math.max(0, inputCount.value - reviewTabCount.value))
@@ -77,9 +89,10 @@ export function useSmartGroup() {
 
 	async function suggest(
 		tabs: chrome.tabs.Tab[],
-		options: { engine?: Engine | 'auto'; usedColors?: string[] } = {},
+		options: { engine?: Engine | 'auto'; usedColors?: string[]; mode?: SmartGroupMode } = {},
 	): Promise<void> {
 		cancel()
+		mode.value = options.mode ?? 'loose'
 		const byId = new Map<number, ReviewTab>()
 		for (const tab of tabs) {
 			if (tab.id == null) continue
@@ -90,6 +103,7 @@ export function useSmartGroup() {
 				favIconUrl: tab.favIconUrl,
 			})
 		}
+		inputIds = [...byId.keys()]
 		const own = new AbortController()
 		controller = own
 		running.value = true
@@ -158,6 +172,7 @@ export function useSmartGroup() {
 		review.value = []
 		engine.value = null
 		fallbackReason.value = ''
+		mode.value = 'loose'
 	}
 
 	function find(key: number): ReviewGroup | undefined {
@@ -198,6 +213,10 @@ export function useSmartGroup() {
 				tabIds: g.tabs.map((t) => t.id),
 			}))
 		if (!plans.length) return
+		if (mode.value === 'all') {
+			await applyRegroup(plans)
+			return
+		}
 		const result = await groupInPlace(plans)
 		dismiss()
 		if (!result.tabIds.length) {
@@ -212,6 +231,34 @@ export function useSmartGroup() {
 					label: 'Undo',
 					onClick: () => void ungroupTabs(result.tabIds, result.positions),
 				},
+			},
+		)
+	}
+
+	/**
+	 * Regroup every tab the suggestion looked at: they leave their groups, the plans group
+	 * them, the rest stay loose. Undo brings the old groups back.
+	 */
+	async function applyRegroup(plans: { name: string; color: string; tabIds: number[] }[]) {
+		const result = await regroupInPlace(plans, inputIds)
+		dismiss()
+		if (!result.tabIds.length) {
+			// Nothing took: put the groups back rather than leave every tab loose
+			await undoRegroup(result)
+			toast.error('Nothing was regrouped: those tabs changed since the suggestion', {
+				description: 'Your groups are as they were.',
+			})
+			return
+		}
+		const loose = result.involved.length - result.tabIds.length
+		toast(
+			`Regrouped ${pluralize(result.tabIds.length, 'tab')} into ${pluralize(result.groupIds.length, 'group')}`,
+			{
+				description: loose
+					? `${pluralize(loose, 'tab')} fit no group and ${loose === 1 ? 'is' : 'are'} loose now.`
+					: undefined,
+				duration: 15_000,
+				action: { label: 'Undo', onClick: () => void undoRegroup(result) },
 			},
 		)
 	}
@@ -241,6 +288,7 @@ export function useSmartGroup() {
 		modelStatus,
 		downloadFraction,
 		live,
+		mode,
 		refreshModelStatus,
 		opencode,
 		suggest,
