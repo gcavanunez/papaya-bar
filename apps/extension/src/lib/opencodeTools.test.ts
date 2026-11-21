@@ -223,7 +223,10 @@ describe("Papaya's folder", () => {
 		expect(command).toContain(
 			'c.count("chrome-extension://abc") or c.append("chrome-extension://abc")',
 		)
-		expect(command.endsWith('&& opencode service restart')).toBe(true)
+		// Restarted through launchd where it runs opencode (macOS), else by opencode itself
+		expect(command).toContain(
+			'&& { launchctl kickstart -k "gui/$(id -u)/ai.opencode.service" 2>/dev/null || opencode service restart; }',
+		)
 	})
 })
 

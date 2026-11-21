@@ -55,6 +55,12 @@ export type FolderStatus =
 	| { state: 'unsupported'; reason: string }
 
 /**
+ * Restart opencode's background service: through launchd when it runs it (macOS,
+ * ai.opencode.service), otherwise with opencode's own command
+ */
+const RESTART_SERVICE = `{ launchctl kickstart -k "gui/$(id -u)/ai.opencode.service" 2>/dev/null || opencode service restart; }`
+
+/**
  * The command that lets Papaya (this extension's origin) connect its tools to opencode.
  * `opencode service set cors` only takes http(s) origins, though the server accepts
  * any (`opencode serve --cors chrome-extension://…` works); the service's settings file
@@ -62,7 +68,7 @@ export type FolderStatus =
  * others) and restarts the service.
  */
 export const allowOriginCommand = (origin: string) =>
-	`python3 -c 'import json,os;p=os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),"opencode","service.json");os.makedirs(os.path.dirname(p),exist_ok=True);d=json.load(open(p)) if os.path.exists(p) else {};c=d.setdefault("cors",[]);c.count("${origin}") or c.append("${origin}");json.dump(d,open(p,"w"),indent=2)' && opencode service restart`
+	`python3 -c 'import json,os;p=os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),"opencode","service.json");os.makedirs(os.path.dirname(p),exist_ok=True);d=json.load(open(p)) if os.path.exists(p) else {};c=d.setdefault("cors",[]);c.count("${origin}") or c.append("${origin}");json.dump(d,open(p,"w"),indent=2)' && ${RESTART_SERVICE}`
 
 /**
  * The home folder a path is in. opencode's background service runs in the home folder
