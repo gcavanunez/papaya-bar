@@ -118,6 +118,14 @@ function isInOverlay(el: Element | null): boolean {
 	return !!el.closest('[role="menu"], [role="listbox"], [role="dialog"], [aria-modal="true"]')
 }
 
+/**
+ * A modal dialog is open. Its keys are its own even when focus has fallen back to the
+ * page, as it does when the focused element inside the dialog is removed.
+ */
+function isModalOpen(): boolean {
+	return !!document.querySelector('[role="dialog"][aria-modal="true"]')
+}
+
 function seqOf(binding: KeyBinding): string[] {
 	return binding.keys.split(' ')
 }
@@ -205,7 +213,7 @@ export function useKeymap(options: {
 		const active = document.activeElement
 
 		// Menus, listboxes and dialogs own their keyboard interactions
-		if (isInOverlay(active)) {
+		if (isInOverlay(active) || isModalOpen()) {
 			reset()
 			return
 		}

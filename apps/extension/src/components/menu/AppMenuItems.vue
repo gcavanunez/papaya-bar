@@ -37,7 +37,7 @@ const { onMarker, style } = useAnchoredPanel({
 			leave-to-class="scale-95 opacity-0"
 		>
 			<MenuItems
-				:class="['menu-panel z-[55] overflow-y-auto overscroll-contain', width]"
+				:class="['menu-panel z-[65] overflow-y-auto overscroll-contain', width]"
 				:style="style"
 			>
 				<span :ref="onMarker" hidden />
