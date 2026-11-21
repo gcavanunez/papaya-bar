@@ -5,7 +5,7 @@
  * before applying them. The caller starts the suggestion (useSmartGroup) and passes it in.
  * Several root elements, so they space out like the caller's own children.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { Menu, MenuButton } from '@headlessui/vue'
 import { ArrowsPointingInIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/vue/16/solid'
 import type { SmartGroup } from '@/hooks/useSmartGroup'
@@ -31,6 +31,9 @@ const {
 	downloadFraction,
 	live,
 	mode,
+	runningEngine,
+	runningNote,
+	startedAt,
 	opencode,
 	suggestAgain,
 	cancel,
@@ -60,9 +63,35 @@ const expandedKey = ref<number | null>(null)
 function toggleExpanded(key: number) {
 	expandedKey.value = expandedKey.value === key ? null : key
 }
-// A new suggestion starts folded
-watch(running, (now) => {
-	if (now) expandedKey.value = null
+
+// While it runs, a clock: a slow model and a stuck one shouldn't look the same
+const now = ref(Date.now())
+let ticker: ReturnType<typeof setInterval> | undefined
+watch(
+	running,
+	(on) => {
+		clearInterval(ticker)
+		if (!on) return
+		// A new suggestion starts folded
+		expandedKey.value = null
+		now.value = Date.now()
+		ticker = setInterval(() => (now.value = Date.now()), 1000)
+	},
+	{ immediate: true },
+)
+onUnmounted(() => clearInterval(ticker))
+const elapsed = computed(() => {
+	const seconds = Math.max(0, Math.floor((now.value - startedAt.value) / 1000))
+	return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+})
+
+/** What the engine really at work is doing (the one set up may have failed) */
+const runningLine = computed(() => {
+	if (runningEngine.value === 'opencode')
+		return `Grouping by topic with ${opencode.value?.model ?? 'your model'} (opencode)…`
+	if (runningEngine.value === 'on-device') return 'Grouping by topic on this device…'
+	if (runningEngine.value === 'site') return 'Grouping by site…'
+	return 'Getting ready…'
 })
 
 const percent = (fraction: number) => Math.round(fraction * 100)
@@ -70,7 +99,7 @@ const groupingPercent = computed(() =>
 	progress.value.total ? percent(progress.value.done / progress.value.total) : 0,
 )
 /** opencode proposes groups one tool call at a time, so each shows as it lands */
-const viaTools = computed(() => !!opencode.value?.folder)
+const viaTools = computed(() => runningEngine.value === 'opencode' && !!opencode.value?.folder)
 
 const COLOR_DOT: Record<string, string> = {
 	grey: 'bg-slate-400',
@@ -94,18 +123,16 @@ const dot = (color: string) => COLOR_DOT[color] ?? COLOR_DOT.grey
 				<span class="font-medium text-slate-900 dark:text-white">{{ live.name }}</span>
 				· {{ pluralize(live.tabs, 'tab') }}
 			</span>
-			<span v-else>
-				{{
-					opencode
-						? `Grouping by topic with ${opencode.model} (opencode)…`
-						: modelStatus === 'available'
-							? 'Grouping by topic on this device…'
-							: 'Grouping…'
-				}}
-			</span>
+			<span v-else class="min-w-0 truncate">{{ runningLine }}</span>
 			<span class="flex shrink-0 items-center gap-3">
 				<span v-if="live" class="dark:text-vercel-accents-5 tabular-nums text-slate-500">
 					{{ pluralize(live.count, 'group') }}
+				</span>
+				<span
+					class="dark:text-vercel-accents-5 tabular-nums text-slate-500"
+					:title="`Running for ${elapsed}`"
+				>
+					{{ elapsed }}
 				</span>
 				<button
 					type="button"
@@ -116,14 +143,19 @@ const dot = (color: string) => COLOR_DOT[color] ?? COLOR_DOT.grey
 				</button>
 			</span>
 		</div>
+		<!-- The engine set up failed and the next one took over: say so now, not after -->
+		<p v-if="runningNote" class="text-amber-700 dark:text-amber-300">
+			{{ runningNote }}. Grouping
+			{{ runningEngine === 'on-device' ? 'on this device' : 'by site' }} instead.
+		</p>
 		<p v-if="opencode && viaTools" class="dark:text-vercel-accents-5 text-slate-500">
 			{{
 				live
 					? `${opencode.model} is proposing groups…`
-					: `${opencode.model} is reading ${pluralize(progress.total, 'tab')}…`
+					: `${opencode.model} is reading ${pluralize(progress.total, 'tab')}. Each group shows up here as it's proposed.`
 			}}
 		</p>
-		<template v-else>
+		<template v-else-if="runningEngine && runningEngine !== 'site'">
 			<div class="dark:bg-vercel-accents-2 h-1 overflow-hidden rounded-full bg-slate-100">
 				<div
 					class="bg-papaya-900 h-full transition-[width]"

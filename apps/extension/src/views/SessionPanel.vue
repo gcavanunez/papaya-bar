@@ -64,7 +64,7 @@ const {
 	windowNumbers,
 } = useOpenGroups()
 const smart = useSmartGroup()
-const { review, running, mode: groupingMode, refreshModelStatus, suggest } = smart
+const { review, running, mode: groupingMode, suggest } = smart
 
 const SESSIONS_SHOWN = 8
 const search = ref('')
@@ -205,7 +205,6 @@ const tabEvents = [
 ] as chrome.events.Event<() => void>[]
 
 onMounted(() => {
-	void refreshModelStatus()
 	void refreshOpenTabCount()
 	tabEvents.forEach((event) => event.addListener(onTabsChanged))
 })

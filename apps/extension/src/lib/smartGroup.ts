@@ -432,6 +432,11 @@ export async function suggestGroups(
 		onProgress?: (done: number, total: number) => void
 		/** Each group as an opencode model proposes it (tool calls only) */
 		onGroup?: (group: Suggestion, count: number) => void
+		/**
+		 * Each engine as it starts, so a progress line can name the one really at work.
+		 * After a fallback, `reason` says why the ones before it failed.
+		 */
+		onEngine?: (engine: Engine, reason?: string) => void
 		lm?: LanguageModelApi | null
 		/** How to reach opencode, when it's connected and turned on */
 		opencode?: Ask | null
@@ -447,8 +452,11 @@ export async function suggestGroups(
 	const reasons: string[] = []
 	const enough = tabs.length >= MIN_GROUP_SIZE
 	const viaOpencode = options.opencodeTools || options.opencode
+	const starting = (engine: Engine) =>
+		options.onEngine?.(engine, reasons.length ? reasons.join('; ') : undefined)
 
 	if (enough && viaOpencode && (wanted === 'auto' || wanted === 'opencode')) {
+		starting('opencode')
 		try {
 			return {
 				engine: 'opencode',
@@ -468,6 +476,7 @@ export async function suggestGroups(
 		}
 	}
 	if (enough && wanted !== 'site' && (await onDeviceStatus(lm)) === 'available') {
+		starting('on-device')
 		try {
 			return {
 				engine: 'on-device',
@@ -479,6 +488,7 @@ export async function suggestGroups(
 			reasons.push(`on-device model: ${message(error)}`)
 		}
 	}
+	starting('site')
 	return {
 		engine: 'site',
 		suggestions: groupBySite(tabs),

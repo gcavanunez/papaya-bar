@@ -76,6 +76,13 @@ export function useSmartGroup() {
 	const live = ref<{ name: string; tabs: number; count: number } | null>(null)
 	/** What the running or reviewed suggestion is for */
 	const mode = ref<SmartGroupMode>('loose')
+	/**
+	 * While it runs: the engine at work now (not the one set up, which may have failed),
+	 * why the ones before it failed, and when the run started
+	 */
+	const runningEngine = ref<Engine | null>(null)
+	const runningNote = ref('')
+	const startedAt = ref(0)
 
 	let controller: AbortController | null = null
 	let nextKey = 0
@@ -100,7 +107,10 @@ export function useSmartGroup() {
 	function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string) {
 		if (area === 'local' && OPENCODE_KEY in changes) void refreshModelStatus()
 	}
-	onMounted(() => chrome.storage.onChanged.addListener(onStorageChanged))
+	onMounted(() => {
+		chrome.storage.onChanged.addListener(onStorageChanged)
+		void refreshModelStatus()
+	})
 	onUnmounted(() => chrome.storage.onChanged.removeListener(onStorageChanged))
 
 	async function suggest(tabs: SuggestTab[], options: SuggestOptions = {}): Promise<void> {
@@ -123,12 +133,22 @@ export function useSmartGroup() {
 		running.value = true
 		progress.value = { done: 0, total: byId.size }
 		live.value = null
-		void refreshModelStatus()
-		const connection = opencode.value
+		runningEngine.value = null
+		runningNote.value = ''
+		startedAt.value = Date.now()
 		try {
+			// Which engines there are is read now: a page that just opened may not know yet
+			await refreshModelStatus()
+			if (own.signal.aborted) return
+			const connection = opencode.value
 			const result = await suggestGroups([...byId.values()], {
 				engine: options.engine,
 				signal: own.signal,
+				onEngine: (now, reason) => {
+					if (controller !== own) return
+					runningEngine.value = now
+					runningNote.value = reason ?? ''
+				},
 				onProgress: (done, total) => (progress.value = { done, total }),
 				onGroup: (group, count) => {
 					if (controller === own)
@@ -170,6 +190,7 @@ export function useSmartGroup() {
 				controller = null
 				running.value = false
 				live.value = null
+				runningEngine.value = null
 			}
 		}
 	}
@@ -185,6 +206,7 @@ export function useSmartGroup() {
 		controller = null
 		running.value = false
 		live.value = null
+		runningEngine.value = null
 	}
 
 	function dismiss(): void {
@@ -309,6 +331,9 @@ export function useSmartGroup() {
 		downloadFraction,
 		live,
 		mode,
+		runningEngine,
+		runningNote,
+		startedAt,
 		suggestAgain,
 		refreshModelStatus,
 		opencode,

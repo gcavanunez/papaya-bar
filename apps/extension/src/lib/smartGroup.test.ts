@@ -359,6 +359,20 @@ describe('the opencode engine', () => {
 		})
 	})
 
+	it('names each engine as it starts, and why the ones before it failed', async () => {
+		const started: [string, string | undefined][] = []
+		const onEngine = (engine: string, reason?: string) => started.push([engine, reason])
+		const failing = fakeOpencode({ fail: 'pairing expired' })
+		await suggestGroups(pile(6), { opencode: failing.ask, lm: fakeModel().lm, onEngine })
+		expect(started).toEqual([
+			['opencode', undefined],
+			['on-device', 'opencode: pairing expired'],
+		])
+		started.length = 0
+		await suggestGroups(pile(6), { opencode: fakeOpencode().ask, lm: null, onEngine })
+		expect(started).toEqual([['opencode', undefined]])
+	})
+
 	it('is skipped when another engine is asked for', async () => {
 		const opencode = fakeOpencode()
 		expect(
