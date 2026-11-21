@@ -149,7 +149,8 @@ async function refreshFolder(announce = false) {
 }
 
 /** What opencode has to allow: this extension's origin, chrome-extension://<its id> */
-const allowCommand = allowOriginCommand(location.origin)
+const papayaOrigin = location.origin
+const allowCommand = allowOriginCommand(papayaOrigin)
 
 /** The one-time setup step still to do, as a terminal command */
 const setupCommand = computed(() =>
@@ -402,22 +403,18 @@ onMounted(load)
 								Papaya's is
 								<code
 									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
-									>{{ allowCommand.split(' ').pop() }}</code
-								>. Allow it once with
+									>{{ papayaOrigin }}</code
+								>.
 								<code
 									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
-									>{{ allowCommand }}</code
-								>. That stops opencode's background service (and any session running
-								in it); open opencode again, or run
-								<code
-									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
-									>opencode service start</code
-								>, then check again. The command replaces the list:
-								<code
-									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
-									>opencode service get cors</code
+									>opencode service set cors</code
 								>
-								shows any origins already on it to add, separated by commas.
+								only takes web addresses, so the command to copy adds it to
+								opencode's service settings (<code
+									class="dark:bg-vercel-accents-2 rounded bg-slate-100 px-1 py-px font-mono text-xs"
+									>~/.config/opencode/service.json</code
+								>, keeping anything already there) and restarts opencode, which ends
+								any session running in it. Run it in a terminal, then check again.
 							</template>
 							<template v-else-if="folderStatus?.state === 'unsupported'">
 								{{ folderStatus.reason.replace(/[.\s]+$/, '') }}. Smart group asks

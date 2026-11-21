@@ -7,7 +7,7 @@
  * ~/.config/papaya-bar; opencode won't attach tools to a folder that doesn't exist, and
  * neither Papaya nor opencode can create it, so it's made once by hand. opencode also
  * refuses the connection from an origin it hasn't been told to allow, and Chrome sends
- * chrome-extension://<id>, so that's allowed once too (`opencode service set cors`).
+ * chrome-extension://<id>, so that's allowed once too (allowOriginCommand).
  *
  * Smart group uses this: in a short session in that folder, the model proposes each
  * group as a call to papaya_propose_group. Papaya checks every call (a tab number that
@@ -48,14 +48,21 @@ export type FolderStatus =
 	| { state: 'missing'; folder: string }
 	/**
 	 * opencode refuses tool connections from Papaya's origin (chrome-extension://…) until
-	 * it's on opencode's allowed list: `opencode service set cors <origin>`
+	 * it's on opencode's allowed list: see allowOriginCommand
 	 */
 	| { state: 'blocked'; folder: string }
 	/** This opencode doesn't offer client MCP */
 	| { state: 'unsupported'; reason: string }
 
-/** The command that lets Papaya (this extension's origin) connect its tools to opencode */
-export const allowOriginCommand = (origin: string) => `opencode service set cors ${origin}`
+/**
+ * The command that lets Papaya (this extension's origin) connect its tools to opencode.
+ * `opencode service set cors` only takes http(s) origins, though the server accepts
+ * any (`opencode serve --cors chrome-extension://…` works); the service's settings file
+ * only needs a list of strings. So the command adds the origin there (keeping any
+ * others) and restarts the service.
+ */
+export const allowOriginCommand = (origin: string) =>
+	`python3 -c 'import json,os;p=os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),"opencode","service.json");os.makedirs(os.path.dirname(p),exist_ok=True);d=json.load(open(p)) if os.path.exists(p) else {};c=d.setdefault("cors",[]);c.count("${origin}") or c.append("${origin}");json.dump(d,open(p,"w"),indent=2)' && opencode service restart`
 
 /**
  * The home folder a path is in. opencode's background service runs in the home folder

@@ -216,9 +216,14 @@ describe("Papaya's folder", () => {
 			folder: FOLDER,
 		})
 		await expect(hostTools(connection, FOLDER, [], server)).rejects.toThrow(/allow Papaya/)
-		expect(allowOriginCommand('chrome-extension://abc')).toBe(
-			'opencode service set cors chrome-extension://abc',
+		// `opencode service set cors` refuses non-web origins, so the command edits the
+		// service's settings file (keeping what's there) and restarts the service
+		const command = allowOriginCommand('chrome-extension://abc')
+		expect(command).toContain('"opencode","service.json"')
+		expect(command).toContain(
+			'c.count("chrome-extension://abc") or c.append("chrome-extension://abc")',
 		)
+		expect(command.endsWith('&& opencode service restart')).toBe(true)
 	})
 })
 
