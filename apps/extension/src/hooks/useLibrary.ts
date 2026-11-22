@@ -358,8 +358,28 @@ export function useLibrary() {
 		if (!options.quiet)
 			toast(`Saved ${pluralize(session.tabCount, 'tab')} as ${session.name}`, {
 				description: 'Your tabs stay open.',
+				action: { label: 'Show it', onClick: () => showSession(id) },
 			})
 		return id
+	}
+
+	/** From Home: what's open becomes a new closed session, and Home carries on empty */
+	async function startFresh(): Promise<void> {
+		const library = await start()
+		try {
+			const { id, failed } = await sendCommand('startFresh', {})
+			const session = getSession(library, id)
+			toast(`Saved ${pluralize(session?.tabCount ?? 0, 'tab')} as ${nameOf(id)}`, {
+				description: 'Home is empty now. Reopen switches to the new session.',
+				action: { label: 'Reopen', onClick: () => void switchTo(id) },
+				cancel: { label: 'Show it', onClick: () => showSession(id) },
+				duration: 15_000,
+			})
+			if (failed.length)
+				toast.warning(`Chrome wouldn't reopen ${pluralize(failed.length, 'tab')}`)
+		} catch (error) {
+			toast.error(`Couldn't start fresh: ${errorText(error)}`)
+		}
 	}
 
 	async function putAway(): Promise<void> {
@@ -377,7 +397,10 @@ export function useLibrary() {
 							action: { label: 'Show it', onClick: () => showSession(savedAs) },
 							duration: 10_000,
 						}
-					: { action: { label: 'Undo', onClick: () => void switchTo(leaving) } },
+					: {
+							description: 'Its tabs are saved as you left them.',
+							action: { label: 'Undo', onClick: () => void switchTo(leaving) },
+						},
 			)
 		} catch (error) {
 			toast.error(`Couldn't put it away: ${errorText(error)}`)
@@ -524,6 +547,7 @@ export function useLibrary() {
 		saveOpenAs,
 		saveCopy,
 		putAway,
+		startFresh,
 		openCopy,
 		moveTabs,
 		createSession,

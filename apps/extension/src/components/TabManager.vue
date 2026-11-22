@@ -81,7 +81,17 @@ import KeymapHelpOverlay from '@/components/KeymapHelpOverlay.vue'
 
 const { triggerConfirm } = useGlobalConfirm()
 const { onEditGroup, onCreateNewGroup } = useGlobalModals()
-const { saveCopy, switchable, moveTabs: moveToSession } = useLibrary()
+const {
+	saveCopy,
+	switchable,
+	moveTabs: moveToSession,
+	migrated,
+	openSession,
+	homeId,
+	needsChoice,
+	putAway,
+	startFresh,
+} = useLibrary()
 const { settings, loadSettings } = useSettings()
 const { open: openPalette } = useCommandPalette()
 
@@ -653,9 +663,19 @@ const closeUnSelectedTabs = () => {
 
 const tabIds = (tabs: Tab[]) => tabs.map((tab) => tab.id).filter((id): id is number => id != null)
 
+/** What a save takes: pinned tabs and Papaya's pages are never saved, and never closed */
+const savableTabs = computed(() => managedTabs.value.filter((tab) => !tab.pinned))
+
 const saveAll = () => {
-	if (managedTabs.value.length) void saveCopy(undefined, tabIds(managedTabs.value))
+	if (savableTabs.value.length) void saveCopy(undefined, tabIds(savableTabs.value))
 }
+
+/** The named session the windows belong to; null in Home */
+const namedOpen = computed(() =>
+	migrated.value && openSession.value && openSession.value.id !== homeId
+		? openSession.value
+		: null,
+)
 
 const removeDuplicates = () => {
 	const count = duplicateExtraCount.value
@@ -663,12 +683,16 @@ const removeDuplicates = () => {
 	toast(count ? `Closed ${pluralize(count, 'duplicate')}` : 'No duplicates to close')
 }
 
-const saveAndCloseAll = async () => {
-	const tabs = managedTabs.value
+/** Before the move into the library (no sessions yet): save a copy, then close the tabs */
+const saveCopyAndClose = async () => {
+	const tabs = savableTabs.value
 	if (!tabs.length) return
+	const pinned = managedTabs.value.length - tabs.length
 	await saveCopy(undefined, tabIds(tabs), { quiet: true })
 	closeTab(tabs)
-	toast(`Saved ${pluralize(tabs.length, 'tab')} as a session and closed them`)
+	toast(`Saved ${pluralize(tabs.length, 'tab')} as a session and closed them`, {
+		description: pinned ? `${pluralize(pinned, 'pinned tab')} stayed open.` : undefined,
+	})
 }
 
 const closeAll = () => {
@@ -2154,11 +2178,36 @@ onMounted(() => {
 							<EllipsisHorizontalIcon class="size-4" aria-hidden="true" />
 						</MenuButton>
 						<AppMenuItems width="w-64">
-							<AppMenuItem :icon="BookmarkIcon" @click="saveAll">
-								Save all as session
+							<AppMenuItem
+								:icon="BookmarkIcon"
+								:disabled="!savableTabs.length"
+								@click="saveAll"
+							>
+								Save a copy as new session
 							</AppMenuItem>
-							<AppMenuItem :icon="ArchiveBoxArrowDownIcon" @click="saveAndCloseAll">
-								Save session &amp; close all
+							<!-- In a named session: put it away. In Home: name what's open and start over. -->
+							<AppMenuItem
+								v-if="namedOpen"
+								:icon="ArchiveBoxArrowDownIcon"
+								@click="putAway"
+							>
+								Put “{{ namedOpen.name }}” away
+							</AppMenuItem>
+							<AppMenuItem
+								v-else-if="migrated"
+								:icon="ArchiveBoxArrowDownIcon"
+								:disabled="!savableTabs.length || needsChoice"
+								@click="startFresh"
+							>
+								Save as session &amp; start fresh
+							</AppMenuItem>
+							<AppMenuItem
+								v-else
+								:icon="ArchiveBoxArrowDownIcon"
+								:disabled="!savableTabs.length"
+								@click="saveCopyAndClose"
+							>
+								Save a copy &amp; close all
 							</AppMenuItem>
 							<AppMenuItem
 								:icon="Square2StackIcon"

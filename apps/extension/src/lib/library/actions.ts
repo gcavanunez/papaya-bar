@@ -338,6 +338,22 @@ export function putAway(lib: Library, now = Date.now()): Promise<SwitchResult | 
 	return switchTo(lib, ensureHome(lib, now), now)
 }
 
+/**
+ * Start fresh from Home: what's open becomes a new closed session (named from its sites
+ * unless a name is given), taking Home's stashed groups with it as naming it does. Its
+ * tabs close and Home stays open, empty. Pinned tabs and Papaya's pages stay open.
+ */
+export async function startFresh(
+	lib: Library,
+	name?: string,
+	now = Date.now(),
+): Promise<{ id: string; failed: string[] }> {
+	const real = (await captureOpen()).tabs.filter((tab) => isRealUrl(tab.url))
+	const id = await saveOpenAs(lib, name?.trim() || deriveName('', real), now)
+	const switched = await putAway(lib, now)
+	return { id, failed: switched?.failed ?? [] }
+}
+
 /** Reopen a session (or one of its checkpoints) next to what's open, without switching */
 export async function openCopy(
 	lib: Library,

@@ -41,6 +41,7 @@ const commands = {
 	saveCopy: (lib: Library, a: { name?: string; tabIds?: number[] }) =>
 		actions.saveCopy(lib, a.name, a.tabIds),
 	putAway: (lib: Library) => actions.putAway(lib),
+	startFresh: (lib: Library, a: { name?: string }) => actions.startFresh(lib, a.name),
 	moveTabs: (
 		lib: Library,
 		a: { tabIds: number[]; target: { sessionId: string } | { name: string } },

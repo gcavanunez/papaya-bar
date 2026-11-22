@@ -12,6 +12,7 @@ import {
 	saveCheckpoint,
 	saveCopy,
 	saveOpenAs,
+	startFresh,
 	isAddressTitle,
 	keepKnownTitles,
 	switchTo,
@@ -377,6 +378,35 @@ describe('putting away and copies', () => {
 		expect(getOpenSessionId(lib)).toBe('home')
 		expect(getSession(lib, id)).toMatchObject({ status: 'closed', tabCount: 2 })
 		expect(openUrls()).toEqual([OWN_PAGE, 'chrome://newtab/'])
+	})
+
+	it('starts fresh from Home: what was open is a new closed session, Home is open and empty', async () => {
+		await addStashed(lib, 'home', { name: 'Docs', color: 'blue' }, data('https://d.com').tabs)
+		const pinned = await chrome.tabs.create({ url: 'https://mail.com', pinned: true })
+		const { id, failed } = await startFresh(lib)
+		expect(failed).toEqual([])
+		expect(getSession(lib, id)).toMatchObject({
+			name: 'home-a.com, home-b.com',
+			status: 'closed',
+			tabCount: 2,
+		})
+		expect(urlsOf(await getSessionData(lib, id))).toEqual([
+			'https://home-a.com',
+			'https://home-b.com',
+		])
+		// Home's stashed groups went with its tabs
+		expect(listStashed(lib, id).map((g) => g.name)).toEqual(['Docs'])
+		expect(getOpenSessionId(lib)).toBe('home')
+		expect(getSession(lib, 'home')).toMatchObject({ status: 'open', tabCount: 0 })
+		expect(openUrls()).toEqual([OWN_PAGE, 'https://mail.com', 'chrome://newtab/'])
+		expect((await chrome.tabs.get(pinned.id!)).pinned).toBe(true)
+		expect(getLink(lib)).toBe('linked')
+		await expectOwned()
+	})
+
+	it('starts fresh under the name given', async () => {
+		const { id } = await startFresh(lib, '  Reading list ')
+		expect(getSession(lib, id)?.name).toBe('Reading list')
 	})
 
 	it('opens a copy of a session, or of a checkpoint, without switching', async () => {
