@@ -6,7 +6,6 @@ import {
 	MAX_CHECKPOINTS,
 	ROUTINE_CHECKPOINT_MS,
 	addCheckpoint,
-	addStashed,
 	applyMigration,
 	createLibrary,
 	createSession,
@@ -52,7 +51,6 @@ async function expectSingleOwners(lib: Library) {
 	const owners = [
 		...sessions.map((s) => s.contentId).filter(Boolean),
 		...Object.keys(lib.store.getTable('checkpoints')),
-		...Object.keys(lib.store.getTable('stashed')),
 	]
 	expect(new Set(owners).size).toBe(owners.length)
 }
@@ -85,7 +83,7 @@ describe('library store', () => {
 		// The planned open session becomes this device's, and the index no longer says it
 		expect(getOpenSessionId(lib)).toBe('home')
 		expect(getSession(lib, 'home')?.status).toBe('open')
-		expect(lib.store.getValues()).toEqual({ schemaVersion: 3, migratedAt: 2_000 })
+		expect(lib.store.getValues()).toEqual({ schemaVersion: 4, migratedAt: 2_000 })
 		for (const row of Object.values(lib.store.getTable('sessions'))) {
 			expect(row).not.toHaveProperty('status')
 			expect(row).not.toHaveProperty('headVersionId')
@@ -157,16 +155,14 @@ describe('library store', () => {
 		const lib = createLibrary()
 		const id = await createSession(lib, { name: 'Old name' }, data('https://a.com'))
 		await setContent(lib, id, data('https://b.com'), 'always')
-		await addStashed(lib, id, { name: 'Docs', color: 'blue' }, data('https://docs.com').tabs)
 		const other = await createSession(lib, { name: 'Other' }, data('https://other.com'))
 		updateSession(lib, id, { name: 'New name', description: 'notes' })
 		expect(getSession(lib, id)).toMatchObject({ name: 'New name', description: 'notes' })
 		await markOpen(lib, id)
-		expect(await lib.blobs.ids()).toHaveLength(4)
+		expect(await lib.blobs.ids()).toHaveLength(3)
 		await deleteSession(lib, id)
 		expect(getSession(lib, id)).toBeNull()
 		expect(lib.store.getTable('checkpoints')).toEqual({})
-		expect(lib.store.getTable('stashed')).toEqual({})
 		expect(await lib.blobs.ids()).toEqual([getSession(lib, other)!.contentId])
 		expect(getOpenSessionId(lib)).toBe('')
 	})

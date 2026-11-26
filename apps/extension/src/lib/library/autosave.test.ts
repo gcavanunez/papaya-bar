@@ -98,7 +98,7 @@ async function tripIsOpen() {
 	await fake.seedWindow([OWN_PAGE, ...TRIP])
 	await startWorker()
 	const id = await writer.enqueue(async (library) => {
-		library.store.setValues({ schemaVersion: 3, migratedAt: 1 })
+		library.store.setValues({ schemaVersion: 4, migratedAt: 1 })
 		const s = await createSession(library, { name: 'Trip' }, await captureOpen(), 1)
 		await markOpen(library, s, 1)
 		return s
@@ -165,7 +165,7 @@ describe('autosave', () => {
 		await fake.seedWindow([OWN_PAGE, 'https://a.com'])
 		await startWorker()
 		await writer.enqueue(async (library) => {
-			library.store.setValues({ schemaVersion: 3, migratedAt: 1 })
+			library.store.setValues({ schemaVersion: 4, migratedAt: 1 })
 		})
 		expect(await autosave.tick()).toBe('saved')
 		expect(getOpenSessionId(await lib())).toBe('')
@@ -279,7 +279,7 @@ describe('autosave', () => {
 			active: false,
 		})
 		const trip = await writer.enqueue(async (library) => {
-			library.store.setValues({ schemaVersion: 3, migratedAt: 1 })
+			library.store.setValues({ schemaVersion: 4, migratedAt: 1 })
 			const saved: SessionContent = {
 				...(await captureOpen()),
 				tabs: (await captureOpen()).tabs.map((t, i) => ({
@@ -441,7 +441,7 @@ describe('an empty window never overwrites a session', () => {
 		await fake.seedWindow([OWN_PAGE, ...SIX])
 		await startWorker()
 		const id = await writer.enqueue(async (library) => {
-			library.store.setValues({ schemaVersion: 3, migratedAt: 1 })
+			library.store.setValues({ schemaVersion: 4, migratedAt: 1 })
 			const s = await createSession(library, { name: 'Six' }, tabsOf(...SIX), 1)
 			await markOpen(library, s, 1)
 			return s

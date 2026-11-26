@@ -7,9 +7,10 @@
  * deterministic: it only reads the index (and what is stored for this device) and
  * writes the same result every time.
  */
+import { makePreview, type SavedTab, type SessionContent } from './model'
 import type { Library } from './store'
 
-export const LIBRARY_SCHEMA_VERSION = 3
+export const LIBRARY_SCHEMA_VERSION = 4
 /** Where the index is kept as it was before the first upgrade, in case one goes wrong */
 export const INDEX_V1_KEY = 'library:index:v1'
 
@@ -17,6 +18,7 @@ export const INDEX_V1_KEY = 'library:index:v1'
 const LINKS: Record<number, (lib: Library) => Promise<void>> = {
 	1: oneToTwo,
 	2: twoToThree,
+	3: threeToFour,
 }
 
 export interface UpgradeOptions {
@@ -139,3 +141,62 @@ async function twoToThree(lib: Library): Promise<void> {
 	})
 	await lib.device.set({ adoptLive: true })
 }
+
+/** A stashed group's tabs as a session's content: one window holding that one group */
+function asOneGroup(tabs: SavedTab[], name: string, color: string): SessionContent {
+	return {
+		tabs: tabs.map((tab, i) => ({ ...tab, windowId: 1, groupId: 1, active: i === 0 })),
+		groups: [{ id: 1, title: name, color, collapsed: false, windowId: 1 }],
+		windows: [{ id: 1 }],
+	}
+}
+
+/**
+ * 3 → 4: each stashed group becomes a closed session of its own, named and colored like
+ * the group, whose content is that one group (so opening a copy brings the group back
+ * into a window). The session takes the stash's id, and so does its entry, rewritten in
+ * a session's shape. A stash whose entry isn't stored (or holds no tabs) is dropped, and
+ * a session already made from one (an interrupted upgrade, a merged copy) stays as it is.
+ */
+async function threeToFour(lib: Library): Promise<void> {
+	const { store } = lib
+	const stored = new Set(await lib.blobs.ids())
+	const stashes = Object.entries(store.getTable('stashed'))
+	const contents: Record<string, SessionContent> = {}
+	for (const [id, row] of stashes) {
+		if (!stored.has(id) || store.hasRow('sessions', id)) continue
+		const tabs = (await lib.blobs.get(id))?.tabs ?? []
+		if (tabs.length) contents[id] = asOneGroup(tabs, groupName(row), groupColor(row))
+	}
+	// Entries are written before the index points at them
+	if (Object.keys(contents).length) await lib.blobs.set(contents)
+	store.transaction(() => {
+		for (const [id, row] of stashes) {
+			const data = contents[id]
+			if (data) {
+				const from = text(store.getCell('sessions', text(row.sessionId), 'name'))
+				const at = count(row.createdAt)
+				store.setRow('sessions', id, {
+					name: groupName(row),
+					description: from ? `Was a stashed group in ${from}` : 'Was a stashed group',
+					color: groupColor(row),
+					kind: 'normal',
+					archivedAt: 0,
+					createdAt: at,
+					updatedAt: at,
+					lastOpenedAt: 0,
+					contentId: id,
+					tabCount: data.tabs.length,
+					preview: makePreview(data),
+					origin: 'stashed-group',
+					originId: id,
+				})
+			}
+			store.delRow('stashed', id)
+		}
+		store.setValue('schemaVersion', 4)
+	})
+}
+
+const groupName = (row: Record<string, unknown>) => text(row.name).trim() || 'Unnamed group'
+const groupColor = (row: Record<string, unknown>) => text(row.color) || 'grey'

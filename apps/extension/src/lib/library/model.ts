@@ -31,8 +31,13 @@ export type CheckpointReason =
  * in the last 5 minutes, `always`, or `never`
  */
 export type ContentMode = 'routine' | 'careful' | 'always' | 'never'
-/** Where a migrated session came from */
-export type SessionOrigin = 'home' | 'context' | 'saved-session' | 'synced-session'
+/** Where a migrated session came from; `stashed-group` is a group stashed before schema 4 */
+export type SessionOrigin =
+	| 'home'
+	| 'context'
+	| 'saved-session'
+	| 'synced-session'
+	| 'stashed-group'
 
 export interface LibrarySession {
 	name: string
@@ -53,7 +58,7 @@ export interface LibrarySession {
 	/** JSON of up to four { favIconUrl, url } from its content, for list previews */
 	preview: string
 	origin: SessionOrigin
-	/** The old context id, saved-session key or synced session id */
+	/** The old context id, saved-session key, synced session id or stash id */
 	originId: string
 }
 
@@ -121,6 +126,19 @@ export interface SessionContent {
 	tabs: SavedTab[]
 	groups: SavedGroup[]
 	windows: SavedWindow[]
+}
+
+/**
+ * A content that is one tab group and nothing else, as a group saved as a session is.
+ * Opening a copy of one adds the group to a window instead of opening new windows.
+ */
+export function isOneGroup(data: SessionContent): boolean {
+	const [group] = data.groups
+	return (
+		data.groups.length === 1 &&
+		data.tabs.length > 0 &&
+		data.tabs.every((tab) => tab.groupId === group.id)
+	)
 }
 
 export const NO_GROUP = -1

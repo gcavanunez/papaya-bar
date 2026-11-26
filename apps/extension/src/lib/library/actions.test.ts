@@ -19,7 +19,6 @@ import {
 	toVersionTab,
 } from './actions'
 import {
-	addStashed,
 	createLibrary,
 	createSession,
 	ensureHome,
@@ -30,7 +29,6 @@ import {
 	getSessionData,
 	listCheckpoints,
 	listSessions,
-	listStashed,
 	markOpen,
 	referencedEntries,
 	setContent,
@@ -210,11 +208,9 @@ describe('saving', () => {
 			['https://home-a.com', 'https://home-b.com'],
 			['https://news.com'],
 		)
-		await addStashed(lib, 'home', { name: 'Docs', color: 'blue' }, data('https://d.com').tabs)
 		const before = structuredClone(lib.store.getRow('sessions', 'home'))
 		const id = await saveOpenAs(lib, 'Reading')
 		expect(lib.store.getRow('sessions', 'home')).toEqual(before)
-		expect(listStashed(lib, 'home').map((g) => g.name)).toEqual(['Docs'])
 		expect(urlsOf(await getSessionData(lib, id))).toEqual(['https://news.com'])
 		expect(getOpenSessionId(lib)).toBe(id)
 		expect(getLink(lib)).toBe('linked')
@@ -381,7 +377,6 @@ describe('putting away and copies', () => {
 	})
 
 	it('starts fresh from Home: what was open is a new closed session, Home is open and empty', async () => {
-		await addStashed(lib, 'home', { name: 'Docs', color: 'blue' }, data('https://d.com').tabs)
 		const pinned = await chrome.tabs.create({ url: 'https://mail.com', pinned: true })
 		const { id, failed } = await startFresh(lib)
 		expect(failed).toEqual([])
@@ -394,8 +389,6 @@ describe('putting away and copies', () => {
 			'https://home-a.com',
 			'https://home-b.com',
 		])
-		// Home's stashed groups went with its tabs
-		expect(listStashed(lib, id).map((g) => g.name)).toEqual(['Docs'])
 		expect(getOpenSessionId(lib)).toBe('home')
 		expect(getSession(lib, 'home')).toMatchObject({ status: 'open', tabCount: 0 })
 		expect(openUrls()).toEqual([OWN_PAGE, 'https://mail.com', 'chrome://newtab/'])

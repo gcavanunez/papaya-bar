@@ -8,7 +8,6 @@ import { planMigration } from './migrate'
 import type { SessionContent } from './model'
 import { INDEX_KEY } from './persist'
 import {
-	addStashed,
 	applyMigration,
 	createLibrary,
 	createSession,
@@ -17,7 +16,6 @@ import {
 	getOpenSessionId,
 	getSession,
 	getSessionData,
-	getStashedTabs,
 	isMigrated,
 	listCheckpoints,
 	listSessions,
@@ -190,17 +188,18 @@ describe("a page's copy", () => {
 
 	it('follows what the worker changes without asking', async () => {
 		const id = await seed((lib) => createSession(lib, { name: 'Trip' }, data('https://a.com')))
-		const stashId = await seed((lib) =>
-			addStashed(lib, id, { name: 'Docs', color: 'blue' }, data('https://docs.com').tabs),
+		const docs = await seed((lib) =>
+			createSession(lib, { name: 'Docs' }, data('https://docs.com')),
 		)
 		const page = await client.getLibrary()
-		expect((await getStashedTabs(page, stashId)).map((t) => t.url)).toEqual([
+		const docsEntry = getSession(page, docs)!.contentId
+		expect((await getSessionData(page, docs))?.tabs.map((t) => t.url)).toEqual([
 			'https://docs.com',
 		])
 
 		// As the website palette would: straight to the worker, not through this page
 		await writer.run('updateSession', { id, fields: { name: 'Trip to Lisbon' } })
-		await writer.run('removeStashed', { id: stashId })
+		await writer.run('deleteSession', { id: docs })
 		await writer.enqueue((lib) => markOpen(lib, id))
 		await writer.enqueue((lib) => setLink(lib, 'unlinked'))
 		await settle()
@@ -209,7 +208,7 @@ describe("a page's copy", () => {
 		// Whether the open windows are its tabs, for the page's banner
 		expect(getLink(page)).toBe('unlinked')
 		// The cached tabs go once the worker deletes them
-		expect(await page.blobs.get(stashId)).toBeNull()
+		expect(await page.blobs.get(docsEntry)).toBeNull()
 
 		await writer.run('deleteSession', { id })
 		await settle()
@@ -264,7 +263,7 @@ describe('opening', () => {
 
 		full = false
 		const page = await client.getLibrary()
-		expect(page.store.getValue('schemaVersion')).toBe(3)
+		expect(page.store.getValue('schemaVersion')).toBe(4)
 		expect(getOpenSessionId(page)).toBe('ctx-work')
 		expect(fake.storage.get(INDEX_V1_KEY)).toEqual(stored)
 	})
@@ -450,6 +449,6 @@ describe('when the index cannot be stored', () => {
 		await expect(writer.library()).rejects.toThrow(/could not save your sessions/)
 		expect(fake.storage.get(INDEX_KEY)).toEqual(before)
 		fixed()
-		expect((await writer.library()).store.getValue('schemaVersion')).toBe(3)
+		expect((await writer.library()).store.getValue('schemaVersion')).toBe(4)
 	})
 })

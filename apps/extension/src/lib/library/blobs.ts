@@ -1,6 +1,6 @@
 /**
  * Contents stored apart from the library index: one chrome.storage entry per session
- * content, checkpoint or stashed group (keys keep the original "version" prefix).
+ * content or checkpoint (keys keep the original "version" prefix).
  * Entries never change once written, so reads are cached until the stored entry is
  * deleted or replaced.
  */

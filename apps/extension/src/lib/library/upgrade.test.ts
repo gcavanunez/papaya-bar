@@ -6,7 +6,7 @@ import { sampleV2Entries, sampleV2Store, tabsOf } from '@/test/libraryV2'
 import { VERSION_KEY_PREFIX } from './blobs'
 import { INDEX_KEY } from './persist'
 import { createLibraryClient } from './client'
-import type { SessionContent } from './model'
+import { isOneGroup, makePreview, type SessionContent } from './model'
 import { openLibrary } from './runtime'
 import { DEVICE_KEY } from './state'
 import {
@@ -29,12 +29,23 @@ const settle = async () => {
 
 type Tables = ReturnType<MergeableStore['getTables']>
 
+/** A stashed group's tabs as the session it becomes at schema 4: one window, one group */
+function asGroupContent(data: SessionContent, name: string, color: string): SessionContent {
+	return {
+		tabs: data.tabs.map((tab, i) => ({ ...tab, windowId: 1, groupId: 1, active: i === 0 })),
+		groups: [{ id: 1, title: name, color, collapsed: false, windowId: 1 }],
+		windows: [{ id: 1 }],
+	}
+}
+
 /**
- * What an old index's tables should be at schema 3: everything kept; status moved
+ * What an old index's tables should be at schema 4: everything kept; status moved
  * (schema 1); each newest version that is stored becomes its session's content, every
- * other stored version a checkpoint; nothing points at an entry that is not stored
+ * other stored version a checkpoint; each stored stashed group a session of its own;
+ * nothing points at an entry that is not stored
  */
-function expectedTables(old: MergeableStore, stored: string[]): Tables {
+function expectedTables(old: MergeableStore, entries: Record<string, SessionContent>): Tables {
+	const stored = Object.keys(entries)
 	const tables = structuredClone(old.getTables())
 	const heads = new Set<string>()
 	for (const row of Object.values(tables.sessions)) {
@@ -59,6 +70,27 @@ function expectedTables(old: MergeableStore, stored: string[]): Tables {
 	}
 	delete tables.versions
 	if (Object.keys(checkpoints).length) tables.checkpoints = checkpoints
+	for (const [id, row] of Object.entries(tables.stashed ?? {})) {
+		if (!entries[id]?.tabs.length) continue
+		const [name, color] = [String(row.name), String(row.color)]
+		const content = asGroupContent(entries[id], name, color)
+		tables.sessions[id] = {
+			name,
+			description: `Was a stashed group in ${tables.sessions[String(row.sessionId)].name}`,
+			color,
+			kind: 'normal',
+			archivedAt: 0,
+			createdAt: row.createdAt,
+			updatedAt: row.createdAt,
+			lastOpenedAt: 0,
+			contentId: id,
+			tabCount: content.tabs.length,
+			preview: makePreview(content),
+			origin: 'stashed-group',
+			originId: id,
+		}
+	}
+	delete tables.stashed
 	return tables
 }
 
@@ -95,9 +127,9 @@ describe('upgrading a schema 1 library', () => {
 		storeEntries(V1_ENTRIES)
 
 		const { lib } = await openLibrary()
-		const expected = expectedTables(v1, Object.keys(V1_ENTRIES))
+		const expected = expectedTables(v1, V1_ENTRIES)
 		expect(lib.store.getTables()).toEqual(expected)
-		expect(lib.store.getValues()).toEqual({ schemaVersion: 3, migratedAt: 90 })
+		expect(lib.store.getValues()).toEqual({ schemaVersion: 4, migratedAt: 90 })
 		expect(getOpenSessionId(lib)).toBe('ctx-work')
 		expect(
 			listSessions(lib)
@@ -109,6 +141,7 @@ describe('upgrading a schema 1 library', () => {
 			['home', 'closed', 'home'],
 			['parked', 'closed', 'normal'],
 			['saved-a', 'closed', 'normal'],
+			['stash-1', 'closed', 'normal'],
 		])
 		expect(getSession(lib, 'ctx-trip')?.archivedAt).toBe(250)
 		expect(getSession(lib, 'ctx-work')?.contentId).toBe('w1')
@@ -140,11 +173,11 @@ describe('upgrading a schema 1 library', () => {
 			writer.library(),
 		])
 		await settle()
-		const expected = expectedTables(v1, Object.keys(V1_ENTRIES))
+		const expected = expectedTables(v1, V1_ENTRIES)
 		for (const lib of [panel, worker]) {
 			expect(lib.store.getTables()).toEqual(expected)
 			// The page's fresh store has default values, but the stored ones win
-			expect(lib.store.getValues()).toEqual({ schemaVersion: 3, migratedAt: 90 })
+			expect(lib.store.getValues()).toEqual({ schemaVersion: 4, migratedAt: 90 })
 			expect(getOpenSessionId(lib)).toBe('ctx-work')
 		}
 		const { lib: later } = await openLibrary()
@@ -162,7 +195,7 @@ describe('upgrading a schema 1 library', () => {
 		lib.store.setValue('schemaVersion', 1)
 		await upgradeLibrary(lib)
 		expect(lib.store.getTables()).toEqual(tables)
-		expect(lib.store.getValue('schemaVersion')).toBe(3)
+		expect(lib.store.getValue('schemaVersion')).toBe(4)
 	})
 
 	it('two copies upgrading separately merge into the same library', async () => {
@@ -175,8 +208,8 @@ describe('upgrading a schema 1 library', () => {
 		await upgradeLibrary(b)
 		a.store.merge(b.store)
 		for (const lib of [a, b]) {
-			expect(lib.store.getTables()).toEqual(expectedTables(v1, Object.keys(V1_ENTRIES)))
-			expect(lib.store.getValues()).toEqual({ schemaVersion: 3, migratedAt: 90 })
+			expect(lib.store.getTables()).toEqual(expectedTables(v1, V1_ENTRIES))
+			expect(lib.store.getValues()).toEqual({ schemaVersion: 4, migratedAt: 90 })
 			expect(getOpenSessionId(lib)).toBe('ctx-work')
 		}
 	})
@@ -228,9 +261,9 @@ describe('upgrading a schema 2 library', () => {
 		storeEntries(sampleV2Entries())
 
 		const { lib } = await openLibrary()
-		const expected = expectedTables(v2, V2_STORED)
+		const expected = expectedTables(v2, sampleV2Entries())
 		expect(lib.store.getTables()).toEqual(expected)
-		expect(lib.store.getValues()).toEqual({ schemaVersion: 3, migratedAt: 90 })
+		expect(lib.store.getValues()).toEqual({ schemaVersion: 4, migratedAt: 90 })
 		expect(getSession(lib, 'work')).toMatchObject({ contentId: 'w2', tabCount: 2 })
 		expect(listCheckpoints(lib, 'work').map((c) => [c.id, c.reason, c.createdAt])).toEqual([
 			['w1', 'manual', 150],
@@ -270,7 +303,7 @@ describe('upgrading a schema 2 library', () => {
 		lib.store.setValue('schemaVersion', 2)
 		await upgradeLibrary(lib)
 		expect(lib.store.getTables()).toEqual(tables)
-		expect(lib.store.getValue('schemaVersion')).toBe(3)
+		expect(lib.store.getValue('schemaVersion')).toBe(4)
 	})
 
 	it('keeps a content written since, making the old newest version a checkpoint', async () => {
@@ -293,7 +326,7 @@ describe('upgrading a schema 2 library', () => {
 		await upgradeLibrary(b)
 		a.store.merge(b.store)
 		for (const lib of [a, b] as Library[]) {
-			expect(lib.store.getTables()).toEqual(expectedTables(v2, V2_STORED))
+			expect(lib.store.getTables()).toEqual(expectedTables(v2, sampleV2Entries()))
 		}
 	})
 
@@ -337,6 +370,103 @@ describe('upgrading a schema 2 library', () => {
 		expect(fake.storage.get(INDEX_KEY)).toEqual(v2.getMergeableContent())
 		fake.chrome.storage.local.getKeys = getKeys
 		const { lib } = await openLibrary()
-		expect(lib.store.getValue('schemaVersion')).toBe(3)
+		expect(lib.store.getValue('schemaVersion')).toBe(4)
+	})
+})
+
+describe('upgrading a schema 3 library', () => {
+	const tab = (url: string) => ({
+		url,
+		title: url,
+		favIconUrl: '',
+		windowId: 0,
+		groupId: -1,
+		active: false,
+	})
+
+	/** Work, open, with three stashed groups: Docs (two tabs), Lost (its entry missing), Empty */
+	async function schema3() {
+		const lib = createLibrary()
+		lib.store.setRow('sessions', 'work', { name: 'Work', contentId: '' })
+		lib.store.setRow('stashed', 'stash-docs', {
+			sessionId: 'work',
+			name: 'Docs',
+			color: 'blue',
+			tabCount: 2,
+			preview: '[]',
+			createdAt: 160,
+		})
+		lib.store.setRow('stashed', 'stash-lost', {
+			sessionId: 'work',
+			name: 'Lost',
+			createdAt: 170,
+		})
+		lib.store.setRow('stashed', 'stash-empty', { sessionId: 'gone', name: '', createdAt: 180 })
+		lib.store.setValues({ schemaVersion: 3, migratedAt: 90 })
+		await lib.blobs.set({
+			'stash-docs': {
+				tabs: [tab('https://a.com'), tab('https://b.com')],
+				groups: [],
+				windows: [],
+			},
+			'stash-empty': { tabs: [], groups: [], windows: [] },
+		})
+		await lib.device.set({ openSessionId: 'work' })
+		return lib
+	}
+
+	it('each stashed group becomes a closed session whose content is that one group', async () => {
+		const lib = await schema3()
+		await upgradeLibrary(lib)
+		expect(lib.store.getValue('schemaVersion')).toBe(4)
+		expect(lib.store.getTable('stashed')).toEqual({})
+		expect(getSession(lib, 'stash-docs')).toMatchObject({
+			name: 'Docs',
+			color: 'blue',
+			description: 'Was a stashed group in Work',
+			status: 'closed',
+			createdAt: 160,
+			contentId: 'stash-docs',
+			tabCount: 2,
+			origin: 'stashed-group',
+		})
+		const content = (await getSessionData(lib, 'stash-docs'))!
+		expect(isOneGroup(content)).toBe(true)
+		expect(content.groups[0]).toMatchObject({ title: 'Docs', color: 'blue' })
+		expect(content.tabs.map((t) => t.url)).toEqual(['https://a.com', 'https://b.com'])
+		// A stash whose tabs were never stored, or held none, is dropped
+		expect(getSession(lib, 'stash-lost')).toBeNull()
+		expect(getSession(lib, 'stash-empty')).toBeNull()
+		// The open session stays open
+		expect(getOpenSessionId(lib)).toBe('work')
+	})
+
+	it('changes nothing when run again, and keeps a session already made from a stash', async () => {
+		const lib = await schema3()
+		await upgradeLibrary(lib)
+		lib.store.setCell('sessions', 'stash-docs', 'name', 'Renamed')
+		const once = structuredClone(lib.store.getTables())
+		lib.store.setRow('stashed', 'stash-docs', {
+			sessionId: 'work',
+			name: 'Docs',
+			createdAt: 160,
+		})
+		lib.store.setValue('schemaVersion', 3)
+		await upgradeLibrary(lib)
+		expect(lib.store.getTables()).toEqual(once)
+		expect(getSession(lib, 'stash-docs')?.name).toBe('Renamed')
+	})
+
+	it('two copies upgrading separately merge into the same library', async () => {
+		const a = await schema3()
+		const b = createLibrary()
+		b.store.setMergeableContent(structuredClone(a.store.getMergeableContent()))
+		await b.blobs.set(Object.fromEntries(await a.blobs.getMany(await a.blobs.ids())))
+		await upgradeLibrary(a)
+		await new Promise((resolve) => setTimeout(resolve, 5))
+		await upgradeLibrary(b)
+		a.store.merge(b.store)
+		expect(a.store.getTables()).toEqual(b.store.getTables())
+		expect(Object.keys(a.store.getTable('sessions')).sort()).toEqual(['stash-docs', 'work'])
 	})
 })

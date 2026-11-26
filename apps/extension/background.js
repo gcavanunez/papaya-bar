@@ -1,11 +1,5 @@
 import { cycleGroup, focusGroup, listOpenGroups } from './src/lib/tabGroups'
-import {
-	HOME_ID,
-	getOpenSessionId,
-	isMigrated,
-	listSessions,
-	listStashed,
-} from './src/lib/library/store'
+import { HOME_ID, getOpenSessionId, isMigrated, listSessions } from './src/lib/library/store'
 import { createAutosaver } from './src/lib/library/autosave'
 import { createLibraryWriter } from './src/lib/library/writer'
 
@@ -109,37 +103,17 @@ async function paletteGetModel() {
 					home: s.id === HOME_ID,
 				}))
 		: []
-	// Groups stashed in the open session
-	const stashed = migrated
-		? listStashed(lib, openSessionId || HOME_ID).map((g) => ({
-				id: g.id,
-				name: g.name,
-				color: g.color,
-				tabCount: g.tabCount,
-			}))
-		: []
-	return { groups, stashed, migrated, sessions, openTabs }
+	return { groups, migrated, sessions, openTabs }
 }
 
-/**
- * Tabs saved in stashed groups and closed sessions that match a search (contents load
- * once, then cache)
- */
+/** Tabs saved in closed sessions that match a search (contents load once, then cache) */
 async function paletteSearchSaved(query) {
 	const q = (query || '').trim().toLowerCase()
 	if (q.length < 2) return []
 	const lib = await library.library()
-	const sessions = listSessions(lib)
-	const sessionName = new Map(sessions.map((s) => [s.id, s.name]))
-	const sources = [
-		...listStashed(lib).map((g) => ({
-			id: g.id,
-			label: `${g.name} · ${sessionName.get(g.sessionId) ?? 'session'}`,
-		})),
-		...sessions
-			.filter((s) => s.status === 'closed' && s.contentId)
-			.map((s) => ({ id: s.contentId, label: s.name })),
-	]
+	const sources = listSessions(lib)
+		.filter((s) => s.status === 'closed' && s.contentId)
+		.map((s) => ({ id: s.contentId, label: s.name }))
 	const data = await lib.blobs.getMany(sources.map((source) => source.id))
 	const found = []
 	for (const source of sources) {
@@ -164,7 +138,7 @@ async function paletteJumpTab(tabId) {
 	return { ok: true }
 }
 
-async function handlePaletteMessage(message, sender) {
+async function handlePaletteMessage(message) {
 	switch (message.type) {
 		case 'palette.getModel':
 			return paletteGetModel()
@@ -185,15 +159,8 @@ async function handlePaletteMessage(message, sender) {
 		case 'palette.jumpTab':
 			return paletteJumpTab(message.tabId)
 		case 'palette.focusGroup':
-			// Shift swaps: the group you're in is stashed
-			if (message.swap) await library.run('swapToGroup', { groupId: message.groupId })
-			else await focusGroup(message.groupId)
+			await focusGroup(message.groupId)
 			return { ok: true }
-		case 'palette.openStashed': {
-			const args = { stashId: message.stashId, windowId: sender?.tab?.windowId }
-			await library.run(message.swap ? 'swapToStashed' : 'openStashed', args)
-			return { ok: true }
-		}
 		case 'palette.openUrl':
 			await chrome.tabs.create({ url: message.url })
 			return { ok: true }
@@ -202,11 +169,11 @@ async function handlePaletteMessage(message, sender) {
 	}
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 	if (!message || typeof message.type !== 'string' || !message.type.startsWith('palette.')) {
 		return
 	}
-	handlePaletteMessage(message, sender)
+	handlePaletteMessage(message)
 		.then(sendResponse)
 		.catch((error) => {
 			console.error('[papaya] palette', message.type, error)

@@ -18,16 +18,12 @@ import {
 	getOpenSessionId,
 	getSession,
 	getSessionData,
-	getStashed,
-	getStashedTabs,
 	isMigrated,
 	lastUsed,
 	listCheckpoints,
 	listSessions,
-	listStashed,
 	type Library,
 	type SessionSummary,
-	type StashedGroup,
 } from '@/lib/library/store'
 import type { Link } from '@/lib/library/state'
 
@@ -35,8 +31,6 @@ import type { Link } from '@/lib/library/state'
 
 const lib = shallowRef<Library | null>(null)
 const sessions = ref<SessionSummary[]>([])
-/** Every session's stashed groups */
-const stashedAll = ref<StashedGroup[]>([])
 const openId = ref('')
 const migrated = ref(false)
 const ready = ref(false)
@@ -70,7 +64,6 @@ function settleChoice(): void {
 function refresh(): void {
 	if (!lib.value) return
 	sessions.value = listSessions(lib.value)
-	stashedAll.value = listStashed(lib.value)
 	openId.value = getOpenSessionId(lib.value)
 	migrated.value = isMigrated(lib.value)
 	link.value = getLink(lib.value)
@@ -121,7 +114,7 @@ function savedAsDescription(savedAs: string, fromId: string): string {
 	return `The tabs that were open weren't part of ${nameOf(fromId)}, so Papaya saved them as a new session, “${nameOf(savedAs)}”.`
 }
 
-/** The window this page lives in (a side panel's window, or a tab's), where groups reopen */
+/** The window this page lives in (a side panel's window, or a tab's), where a group opens */
 async function thisWindow(): Promise<number | undefined> {
 	return (await chrome.windows.getCurrent().catch(() => null))?.id
 }
@@ -148,125 +141,51 @@ export function useLibrary() {
 		sessions.value.filter((s) => s.id !== openId.value && s.status !== 'archived'),
 	)
 	const archived = computed(() => sessions.value.filter((s) => s.status === 'archived'))
-	/** Groups stashed in the open session (Home's when nothing else is open) */
-	const stashed = computed(() =>
-		stashedAll.value.filter((g) => g.sessionId === (openId.value || HOME_ID)),
-	)
-	const stashedCount = (sessionId: string) =>
-		stashedAll.value.filter((g) => g.sessionId === sessionId).length
+	// ---------- Saving groups as sessions ----------
 
-	// ---------- Stashing groups ----------
-
-	async function stashGroup(groupId: number): Promise<void> {
+	/** Undo saving a group: it reopens where it was, and the session it became goes */
+	async function undoSaveGroup(sessionId: string, windowId: number): Promise<void> {
 		try {
-			const result = await sendCommand('stashGroup', { groupId })
-			toast(`Stashed ${result.name}`, {
-				action: {
-					label: 'Undo',
-					onClick: () => void openStashed(result.stashId, result.windowId),
-				},
-			})
+			const { failed } = await sendCommand('undoSaveGroup', { sessionId, windowId })
+			if (failed.length)
+				toast.warning(`Chrome wouldn't reopen ${pluralize(failed.length, 'tab')}`)
 		} catch (error) {
-			toast.error(`Couldn't stash it: ${errorText(error)}`)
+			toast.error(`Couldn't bring it back: ${errorText(error)}`)
 		}
 	}
 
-	async function stashGroups(groupIds: number[]): Promise<void> {
-		const results = await sendCommand('stashGroups', { groupIds })
-		if (!results.length) return
-		toast(`Stashed ${pluralize(results.length, 'group')}`, {
+	/** Save an open tab group as a new closed session, and close its tabs */
+	async function saveGroupAsSession(groupId: number): Promise<void> {
+		try {
+			const saved = await sendCommand('saveGroupAsSession', { groupId })
+			toast(`Saved ${saved.name} as a session`, {
+				description: 'Its tabs are closed. Open a copy of it to bring the group back.',
+				action: {
+					label: 'Undo',
+					onClick: () => void undoSaveGroup(saved.sessionId, saved.windowId),
+				},
+				cancel: { label: 'Show it', onClick: () => showSession(saved.sessionId) },
+			})
+		} catch (error) {
+			toast.error(`Couldn't save it: ${errorText(error)}`)
+		}
+	}
+
+	/** Save several open groups as sessions, one each */
+	async function saveGroupsAsSessions(groupIds: number[]): Promise<void> {
+		const saved = await sendCommand('saveGroupsAsSessions', { groupIds })
+		if (!saved.length) {
+			toast.error("Couldn't save those groups")
+			return
+		}
+		toast(`Saved ${pluralize(saved.length, 'group')} as sessions`, {
+			description: 'Their tabs are closed. Each is in Sessions under its own name.',
 			action: {
 				label: 'Undo',
 				onClick: async () => {
-					for (const r of [...results].reverse()) await openStashed(r.stashId, r.windowId)
+					for (const s of [...saved].reverse())
+						await undoSaveGroup(s.sessionId, s.windowId)
 				},
-			},
-		})
-	}
-
-	async function openStashed(stashId: string, windowId?: number): Promise<void> {
-		try {
-			const result = await sendCommand('openStashed', {
-				stashId,
-				windowId: windowId ?? (await thisWindow()),
-			})
-			if (result.failed.length) {
-				toast.warning(`Chrome wouldn't reopen ${pluralize(result.failed.length, 'tab')}`)
-			}
-		} catch (error) {
-			toast.error(`Couldn't open it: ${errorText(error)}`)
-		}
-	}
-
-	/** Open a stashed group and stash the group you were in */
-	async function swapToStashed(stashId: string): Promise<void> {
-		try {
-			const window = await thisWindow()
-			const { stashed: left } = await sendCommand('swapToStashed', {
-				stashId,
-				windowId: window,
-			})
-			if (left) {
-				toast(`Stashed ${left.name}`, {
-					action: { label: 'Undo', onClick: () => void swapToStashed(left.stashId) },
-				})
-			}
-		} catch (error) {
-			toast.error(`Couldn't swap: ${errorText(error)}`)
-		}
-	}
-
-	/** Focus an open group and stash the group you were in */
-	async function swapToGroup(groupId: number): Promise<void> {
-		try {
-			const { stashed: left } = await sendCommand('swapToGroup', { groupId })
-			if (left) {
-				toast(`Stashed ${left.name}`, {
-					action: { label: 'Undo', onClick: () => void swapToStashed(left.stashId) },
-				})
-			}
-		} catch (error) {
-			toast.error(`Couldn't swap: ${errorText(error)}`)
-		}
-	}
-
-	async function renameStashed(stashId: string, name: string): Promise<void> {
-		await sendCommand('updateStashed', { id: stashId, fields: { name } })
-	}
-
-	async function moveStashed(stashId: string, sessionId: string): Promise<void> {
-		const library = await start()
-		const group = getStashed(library, stashId)
-		if (!group) return
-		await sendCommand('updateStashed', { id: stashId, fields: { sessionId } })
-		toast(`Moved ${group.name} to ${nameOf(sessionId)}`, {
-			action: {
-				label: 'Undo',
-				onClick: () =>
-					void sendCommand('updateStashed', {
-						id: stashId,
-						fields: { sessionId: group.sessionId },
-					}),
-			},
-		})
-	}
-
-	async function deleteStashed(stashId: string): Promise<void> {
-		const library = await start()
-		const group = getStashed(library, stashId)
-		if (!group) return
-		const tabs = await getStashedTabs(library, stashId)
-		await sendCommand('removeStashed', { id: stashId })
-		toast(`Deleted ${group.name} and its ${pluralize(tabs.length, 'tab')}`, {
-			action: {
-				label: 'Undo',
-				onClick: () =>
-					void sendCommand('addStashed', {
-						sessionId: group.sessionId,
-						group: { name: group.name, color: group.color },
-						tabs,
-						createdAt: group.createdAt,
-					}),
 			},
 		})
 	}
@@ -407,12 +326,19 @@ export function useLibrary() {
 		}
 	}
 
-	/** Opens tabs only; the library does not change, so this stays in the page */
+	/**
+	 * Opens tabs only; the library does not change, so this stays in the page. A session
+	 * that is one group opens as that group in this page's window.
+	 */
 	async function openCopy(id: string, checkpointId?: string): Promise<void> {
 		const library = await start()
-		const result = await openCopyOf(library, id, checkpointId)
-		if (result?.failed.length)
-			toast.warning(`Chrome wouldn't reopen ${pluralize(result.failed.length, 'tab')}`)
+		try {
+			const result = await openCopyOf(library, id, checkpointId, await thisWindow())
+			if (result?.failed.length)
+				toast.warning(`Chrome wouldn't reopen ${pluralize(result.failed.length, 'tab')}`)
+		} catch (error) {
+			toast.error(`Couldn't open it: ${errorText(error)}`)
+		}
 	}
 
 	async function moveTabs(
@@ -517,9 +443,6 @@ export function useLibrary() {
 		openSession,
 		switchable,
 		archived,
-		stashed,
-		stashedAll,
-		stashedCount,
 		revision,
 		link,
 		needsChoice,
@@ -559,14 +482,7 @@ export function useLibrary() {
 		restoreCheckpoint,
 		saveEdits,
 		applyMove,
-		stashGroup,
-		stashGroups,
-		openStashed,
-		swapToStashed,
-		swapToGroup,
-		renameStashed,
-		moveStashed,
-		deleteStashed,
-		getStashedTabs: async (stashId: string) => getStashedTabs(await start(), stashId),
+		saveGroupAsSession,
+		saveGroupsAsSessions,
 	}
 }

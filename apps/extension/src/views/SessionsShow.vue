@@ -68,22 +68,7 @@ const {
 	remove,
 	restoreCheckpoint,
 	saveEdits,
-	stashedAll,
-	getStashedTabs,
-	openStashed,
-	deleteStashed,
 } = useLibrary()
-
-// ---------- Stashed groups ----------
-
-const sessionStashed = computed(() => stashedAll.value.filter((g) => g.sessionId === props.uid))
-/** Tabs of the stashed groups you've expanded, loaded on first expand */
-const stashTabs = ref(new Map<string, SavedTab[]>())
-async function toggleStash(id: string, open: boolean) {
-	if (open && !stashTabs.value.has(id)) {
-		stashTabs.value = new Map(stashTabs.value).set(id, await getStashedTabs(id))
-	}
-}
 
 const session = computed(() => sessions.value.find((s) => s.id === props.uid) ?? null)
 const isOpen = computed(() => session.value?.status === 'open')
@@ -606,79 +591,6 @@ function confirmDelete() {
 						"
 					/>
 				</div>
-
-				<section v-if="sessionStashed.length" aria-labelledby="stashed-h">
-					<h2 id="stashed-h" class="section-label mb-1 mt-8">
-						Stashed groups · {{ sessionStashed.length }}
-					</h2>
-					<p class="dark:text-vercel-accents-5 mb-2 text-xs text-slate-500">
-						Put away in this session. They stay as they are until you open or delete
-						them, and aren't part of its History.
-					</p>
-					<ul
-						role="list"
-						class="card dark:divide-vercel-accents-2/60 divide-y divide-slate-100"
-					>
-						<li v-for="item in sessionStashed" :key="item.id">
-							<details
-								@toggle="
-									toggleStash(item.id, ($event.target as HTMLDetailsElement).open)
-								"
-							>
-								<summary
-									class="dark:hover:bg-vercel-accents-1 flex cursor-pointer list-none items-center gap-2 px-4 py-2 hover:bg-slate-50"
-								>
-									<span
-										class="size-2.5 shrink-0 rounded-full"
-										:class="GROUP_DOT[item.color] ?? GROUP_DOT.grey"
-									/>
-									<span class="min-w-0 flex-1 truncate text-sm font-semibold">
-										{{ item.name }}
-									</span>
-									<span class="dark:text-vercel-accents-5 text-xs text-slate-500">
-										{{ pluralize(item.tabCount, 'tab') }} · stashed
-										{{ relative(item.createdAt) }}
-									</span>
-									<AppButton
-										v-if="isOpen"
-										size="xs"
-										@click.prevent="openStashed(item.id)"
-									>
-										Open
-									</AppButton>
-									<AppButton
-										intent="ghost"
-										size="xs"
-										square
-										:title="`Delete ${item.name}`"
-										@click.prevent="deleteStashed(item.id)"
-									>
-										<TrashIcon class="size-3.5" aria-hidden="true" />
-										<span class="sr-only">Delete {{ item.name }}</span>
-									</AppButton>
-								</summary>
-								<ul role="list" class="pb-2">
-									<li
-										v-for="(tab, i) in stashTabs.get(item.id) ?? []"
-										:key="i"
-										class="flex items-center gap-3 py-1.5 pl-8 pr-4"
-									>
-										<TabFavicon :src="tab.favIconUrl" :url="tab.url" />
-										<a
-											:href="tab.url"
-											target="_blank"
-											rel="noreferrer"
-											class="min-w-0 flex-1 truncate text-sm hover:underline"
-											:title="tab.url"
-										>
-											{{ tab.title || getDisplayUrl(tab.url) }}
-										</a>
-									</li>
-								</ul>
-							</details>
-						</li>
-					</ul>
-				</section>
 			</div>
 
 			<aside aria-labelledby="history-h">

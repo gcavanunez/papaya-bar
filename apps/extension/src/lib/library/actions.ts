@@ -8,7 +8,7 @@
  *
  * Pinned tabs and Papaya's own pages are never saved and never closed.
  */
-import { restoreSnapshot, type RestoreResult } from '@/lib/restore'
+import { restoreGroup, restoreSnapshot, type RestoreResult } from '@/lib/restore'
 import { getCloseableTabIds, isOwnPage } from '@/lib/liveTabs'
 import {
 	MAX_FAVICON_CHARS,
@@ -16,6 +16,7 @@ import {
 	compareTabs,
 	deriveName,
 	emptyContent,
+	isOneGroup,
 	isRealUrl,
 	type CheckpointReason,
 	type ContentMode,
@@ -33,11 +34,9 @@ import {
 	getOpenSessionId,
 	getSession,
 	getSessionData,
-	listStashed,
 	markOpen,
 	setContent,
 	setLink,
-	updateStashed,
 	type ContentWrite,
 	type Library,
 } from './store'
@@ -297,7 +296,7 @@ export async function saveCheckpoint(lib: Library, now = Date.now()): Promise<st
 
 /**
  * Name what's open: it becomes a new session, and the open one. Coming from Home, Home
- * is left empty, since its tabs and stashed groups now belong to the new session; when
+ * is left empty, since its tabs now belong to the new session; when
  * the open tabs are not the open session's (unlinked), the session being left stays
  * exactly as it is.
  */
@@ -313,8 +312,6 @@ export async function saveOpenAs(lib: Library, name: string, now = Date.now()): 
 			reason: 'upgrade',
 			now,
 		})
-		for (const group of listStashed(lib, HOME_ID))
-			updateStashed(lib, group.id, { sessionId: id })
 	}
 	await markOpen(lib, id, now)
 	await settleLinked(lib, now)
@@ -340,8 +337,8 @@ export function putAway(lib: Library, now = Date.now()): Promise<SwitchResult | 
 
 /**
  * Start fresh from Home: what's open becomes a new closed session (named from its sites
- * unless a name is given), taking Home's stashed groups with it as naming it does. Its
- * tabs close and Home stays open, empty. Pinned tabs and Papaya's pages stay open.
+ * unless a name is given). Its tabs close and Home stays open, empty. Pinned tabs and
+ * Papaya's pages stay open.
  */
 export async function startFresh(
 	lib: Library,
@@ -354,16 +351,22 @@ export async function startFresh(
 	return { id, failed: switched?.failed ?? [] }
 }
 
-/** Reopen a session (or one of its checkpoints) next to what's open, without switching */
+/**
+ * Reopen a session (or one of its checkpoints) next to what's open, without switching:
+ * in new windows, or, for one that is a single tab group (a group saved as a session),
+ * as that group in a window (the given one, else the last focused).
+ */
 export async function openCopy(
 	lib: Library,
 	sessionId: string,
 	checkpointId?: string,
+	windowId?: number,
 ): Promise<RestoreResult | null> {
 	const data = checkpointId
 		? await getCheckpointData(lib, checkpointId)
 		: await getSessionData(lib, sessionId)
-	return data?.tabs.length ? restoreSnapshot(data) : null
+	if (!data?.tabs.length) return null
+	return isOneGroup(data) ? restoreGroup(data, windowId) : restoreSnapshot(data)
 }
 
 export interface CheckpointRestore {

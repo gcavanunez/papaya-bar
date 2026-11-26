@@ -6,7 +6,6 @@ import { exportLibrary, importLibrary, type LibraryBackup } from './backup'
 import { planMigration } from './migrate'
 import type { SessionContent } from './model'
 import {
-	addStashed,
 	createLibrary,
 	createSession,
 	deleteSession,
@@ -42,7 +41,6 @@ async function sample() {
 		now: 2,
 	})
 	const work = await createSession(lib, { name: 'Work' }, data('https://jira.com'), 3)
-	await addStashed(lib, work, { name: 'Docs', color: 'blue' }, data('https://docs.com').tabs, 3)
 	markOpen(lib, work, 4)
 	return { lib, trip, work }
 }
@@ -57,12 +55,12 @@ beforeEach(() => {
 })
 
 describe('library backups', () => {
-	it('round-trips sessions, contents, checkpoints and stashed groups', async () => {
-		const { lib, trip, work } = await sample()
+	it('round-trips sessions, contents and checkpoints', async () => {
+		const { lib, trip } = await sample()
 		const exported = await exportLibrary(lib)
 		// Everything the index refers to, and nothing else
 		expect(Object.keys(exported.versions).sort()).toEqual([...referencedEntries(lib)].sort())
-		expect(Object.keys(exported.versions)).toHaveLength(4)
+		expect(Object.keys(exported.versions)).toHaveLength(3)
 		const backup = JSON.parse(JSON.stringify(exported))
 		const fresh = createLibrary()
 		const summary = await importLibrary(fresh, backup, 'replace')
@@ -78,10 +76,6 @@ describe('library backups', () => {
 		expect(
 			(await getCheckpointData(fresh, listCheckpoints(fresh, trip)[0].id))?.tabs,
 		).toHaveLength(1)
-		expect(Object.values(fresh.store.getTable('stashed'))[0]).toMatchObject({
-			sessionId: work,
-			name: 'Docs',
-		})
 		await expectOwned(fresh)
 	})
 
@@ -205,8 +199,15 @@ describe('library backups', () => {
 		expect(getSession(lib, 'ctx-trip')).toMatchObject({ status: 'archived', archivedAt: 250 })
 		expect(getSession(lib, 'parked')?.kind).toBe('normal')
 		expect(lib.store.getRow('sessions', 'ctx-work')).not.toHaveProperty('status')
-		expect(lib.store.getValues()).toEqual({ schemaVersion: 3, migratedAt: 90 })
-		expect(Object.keys(lib.store.getTable('stashed'))).toEqual(['stash-1'])
+		expect(lib.store.getValues()).toEqual({ schemaVersion: 4, migratedAt: 90 })
+		// Its stashed group is a session of its own now
+		expect(lib.store.getTable('stashed')).toEqual({})
+		expect(getSession(lib, 'stash-1')).toMatchObject({
+			name: 'Docs',
+			color: 'blue',
+			status: 'closed',
+			description: 'Was a stashed group in Work',
+		})
 		expect(getSession(lib, 'ctx-work')?.contentId).toBe('w1')
 		// w0's entry was not in this backup: nothing points at it
 		expect(listCheckpoints(lib, 'ctx-work')).toEqual([])
@@ -215,21 +216,18 @@ describe('library backups', () => {
 		const fresh = createLibrary()
 		await importLibrary(fresh, backup, 'replace')
 		expect(getOpenSessionId(fresh)).toBe('')
-		expect(listSessions(fresh)).toHaveLength(5)
+		expect(listSessions(fresh)).toHaveLength(6)
 	})
 
 	it('a backup missing some entries imports nothing that points at them', async () => {
 		const { lib, trip, work } = await sample()
 		const backup = await exportLibrary(lib)
-		const stashId = Object.keys(lib.store.getTable('stashed'))[0]
 		const checkpointId = listCheckpoints(lib, trip)[0].id
 		delete backup.versions[getSession(lib, work)!.contentId]
-		delete backup.versions[stashId]
 		delete backup.versions[checkpointId]
 		const fresh = createLibrary()
 		await importLibrary(fresh, JSON.parse(JSON.stringify(backup)), 'replace')
 		expect(getSession(fresh, work)).toMatchObject({ contentId: '', tabCount: 0 })
-		expect(fresh.store.getTable('stashed')).toEqual({})
 		expect(listCheckpoints(fresh, trip)).toEqual([])
 		expect((await getSessionData(fresh, trip))?.tabs).toHaveLength(2)
 		await expectOwned(fresh)
@@ -246,9 +244,10 @@ describe('library backups', () => {
 		const mine = await createSession(lib, { name: 'Mine' }, data('https://x.com'))
 		await markOpen(lib, mine)
 		const summary = await importLibrary(lib, backup, 'merge')
-		expect(summary).toEqual({ sessions: 4, checkpoints: 3 })
+		// Its stashed group came in as a fifth session
+		expect(summary).toEqual({ sessions: 5, checkpoints: 3 })
 		expect(getOpenSessionId(lib)).toBe(mine)
-		expect(lib.store.getValue('schemaVersion')).toBe(3)
+		expect(lib.store.getValue('schemaVersion')).toBe(4)
 		expect(getSession(lib, 'work')?.contentId).toBe('w2')
 		expect(listCheckpoints(lib, 'work').map((c) => c.id)).toEqual(['w1', 'w0'])
 		expect(getSession(lib, 'lost')).toMatchObject({ contentId: '', tabCount: 0 })
@@ -275,7 +274,7 @@ describe('library backups', () => {
 				.sort(),
 		).toEqual(['Home', 'Old'])
 		expect(lib.store.getValue('migratedAt')).toBeGreaterThan(0)
-		expect(lib.store.getValue('schemaVersion')).toBe(3)
+		expect(lib.store.getValue('schemaVersion')).toBe(4)
 		expect(
 			(await getSessionData(lib, listSessions(lib).find((s) => s.name === 'Old')!.id))?.tabs,
 		).toHaveLength(1)

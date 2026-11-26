@@ -2,7 +2,7 @@
  * Manual data backup — "Download my data" / "Import data".
  *
  * Bundles everything that's *yours* into one JSON file:
- *  - library:        your sessions, their checkpoints and stashed groups
+ *  - library:        your sessions and their checkpoints
  *  - tinybase:       the old contexts store, kept as the rollback copy
  *  - legacySessions: the old saved-sessions list (chrome.storage.local)
  *  - settings:       UI preferences

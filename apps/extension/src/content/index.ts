@@ -47,8 +47,6 @@ function installPalette(): void {
 
 	interface Model {
 		groups: { id: number; title: string; color: string; tabCount: number }[]
-		/** Groups stashed in the open session */
-		stashed: { id: string; name: string; color: string; tabCount: number }[]
 		migrated: boolean
 		sessions: {
 			id: string
@@ -70,8 +68,7 @@ function installPalette(): void {
 		label: string
 		sub: string
 		icon: string
-		/** `shift`: Shift was held, which swaps groups */
-		run: (shift?: boolean) => void
+		run: () => void
 	}
 
 	const COLORS: Record<string, string> = {
@@ -178,20 +175,7 @@ function installPalette(): void {
 					label: g.title || 'Unnamed group',
 					sub: `group · ${g.tabCount} tabs`,
 					icon: `<span class="dot" style="background:${COLORS[g.color] || COLORS.grey}"></span>`,
-					run: (shift) =>
-						act({ type: 'palette.focusGroup', groupId: g.id, swap: !!shift }),
-				}),
-			)
-		;(model.stashed || [])
-			.filter((g) => matches(g.name))
-			.slice(0, 8)
-			.forEach((g) =>
-				out.push({
-					label: g.name,
-					sub: `stashed · ${g.tabCount} tabs`,
-					icon: `<span class="dot" style="opacity:.6;background:${COLORS[g.color] || COLORS.grey}"></span>`,
-					run: (shift) =>
-						act({ type: 'palette.openStashed', stashId: g.id, swap: !!shift }),
+					run: () => act({ type: 'palette.focusGroup', groupId: g.id }),
 				}),
 			)
 
@@ -278,9 +262,9 @@ function installPalette(): void {
 		if (!list) return
 		list.innerHTML = rows
 		root.querySelectorAll<HTMLElement>('.row').forEach((el) =>
-			el.addEventListener('click', (e) => {
+			el.addEventListener('click', () => {
 				const i = Number(el.dataset.i)
-				items[i]?.run(e.shiftKey)
+				items[i]?.run()
 			}),
 		)
 	}
@@ -411,7 +395,7 @@ function installPalette(): void {
 		else if (e.key === 'Tab') step(e.shiftKey ? -1 : 1)
 		else if (e.key === 'Enter') {
 			e.preventDefault()
-			items[activeIndex]?.run(e.shiftKey)
+			items[activeIndex]?.run()
 		}
 	}
 

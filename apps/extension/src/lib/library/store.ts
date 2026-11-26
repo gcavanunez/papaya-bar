@@ -1,9 +1,9 @@
 /**
  * The library: sessions, their content and their checkpoints.
  *
- * The index (sessions, checkpoints, stashed groups) is a TinyBase MergeableStore, so
+ * The index (sessions and their checkpoints) is a TinyBase MergeableStore, so
  * copies in different pages and the background worker merge instead of overwriting each
- * other. Contents (a session's tabs, a checkpoint's, a stashed group's) live in `blobs`,
+ * other. Contents (a session's tabs, a checkpoint's) live in `blobs`,
  * one entry each, so the index stays small. Every entry has exactly one owner, so an
  * owner going away is the only reason to delete its entry.
  * The old stores are never touched and serve as the rollback copy.
@@ -24,7 +24,6 @@ import {
 	type ContentMode,
 	type LibraryCheckpoint,
 	type LibrarySession,
-	type SavedTab,
 	type SessionContent,
 	type SessionStatus,
 } from './model'
@@ -71,18 +70,6 @@ export interface CheckpointSummary extends LibraryCheckpoint {
 	id: string
 }
 
-/** A group put away inside a session: its tabs are closed and kept here */
-export interface StashedGroup {
-	id: string
-	sessionId: string
-	name: string
-	color: string
-	tabCount: number
-	/** JSON of up to four { favIconUrl, url }, as for sessions */
-	preview: string
-	createdAt: number
-}
-
 /**
  * TinyBase drops tables, cells and values a schema doesn't declare when it loads stored
  * content, so names older schemas used stay declared until the upgrade has moved them
@@ -103,6 +90,15 @@ const LEGACY_TABLES = {
 		tabCount: { type: 'number' },
 		windowCount: { type: 'number' },
 		groupCount: { type: 'number' },
+	},
+	/** Schemas 1 to 3: groups stashed in a session; each is a session of its own since 4 */
+	stashed: {
+		sessionId: { type: 'string' },
+		name: { type: 'string' },
+		color: { type: 'string' },
+		tabCount: { type: 'number' },
+		preview: { type: 'string' },
+		createdAt: { type: 'number' },
 	},
 } as const
 const LEGACY_VALUES = {
@@ -144,14 +140,6 @@ export function createLibrary(
 			groupCount: { type: 'number', default: 0 },
 		},
 		...LEGACY_TABLES,
-		stashed: {
-			sessionId: { type: 'string', default: '' },
-			name: { type: 'string', default: '' },
-			color: { type: 'string', default: 'grey' },
-			tabCount: { type: 'number', default: 0 },
-			preview: { type: 'string', default: '[]' },
-			createdAt: { type: 'number', default: 0 },
-		},
 	})
 	store.setValuesSchema({
 		...LEGACY_VALUES,
@@ -346,7 +334,7 @@ function pruneCheckpoints(lib: Library, sessionId: string, keep?: string): strin
 	return pruned
 }
 
-/** Every entry id the index refers to, including schema 2 names not yet upgraded */
+/** Every entry id the index refers to, including older schemas' tables not yet upgraded */
 export function referencedEntries(lib: Library): Set<string> {
 	const ids = new Set([
 		...Object.keys(lib.store.getTable('checkpoints')),
@@ -476,71 +464,16 @@ export async function forgetIfOpen(lib: Library, id: string, now = Date.now()): 
 	await setLink(lib, 'unknown', now)
 }
 
-/** Delete a session with everything it owns: its content, checkpoints and stashed groups */
+/** Delete a session with everything it owns: its content and its checkpoints */
 export async function deleteSession(lib: Library, id: string): Promise<void> {
 	const contentId = getSession(lib, id)?.contentId ?? ''
 	const checkpointIds = listCheckpoints(lib, id).map((c) => c.id)
-	const stashIds = listStashed(lib, id).map((g) => g.id)
 	lib.store.transaction(() => {
 		for (const checkpointId of checkpointIds) lib.store.delRow('checkpoints', checkpointId)
-		for (const stashId of stashIds) lib.store.delRow('stashed', stashId)
 		lib.store.delRow('sessions', id)
 	})
 	await forgetIfOpen(lib, id)
-	await releaseEntries(lib, [contentId, ...checkpointIds, ...stashIds])
-}
-
-// ==================== Stashed groups ====================
-
-/** A session's stashed groups, most recently stashed first; every session's without an id */
-export function listStashed(lib: Library, sessionId?: string): StashedGroup[] {
-	return Object.entries(lib.store.getTable('stashed'))
-		.map(([id, row]) => ({ id, ...row }) as StashedGroup)
-		.filter((g) => sessionId == null || g.sessionId === sessionId)
-		.sort((a, b) => b.createdAt - a.createdAt)
-}
-
-export function getStashed(lib: Library, id: string): StashedGroup | null {
-	const row = lib.store.getRow('stashed', id)
-	return Object.keys(row).length ? ({ id, ...row } as StashedGroup) : null
-}
-
-export async function getStashedTabs(lib: Library, id: string): Promise<SavedTab[]> {
-	return (await lib.blobs.get(id))?.tabs ?? []
-}
-
-/** Keep a group's tabs in a session. The tabs are written before the index lists them. */
-export async function addStashed(
-	lib: Library,
-	sessionId: string,
-	group: { name: string; color: string },
-	tabs: SavedTab[],
-	now = Date.now(),
-): Promise<string> {
-	const id = `stash-${newId()}`
-	await lib.blobs.set({ [id]: { tabs, groups: [], windows: [] } })
-	lib.store.setRow('stashed', id, {
-		sessionId,
-		name: group.name,
-		color: group.color,
-		tabCount: tabs.length,
-		preview: makePreview({ tabs }),
-		createdAt: now,
-	})
-	return id
-}
-
-export function updateStashed(
-	lib: Library,
-	id: string,
-	fields: Partial<Pick<StashedGroup, 'name' | 'color' | 'sessionId'>>,
-): void {
-	lib.store.setPartialRow('stashed', id, fields)
-}
-
-export async function removeStashed(lib: Library, id: string): Promise<void> {
-	lib.store.delRow('stashed', id)
-	await releaseEntries(lib, [id])
+	await releaseEntries(lib, [contentId, ...checkpointIds])
 }
 
 /** Home: where you are when no other session is open. Created on first need. */

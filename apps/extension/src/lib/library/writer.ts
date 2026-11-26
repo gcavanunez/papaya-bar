@@ -11,22 +11,18 @@ import * as actions from './actions'
 import { importLibrary, type LibraryBackup } from './backup'
 import { COMMAND_MESSAGE, OPEN_MESSAGE, type WorkerReply } from './client'
 import type { MigrationResult } from './migrate'
-import type { LibrarySession, SessionContent, SavedTab } from './model'
+import * as groups from './groups'
+import type { LibrarySession, SessionContent } from './model'
 import { openLibrary, type WriterLibrary } from './runtime'
-import * as stash from './stash'
 import {
-	addStashed,
 	applyMigration,
 	createSession,
 	deleteSession,
 	isMigrated,
-	removeStashed,
 	setContent,
 	setStatus,
 	updateSession,
-	updateStashed,
 	type Library,
-	type StashedGroup,
 } from './store'
 
 /**
@@ -67,29 +63,14 @@ const commands = {
 	reopenSaved: (lib: Library) => actions.reopenSaved(lib),
 	/** Unlinked: what's open becomes the open session's content */
 	keepOpen: (lib: Library) => actions.keepOpen(lib),
-	stashGroup: (lib: Library, a: { groupId: number }) => stash.stashGroup(lib, a.groupId),
-	stashGroups: (lib: Library, a: { groupIds: number[] }) => stash.stashGroups(lib, a.groupIds),
-	/** `windowId`: where to reopen it, which only the asking page knows */
-	openStashed: (lib: Library, a: { stashId: string; windowId?: number }) =>
-		stash.openStashed(lib, a.stashId, a.windowId),
-	swapToStashed: (lib: Library, a: { stashId: string; windowId?: number }) =>
-		stash.swapToStashed(lib, a.stashId, a.windowId),
-	swapToGroup: (lib: Library, a: { groupId: number }) => stash.swapToGroup(lib, a.groupId),
-	/** Put a deleted stashed group back (Undo) */
-	addStashed: (
-		lib: Library,
-		a: {
-			sessionId: string
-			group: Pick<StashedGroup, 'name' | 'color'>
-			tabs: SavedTab[]
-			createdAt?: number
-		},
-	) => addStashed(lib, a.sessionId, a.group, a.tabs, a.createdAt),
-	updateStashed: async (
-		lib: Library,
-		a: { id: string; fields: Partial<Pick<StashedGroup, 'name' | 'color' | 'sessionId'>> },
-	) => updateStashed(lib, a.id, a.fields),
-	removeStashed: (lib: Library, a: { id: string }) => removeStashed(lib, a.id),
+	/** Save an open tab group as a new closed session, and close its tabs */
+	saveGroupAsSession: (lib: Library, a: { groupId: number }) =>
+		groups.saveGroupAsSession(lib, a.groupId),
+	saveGroupsAsSessions: (lib: Library, a: { groupIds: number[] }) =>
+		groups.saveGroupsAsSessions(lib, a.groupIds),
+	/** Undo saving a group; `windowId`: where it was, to reopen it there */
+	undoSaveGroup: (lib: Library, a: { sessionId: string; windowId?: number }) =>
+		groups.undoSaveGroup(lib, a.sessionId, a.windowId),
 	/**
 	 * The move-in from the old stores, planned by a page (only pages can read them). Only
 	 * once: a late second plan must not reset what has been saved since.

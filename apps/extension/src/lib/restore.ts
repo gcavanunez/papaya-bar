@@ -5,6 +5,7 @@
  * Framework-free (`chrome.*` only). Each saved tab is tracked to the tab created for
  * it, so groups and the active tab come back exactly, even when addresses repeat.
  */
+import { focusGroup } from '@/lib/tabGroups'
 
 export interface SnapshotTab {
 	url?: string
@@ -188,4 +189,75 @@ export async function restoreSnapshot(snapshot: Snapshot): Promise<RestoreResult
 		result.tabIds.push(...created.filter((id): id is number => id != null))
 	}
 	return result
+}
+
+/** The window to open into: the one given if it's still there, else the last focused, else a new one */
+async function targetWindow(windowId?: number): Promise<number> {
+	if (windowId != null) {
+		const win = await chrome.windows.get(windowId).catch(() => null)
+		if (win?.id != null) return win.id
+	}
+	const last = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null)
+	if (last?.id != null) return last.id
+	const created = await chrome.windows.create({})
+	return created!.id!
+}
+
+/**
+ * Open a snapshot that is one tab group (a group saved as a session) as that group at
+ * the end of a window, focused, with the window's other groups folded. Only its first tab
+ * loads; the rest stay unloaded until clicked, so even a big group opens cheaply. Throws
+ * if Chrome opens none of its tabs.
+ */
+export async function restoreGroup(snapshot: Snapshot, windowId?: number): Promise<RestoreResult> {
+	const saved = snapshot.groups[0]
+	const window = await targetWindow(windowId)
+	const created: number[] = []
+	const failed: string[] = []
+	for (const tab of snapshot.tabs) {
+		try {
+			const opened = await chrome.tabs.create({
+				windowId: window,
+				url: tab.url || undefined,
+				active: created.length === 0,
+			})
+			if (opened.id != null) created.push(opened.id)
+		} catch {
+			failed.push(tab.url ?? '')
+		}
+	}
+	if (!created.length) throw new Error("Chrome wouldn't reopen any of its tabs")
+
+	const groupId = await chrome.tabs.group({
+		tabIds: created as [number, ...number[]],
+		createProperties: { windowId: window },
+	})
+	await chrome.tabGroups.update(groupId, {
+		title: saved?.title ?? '',
+		color: (saved?.color ?? 'grey') as chrome.tabGroups.Color,
+		collapsed: false,
+	})
+	await focusGroup(groupId)
+	// Unload all but the first; Chrome loads each one when it's clicked
+	await Promise.all(created.slice(1).map(unloadOnceCommitted))
+	return { windowIds: [window], tabIds: created, failed }
+}
+
+const COMMIT_WAIT_MS = 5000
+
+/**
+ * Unload a new tab once Chrome has committed its address. Unloading it earlier keeps
+ * the address only as pending, which Chrome then drops, leaving a blank tab. A tab
+ * that doesn't commit in time just stays loaded.
+ */
+async function unloadOnceCommitted(tabId: number): Promise<void> {
+	for (let waited = 0; waited < COMMIT_WAIT_MS; waited += 100) {
+		const tab = await chrome.tabs.get(tabId).catch(() => null)
+		if (!tab || tab.active) return
+		if (tab.url) {
+			await chrome.tabs.discard(tabId).catch(() => null)
+			return
+		}
+		await new Promise((resolve) => setTimeout(resolve, 100))
+	}
 }

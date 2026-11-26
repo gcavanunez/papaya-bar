@@ -1,6 +1,7 @@
 /**
  * The library's part of a backup file: the index, plus every entry it refers to (each
- * session's content, its checkpoints, its stashed groups).
+ * session's content and its checkpoints). An older backup is upgraded as it's read, so
+ * its stashed groups come in as sessions of their own.
  *
  * Importing writes fresh rows rather than loading the file's store as-is: other open
  * pages merge what they hear, so only new writes (and deletions, for Replace) are
@@ -128,10 +129,8 @@ async function dropMissing(temp: Library): Promise<void> {
 					preview: '[]',
 				})
 		}
-		for (const table of ['checkpoints', 'stashed']) {
-			for (const id of temp.store.getRowIds(table))
-				if (!stored.has(id)) temp.store.delRow(table, id)
-		}
+		for (const id of temp.store.getRowIds('checkpoints'))
+			if (!stored.has(id)) temp.store.delRow('checkpoints', id)
 	})
 }
 
@@ -153,10 +152,7 @@ async function displacedContents(lib: Library, tables: Tables) {
  * deleting one owner's entry never takes another's.
  */
 async function ownEntriesOnce(lib: Library): Promise<void> {
-	const others = new Set([
-		...Object.keys(lib.store.getTable('checkpoints')),
-		...Object.keys(lib.store.getTable('stashed')),
-	])
+	const others = new Set(Object.keys(lib.store.getTable('checkpoints')))
 	for (const [sessionId, row] of Object.entries(lib.store.getTable('sessions'))) {
 		const id = String(row.contentId ?? '')
 		if (!id) continue
