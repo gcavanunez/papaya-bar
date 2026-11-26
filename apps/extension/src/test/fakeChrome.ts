@@ -62,9 +62,15 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 		area: string,
 	) => void
 	const storageListeners = new Set<StorageListener>()
+	/**
+	 * Like Chrome, storage keeps JSON: what's written comes back as a JSON copy, so
+	 * `undefined` inside an array (TinyBase's mark for something deleted) reads as `null`
+	 */
+	const asStored = <T>(value: T): T =>
+		value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T)
 	/** Like Chrome, listeners hear about a write after it lands, in every "document" */
 	function emitStorage(changes: Record<string, chrome.storage.StorageChange>, area = 'local') {
-		const copy = structuredClone(changes)
+		const copy = asStored(changes)
 		setTimeout(() => storageListeners.forEach((listener) => listener(copy, area)), 0)
 	}
 	function storageArea(map: Map<string, unknown>, area: string) {
@@ -72,7 +78,7 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 			async get(keys?: string | string[] | null) {
 				const list = keys == null ? [...map.keys()] : Array.isArray(keys) ? keys : [keys]
 				return Object.fromEntries(
-					list.filter((k) => map.has(k)).map((k) => [k, structuredClone(map.get(k))]),
+					list.filter((k) => map.has(k)).map((k) => [k, asStored(map.get(k))]),
 				)
 			},
 			async getKeys() {
@@ -82,7 +88,7 @@ export function installFakeChrome(options: FakeChromeOptions = {}) {
 				const changes: Record<string, chrome.storage.StorageChange> = {}
 				for (const [k, v] of Object.entries(items)) {
 					changes[k] = { oldValue: map.get(k), newValue: v }
-					map.set(k, structuredClone(v))
+					map.set(k, asStored(v))
 				}
 				emitStorage(changes, area)
 			},

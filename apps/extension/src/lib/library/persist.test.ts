@@ -51,6 +51,21 @@ describe('library persistence', () => {
 		expect(manager.names()).toEqual([])
 	})
 
+	it('a deleted session stays deleted when the index is read back from storage', async () => {
+		const panel = await openPage()
+		const keep = await createSession(panel.lib, { name: 'Keep' })
+		const gone = await createSession(panel.lib, { name: 'Gone' })
+		await deleteSession(panel.lib, gone)
+		await settle()
+		// Storage holds JSON, so the deletion is stored as null, not as an empty session
+		const stored = JSON.stringify(fake.storage.get(INDEX_KEY))
+		expect(stored).toContain(gone)
+		// Opened afresh (a page reloading, the worker starting again)
+		const later = await openPage()
+		expect(later.names()).toEqual(['Keep'])
+		expect(listSessions(later.lib).map((s) => s.id)).toEqual([keep])
+	})
+
 	it('keeps both changes when two pages write at the same moment', async () => {
 		const panel = await openPage()
 		const manager = await openPage()

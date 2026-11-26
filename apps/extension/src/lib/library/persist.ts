@@ -22,6 +22,31 @@ const hashes = (content: MergeableContent | undefined) =>
 /** The trailing 1 marks stored content as changes, which TinyBase merges */
 const asChanges = (content: MergeableContent) => [...content, 1] as unknown as MergeableChanges
 
+type Stamped = [unknown, ...unknown[]]
+type Stamps<T> = [Record<string, T>, ...unknown[]]
+const revive = ([value, ...stamps]: Stamped): Stamped => [value ?? undefined, ...stamps]
+const each = <T, U>([things, ...stamps]: Stamps<T>, change: (thing: T) => U): Stamps<U> => [
+	Object.fromEntries(Object.entries(things ?? {}).map(([id, thing]) => [id, change(thing)])),
+	...stamps,
+]
+
+/**
+ * An index as TinyBase wrote it, from what was stored. chrome.storage keeps JSON, which
+ * turns TinyBase's mark for a deleted cell or value (`undefined`) into `null`, and TinyBase
+ * reads a `null` cell that has a default as that default: a deleted session would come
+ * back as an empty one, named ''. No schema here allows `null`, so each `null` is a
+ * deletion again. Backup files are JSON too, and read the same way.
+ */
+export function fromStored(stored: unknown): MergeableContent | undefined {
+	if (!Array.isArray(stored) || !Array.isArray(stored[0]) || !Array.isArray(stored[1]))
+		return undefined
+	const [tables, values] = stored as [Stamps<Stamps<Stamps<Stamped>>>, Stamps<Stamped>]
+	return [
+		each(tables, (table) => each(table, (row) => each(row, revive))),
+		each(values, revive),
+	] as unknown as MergeableContent
+}
+
 /**
  * Load the stored index into the store, then save every change. `beforeSaving` runs
  * once the stored index has loaded and before anything is saved (the upgrade); if it
@@ -41,17 +66,14 @@ export async function startLibraryPersistence(
 
 	const persisterInstance = createCustomPersister(
 		store,
-		async () => {
-			const stored = (await chrome.storage.local.get(INDEX_KEY))[INDEX_KEY]
-			return Array.isArray(stored) ? (stored as MergeableContent) : undefined
-		},
+		async () => fromStored((await chrome.storage.local.get(INDEX_KEY))[INDEX_KEY]),
 		async (getContent) => {
 			await chrome.storage.local.set({ [INDEX_KEY]: getContent() })
 		},
 		(listener) => {
 			const onChanged: StorageListener = (changes, area) => {
-				const saved = changes[INDEX_KEY]?.newValue as MergeableContent | undefined
-				if (area !== 'local' || !Array.isArray(saved)) return
+				const saved = fromStored(changes[INDEX_KEY]?.newValue)
+				if (area !== 'local' || !saved) return
 				if (hashes(saved) === hashes(store.getMergeableContent())) return
 				listener(undefined, asChanges(saved) as Parameters<typeof listener>[1])
 				if (saving && hashes(saved) !== hashes(store.getMergeableContent()))
@@ -112,17 +134,16 @@ export async function writeIndex(store: MergeableStore): Promise<void> {
 export async function followLibraryIndex(store: MergeableStore) {
 	const read = async () => (await chrome.storage.local.get(INDEX_KEY))[INDEX_KEY]
 	const merge = (saved: unknown) => {
-		if (!Array.isArray(saved)) return
-		const content = saved as MergeableContent
-		if (hashes(content) !== hashes(store.getMergeableContent()))
+		const content = fromStored(saved)
+		if (content && hashes(content) !== hashes(store.getMergeableContent()))
 			store.applyMergeableChanges(asChanges(content))
 	}
 	const onChanged: StorageListener = (changes, area) => {
 		if (area === 'local' && INDEX_KEY in changes) merge(changes[INDEX_KEY].newValue)
 	}
 
-	const first = await read()
-	if (Array.isArray(first)) store.setMergeableContent(first as MergeableContent)
+	const first = fromStored(await read())
+	if (first) store.setMergeableContent(first)
 	chrome.storage.onChanged.addListener(onChanged)
 	const pull = async () => merge(await read())
 	// Anything saved between the first read and listening

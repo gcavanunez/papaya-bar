@@ -20,6 +20,7 @@ import {
 	setLink,
 	type Library,
 } from './store'
+import { fromStored } from './persist'
 import { upgradeLibrary } from './upgrade'
 
 export interface LibraryBackup {
@@ -47,7 +48,8 @@ async function rowsOf(source: LibraryBackup | MigrationResult): Promise<{
 }> {
 	const temp = createLibrary()
 	if ('index' in source) {
-		temp.store.setMergeableContent(source.index)
+		// A backup file is JSON, so its deletions are read back as deletions
+		temp.store.setMergeableContent(fromStored(source.index) ?? source.index)
 		// The upgrade keeps only what has its entry, so the entries go in first
 		await temp.blobs.set(source.versions ?? {})
 		await upgradeLibrary(temp)

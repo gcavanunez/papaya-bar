@@ -9,6 +9,7 @@ import {
 	addStashed,
 	createLibrary,
 	createSession,
+	deleteSession,
 	getCheckpointData,
 	getOpenSessionId,
 	getSession,
@@ -82,6 +83,16 @@ describe('library backups', () => {
 			name: 'Docs',
 		})
 		await expectOwned(fresh)
+	})
+
+	it('a session deleted before the backup was written stays deleted', async () => {
+		const { lib, trip } = await sample()
+		await deleteSession(lib, trip)
+		// A backup file is JSON, as the download writes it
+		const backup = JSON.parse(JSON.stringify(await exportLibrary(lib)))
+		const fresh = createLibrary()
+		await importLibrary(fresh, backup, 'replace')
+		expect(listSessions(fresh).map((s) => s.name)).toEqual(['Work'])
 	})
 
 	it('replace keeps the open session when the backup has it too', async () => {
